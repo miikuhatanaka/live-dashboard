@@ -1,0 +1,1743 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>いまポチch LIVE分析</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Noto+Sans+JP:wght@400;500;700&display=swap');
+
+:root {
+  --bg: #0a0a0f;
+  --s1: #13131a;
+  --s2: #1c1c28;
+  --border: #2a2a3a;
+  --accent: #fe2c55;
+  --teal: #25f4ee;
+  --text: #f0f0f5;
+  --muted: #6b6b85;
+  --gold: #ffd700;
+  --green: #22c55e;
+  --purple: #a855f7;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: var(--bg); color: var(--text); font-family: 'Space Grotesk','Noto Sans JP',sans-serif; padding: 24px; min-height: 100vh; }
+
+/* Header */
+header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 32px; padding-bottom: 20px; border-bottom: 1px solid var(--border); flex-wrap: wrap; gap: 12px; }
+.logo { display: flex; align-items: center; gap: 12px; }
+.logo-mark { width: 40px; height: 40px; background: var(--accent); border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 20px; }
+h1 { font-size: 20px; font-weight: 700; }
+h1 span { color: var(--accent); }
+.updated { font-size: 12px; color: var(--muted); }
+.header-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+
+/* Buttons */
+.btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; border: none; font-family: inherit; transition: all .2s; }
+.btn-primary { background: var(--accent); color: white; }
+.btn-primary:hover { background: #e0243d; }
+.btn-teal { background: var(--teal); color: #000; }
+.btn-teal:hover { opacity: .85; }
+.btn-outline { background: none; border: 1px solid var(--border); color: var(--muted); }
+.btn-outline:hover { border-color: var(--teal); color: var(--teal); }
+.btn-gold { background: var(--gold); color: #000; }
+.btn-gold:hover { opacity: .85; }
+.btn-sm { padding: 5px 10px; font-size: 11px; }
+.btn-danger { background: none; border: 1px solid #ff4444; color: #ff4444; }
+.btn-danger:hover { background: #ff444422; }
+
+/* Summary cards */
+.summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-bottom: 28px; }
+.card { background: var(--s1); border: 1px solid var(--border); border-radius: 12px; padding: 16px; }
+.card:hover { border-color: var(--accent); transition: border-color .2s; }
+.card-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .6px; font-weight: 600; margin-bottom: 8px; }
+.card-val { font-size: 26px; font-weight: 700; letter-spacing: -1px; }
+.card-val.red { color: var(--accent); }
+.card-val.teal { color: var(--teal); }
+.card-val.gold { color: var(--gold); }
+.card-val.green { color: var(--green); }
+.card-sub { font-size: 11px; color: var(--muted); margin-top: 4px; }
+
+/* Charts row */
+.charts-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px; }
+@media (max-width: 700px) { .charts-row { grid-template-columns: 1fr; } }
+.chart-card { background: var(--s1); border: 1px solid var(--border); border-radius: 12px; padding: 20px; }
+.chart-title { font-size: 13px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; margin-bottom: 16px; }
+.chart-wrap { position: relative; height: 220px; }
+
+/* Live detail table */
+.section { background: var(--s1); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; margin-bottom: 24px; }
+.section-head { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; border-bottom: 1px solid var(--border); flex-wrap: wrap; gap: 8px; }
+.section-head h2 { font-size: 15px; font-weight: 600; }
+.badge { font-size: 11px; background: var(--s2); border: 1px solid var(--border); padding: 4px 10px; border-radius: 20px; color: var(--muted); }
+
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+thead th { text-align: left; padding: 10px 16px; font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; background: var(--s2); border-bottom: 1px solid var(--border); white-space: nowrap; }
+tbody tr { border-bottom: 1px solid var(--border); transition: background .15s; }
+tbody tr:last-child { border-bottom: none; }
+tbody tr:hover { background: var(--s2); }
+td { padding: 12px 16px; vertical-align: middle; }
+td.num { font-weight: 700; color: var(--teal); }
+td.date { color: var(--muted); font-size: 12px; }
+td.highlight { color: var(--accent); font-weight: 700; }
+td.gold-text { color: var(--gold); }
+
+/* Detail expand */
+.detail-row { display: none; }
+.detail-row.open { display: table-row; }
+.detail-row td { padding: 0; }
+.detail-inner { padding: 16px 20px; background: var(--s2); border-top: 1px solid var(--border); }
+.detail-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; }
+.detail-block { background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 12px 14px; }
+.detail-block h4 { font-size: 11px; color: var(--accent); text-transform: uppercase; letter-spacing: .5px; margin-bottom: 8px; font-weight: 700; }
+.kv { display: flex; justify-content: space-between; align-items: center; padding: 3px 0; font-size: 12px; }
+.kv .k { color: var(--muted); }
+.kv .v { font-weight: 600; }
+
+/* Traffic bar */
+.traffic-bar { display: flex; height: 6px; border-radius: 3px; overflow: hidden; margin-top: 6px; }
+.tb-live { background: var(--accent); }
+.tb-other { background: var(--muted); }
+
+.expand-btn { background: none; border: 1px solid var(--border); color: var(--muted); padding: 4px 10px; border-radius: 6px; font-size: 11px; cursor: pointer; font-family: inherit; transition: all .2s; }
+.expand-btn:hover { border-color: var(--accent); color: var(--accent); }
+.expand-btn.open { border-color: var(--teal); color: var(--teal); }
+
+/* Insight boxes */
+.insights { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; margin-bottom: 24px; }
+.insight { background: var(--s1); border: 1px solid var(--border); border-left: 3px solid var(--teal); border-radius: 8px; padding: 14px 16px; font-size: 13px; line-height: 1.6; }
+.insight.warn { border-left-color: var(--accent); }
+.insight.gold { border-left-color: var(--gold); }
+.insight strong { color: var(--text); display: block; margin-bottom: 4px; font-size: 13px; }
+.insight span { color: var(--muted); font-size: 12px; }
+#insightsArea .loading { color: var(--muted); font-size: 13px; padding: 16px; text-align: center; background: var(--s1); border: 1px solid var(--border); border-radius: 8px; }
+
+/* Modal */
+.modal-overlay { display: none; position: fixed; inset: 0; background: #000a; z-index: 1000; align-items: center; justify-content: center; padding: 20px; }
+.modal-overlay.open { display: flex; }
+.modal { background: var(--s1); border: 1px solid var(--border); border-radius: 16px; padding: 28px; width: 100%; max-width: 640px; max-height: 90vh; overflow-y: auto; }
+.modal h3 { font-size: 17px; font-weight: 700; margin-bottom: 20px; }
+.modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 24px; flex-wrap: wrap; }
+
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+@media (max-width: 500px) { .form-grid { grid-template-columns: 1fr; } }
+.form-group { display: flex; flex-direction: column; gap: 6px; }
+.form-group label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; font-weight: 600; }
+.form-group input, .form-group textarea, .form-group select {
+  background: var(--s2); border: 1px solid var(--border); color: var(--text);
+  padding: 9px 12px; border-radius: 8px; font-size: 13px; font-family: inherit;
+  outline: none; transition: border-color .2s;
+}
+.form-group input:focus, .form-group textarea:focus { border-color: var(--teal); }
+.form-section-title { font-size: 12px; color: var(--accent); text-transform: uppercase; letter-spacing: .5px; font-weight: 700; margin: 16px 0 8px; grid-column: 1/-1; border-top: 1px solid var(--border); padding-top: 16px; }
+
+/* Import area */
+.import-area { background: var(--s2); border: 2px dashed var(--border); border-radius: 12px; padding: 24px; text-align: center; margin-bottom: 16px; cursor: pointer; transition: border-color .2s; }
+.import-area:hover, .import-area.drag-over { border-color: var(--teal); }
+.import-area p { color: var(--muted); font-size: 13px; }
+
+/* Toast */
+.toast { position: fixed; bottom: 24px; right: 24px; background: var(--s1); border: 1px solid var(--border); border-radius: 10px; padding: 12px 20px; font-size: 13px; z-index: 2000; transform: translateY(100px); opacity: 0; transition: all .3s; max-width: 320px; }
+.toast.show { transform: translateY(0); opacity: 1; }
+.toast.success { border-left: 3px solid var(--green); }
+.toast.error { border-left: 3px solid var(--accent); }
+
+/* Bookmarklet section */
+.bookmarklet-box { background: var(--s1); border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin-bottom: 24px; }
+.bookmarklet-box h3 { font-size: 14px; font-weight: 600; margin-bottom: 8px; }
+.bookmarklet-box p { font-size: 12px; color: var(--muted); margin-bottom: 12px; line-height: 1.7; }
+.bookmarklet-link { display: inline-block; background: var(--s2); border: 1px solid var(--teal); color: var(--teal); padding: 8px 16px; border-radius: 8px; text-decoration: none; font-size: 13px; font-weight: 600; cursor: move; }
+.step-list { list-style: none; counter-reset: steps; }
+.step-list li { counter-increment: steps; display: flex; gap: 10px; margin-bottom: 8px; font-size: 12px; color: var(--muted); }
+.step-list li::before { content: counter(steps); background: var(--accent); color: white; width: 20px; height: 20px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; flex-shrink: 0; }
+
+/* Claude API section */
+.api-section { background: var(--s1); border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin-bottom: 24px; }
+.api-section h3 { font-size: 14px; font-weight: 600; margin-bottom: 8px; }
+.api-key-row { display: flex; gap: 8px; align-items: center; }
+.api-key-row input { flex: 1; }
+
+/* Date filter bar */
+.date-filter-bar { background: var(--s1); border: 1px solid var(--border); border-radius: 12px; padding: 14px 18px; margin-bottom: 20px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.preset-btns { display: flex; gap: 6px; flex-wrap: wrap; }
+.preset-btn { background: var(--s2); border: 1px solid var(--border); color: var(--muted); padding: 5px 12px; border-radius: 20px; font-size: 12px; cursor: pointer; font-family: inherit; transition: all .15s; }
+.preset-btn:hover { border-color: var(--teal); color: var(--teal); }
+.preset-btn.active { background: var(--teal); border-color: var(--teal); color: #000; font-weight: 700; }
+.date-inputs { display: flex; align-items: center; gap: 8px; margin-left: auto; }
+.date-inputs input[type=date] { background: var(--s2); border: 1px solid var(--border); color: var(--text); padding: 5px 10px; border-radius: 8px; font-size: 12px; font-family: inherit; outline: none; }
+.date-inputs input[type=date]:focus { border-color: var(--teal); }
+.date-inputs span { color: var(--muted); font-size: 13px; }
+.filter-info { font-size: 11px; color: var(--muted); white-space: nowrap; }
+
+/* KPI section */
+.kpi-section { background: var(--s1); border: 1px solid var(--border); border-radius: 12px; padding: 18px 20px; margin-bottom: 24px; }
+.kpi-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; flex-wrap: wrap; gap: 8px; }
+.kpi-header h2 { font-size: 15px; font-weight: 700; }
+.kpi-header h2 span { font-size: 12px; color: var(--muted); font-weight: 400; margin-left: 6px; }
+.kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
+.kpi-card { background: var(--s2); border: 1px solid var(--border); border-radius: 10px; padding: 14px; }
+.kpi-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; font-weight: 600; margin-bottom: 4px; }
+.kpi-values { display: flex; align-items: baseline; gap: 6px; margin-bottom: 8px; }
+.kpi-actual { font-size: 22px; font-weight: 700; }
+.kpi-target { font-size: 12px; color: var(--muted); }
+.kpi-rate { font-size: 12px; font-weight: 700; margin-bottom: 6px; }
+.kpi-rate.green { color: var(--green); }
+.kpi-rate.yellow { color: var(--gold); }
+.kpi-rate.red { color: var(--accent); }
+.progress-bar { height: 6px; background: var(--border); border-radius: 3px; overflow: hidden; }
+.progress-fill { height: 100%; border-radius: 3px; transition: width .4s ease; }
+.progress-fill.green { background: var(--green); }
+.progress-fill.yellow { background: var(--gold); }
+.progress-fill.red { background: var(--accent); }
+
+/* Sales section */
+.sales-section { background: var(--s1); border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin-bottom: 24px; }
+.sales-section h3 { font-size: 14px; font-weight: 600; margin-bottom: 6px; }
+.sales-section p { font-size: 12px; color: var(--muted); margin-bottom: 14px; line-height: 1.6; }
+.sales-form-row { display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap; margin-bottom: 14px; }
+.sales-form-row .form-group { flex: 1; min-width: 140px; }
+.screenshot-upload { border: 2px dashed var(--border); border-radius: 10px; padding: 20px; text-align: center; cursor: pointer; transition: border-color .2s; margin-top: 10px; }
+.screenshot-upload:hover { border-color: var(--teal); }
+.screenshot-upload input[type=file] { display: none; }
+.screenshot-upload label { cursor: pointer; display: block; }
+.screenshot-upload .upload-icon { font-size: 28px; margin-bottom: 6px; }
+.screenshot-upload p { font-size: 12px; color: var(--muted); margin: 0; }
+.screenshot-upload p span { color: var(--teal); font-weight: 600; }
+.screenshot-preview { max-width: 100%; max-height: 200px; border-radius: 8px; margin-top: 10px; border: 1px solid var(--border); }
+.screenshot-result { background: var(--s2); border: 1px solid var(--teal); border-radius: 8px; padding: 12px; margin-top: 10px; font-size: 12px; }
+
+/* Claude-in-Chrome import section */
+.claude-import-box { background: var(--s1); border: 2px solid var(--teal); border-radius: 14px; padding: 22px; margin-bottom: 24px; }
+.claude-import-box h3 { font-size: 15px; font-weight: 700; margin-bottom: 6px; color: var(--teal); }
+.claude-import-box .sub { font-size: 12px; color: var(--muted); margin-bottom: 18px; line-height: 1.7; }
+.flow-steps { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-bottom: 18px; }
+.flow-step { background: var(--s2); border: 1px solid var(--border); border-radius: 10px; padding: 14px; }
+.flow-step .step-num { display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; background: var(--accent); border-radius: 50%; font-size: 11px; font-weight: 700; color: white; margin-bottom: 8px; }
+.flow-step .step-title { font-size: 12px; font-weight: 700; margin-bottom: 4px; }
+.flow-step .step-body { font-size: 11px; color: var(--muted); line-height: 1.6; }
+.flow-step a.bm-link { display: inline-block; margin-top: 6px; background: var(--bg); border: 1px solid var(--teal); color: var(--teal); padding: 5px 12px; border-radius: 6px; text-decoration: none; font-size: 12px; font-weight: 700; cursor: move; }
+.prompt-box { background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 12px; font-size: 11px; color: var(--muted); line-height: 1.7; font-family: monospace; white-space: pre-wrap; word-break: break-all; max-height: 120px; overflow-y: auto; margin-top: 6px; }
+.claude-paste-area { width: 100%; background: var(--s2); border: 1px solid var(--border); color: var(--text); padding: 12px; border-radius: 8px; font-size: 12px; font-family: monospace; resize: vertical; outline: none; min-height: 90px; margin-top: 8px; }
+.claude-paste-area:focus { border-color: var(--teal); }
+.import-row { display: flex; gap: 8px; align-items: center; margin-top: 10px; flex-wrap: wrap; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <div class="logo-mark">🦁</div>
+    <div>
+      <h1>いまポチch <span>LIVE</span> 分析</h1>
+      <div class="updated" id="updatedLabel">読み込み中...</div>
+    </div>
+  </div>
+  <div class="header-actions">
+    <span id="syncStatus" style="font-size:12px;color:var(--muted);align-self:center"></span>
+    <button id="btnImportJson" class="btn btn-outline" onclick="openImportModal()">📥 JSONインポート</button>
+    <button class="btn btn-outline" onclick="exportData()">📤 エクスポート</button>
+    <button id="btnAddLive" class="btn btn-primary" onclick="openAddModal()">＋ LIVE追加</button>
+  </div>
+</header>
+
+<!-- Viewer Mode Banner -->
+<div id="viewerBanner" style="display:none;align-items:center;gap:10px;background:var(--s1);border:1px solid var(--border);border-left:3px solid var(--teal);border-radius:10px;padding:12px 18px;margin-bottom:16px;font-size:13px;">
+  <span style="font-size:16px">👁</span>
+  <span style="color:var(--muted)"><strong style="color:var(--text)">閲覧専用モード</strong> — データの追加・編集はオーナーのみ可能です。下の「🌐 クラウド同期設定」でGitHubトークンを入力するとオーナーモードになります。</span>
+</div>
+
+<!-- Date Filter Bar -->
+<div class="date-filter-bar">
+  <div class="preset-btns">
+    <button class="preset-btn" onclick="setPreset('7d')">7日間</button>
+    <button class="preset-btn" onclick="setPreset('30d')">30日間</button>
+    <button class="preset-btn" onclick="setPreset('last-month')">先月</button>
+    <button class="preset-btn active" onclick="setPreset('this-month')">今月</button>
+    <button class="preset-btn" onclick="setPreset('all')">全期間</button>
+  </div>
+  <div class="date-inputs">
+    <input type="date" id="dateFrom" onchange="applyDateFilter()">
+    <span>〜</span>
+    <input type="date" id="dateTo" onchange="applyDateFilter()">
+  </div>
+  <span class="filter-info" id="filterInfo"></span>
+</div>
+
+<!-- Summary -->
+<div class="summary" id="summaryCards"></div>
+
+<!-- KPI Section -->
+<div class="kpi-section">
+  <div class="kpi-header">
+    <h2>🎯 KPI達成率 <span id="kpiPeriodLabel">（30日間目標）</span></h2>
+    <button id="kpiSettingsBtn" class="btn btn-outline btn-sm" onclick="openKpiModal()">⚙️ 目標を変更</button>
+  </div>
+  <div class="kpi-grid" id="kpiGrid"></div>
+</div>
+
+<!-- Detail table -->
+<div class="section">
+  <div class="section-head">
+    <h2>配信別 詳細データ</h2>
+    <div style="display:flex;gap:8px;align-items:center">
+      <span class="badge">▼ をクリックで詳細展開</span>
+    </div>
+  </div>
+  <table>
+    <thead>
+      <tr>
+        <th>配信日時</th>
+        <th>LIVE時間</th>
+        <th>視聴数</th>
+        <th>最高同時</th>
+        <th>いいね</th>
+        <th>コメント</th>
+        <th>新規フォロワー</th>
+        <th>ダイヤ</th>
+        <th style="border-left:2px solid var(--border)">売上</th>
+        <th>購入数</th>
+        <th>CVR</th>
+        <th>利益</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody id="liveTableBody"></tbody>
+  </table>
+</div>
+
+<!-- Charts -->
+<div class="charts-row">
+  <div class="chart-card">
+    <div class="chart-title">配信別 視聴数 推移</div>
+    <div class="chart-wrap"><canvas id="viewsChart"></canvas></div>
+  </div>
+  <div class="chart-card">
+    <div class="chart-title">配信別 エンゲージメント</div>
+    <div class="chart-wrap"><canvas id="engageChart"></canvas></div>
+  </div>
+</div>
+<div class="charts-row">
+  <div class="chart-card">
+    <div class="chart-title">最高同時視聴者数 推移</div>
+    <div class="chart-wrap"><canvas id="peakChart"></canvas></div>
+  </div>
+  <div class="chart-card">
+    <div class="chart-title">新規フォロワー獲得数</div>
+    <div class="chart-wrap"><canvas id="followerChart"></canvas></div>
+  </div>
+</div>
+
+<!-- AI Insights -->
+<div id="insightsArea" class="insights"></div>
+
+<!-- Claude-in-Chrome Import Flow -->
+<div class="claude-import-box" id="claudeImportBox">
+  <h3>🤖 Claude in Chrome で自動取り込み</h3>
+  <p class="sub">TikTok Live Centerの▼マークをすべて展開→テキストをコピー→Claude in Chromeにプロンプトとともにペーストするだけで、全ライブのデータをJSONに変換してここに取り込めます。</p>
+
+  <div class="flow-steps">
+    <!-- Step 1 -->
+    <div class="flow-step">
+      <div class="step-num">1</div>
+      <div class="step-title">▼を全展開してテキストコピー</div>
+      <div class="step-body">
+        下のブックマークレットをブックマークバーに登録。<br>
+        <a href="https://livecenter.tiktok.com/analytics/live_video?lang=ja-JP" target="_blank" style="color:var(--teal)">TikTok Live Center</a> を開いてから実行すると、▼を全部クリックして展開後、ページ全文をクリップボードにコピーします。
+        <br><br>
+        <a class="bm-link" id="expandBookmarklet" href="#">▼ 全展開してコピー</a>
+      </div>
+    </div>
+
+    <!-- Step 2 -->
+    <div class="flow-step">
+      <div class="step-num">2</div>
+      <div class="step-title">Claude in Chrome にペースト</div>
+      <div class="step-body">
+        <a href="https://claude.ai" target="_blank" style="color:var(--teal)">claude.ai</a> を開いて、下のプロンプトをコピーしてから、コピーしたページテキストとあわせて送信してください。
+        <br><br>
+        <button class="btn btn-outline btn-sm" onclick="copyPrompt()">📋 プロンプトをコピー</button>
+        <div class="prompt-box" id="promptBox"></div>
+      </div>
+    </div>
+
+    <!-- Step 3 -->
+    <div class="flow-step">
+      <div class="step-num">3</div>
+      <div class="step-title">ClaudeのJSONをここにペースト</div>
+      <div class="step-body">
+        ClaudeがJSONを返したら、下の欄にペーストして「取り込む」を押すだけ。
+        <textarea class="claude-paste-area" id="claudePasteArea" placeholder='ClaudeがこのようなJSONを返します：&#10;[{"date":"2026/3/20 20:00","totalViews":5000,...}]&#10;&#10;それをここにペーストしてください。'></textarea>
+        <div class="import-row">
+          <button class="btn btn-teal" onclick="importFromClaude()">📥 取り込む</button>
+          <button class="btn btn-outline btn-sm" onclick="document.getElementById('claudeImportBox').style.display='none'">非表示</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Claude API settings -->
+<div class="api-section" id="apiSection">
+  <h3>🤖 Claude AI 自動インサイト設定</h3>
+  <p style="font-size:12px;color:var(--muted);margin-bottom:12px">Anthropic APIキーを入力すると、ライブデータをもとにAIが自動でインサイト（分析コメント）を生成します。キーはローカルにのみ保存されます。</p>
+  <div class="api-key-row">
+    <div class="form-group" style="flex:1">
+      <input type="password" id="apiKeyInput" placeholder="sk-ant-..." />
+    </div>
+    <button class="btn btn-gold btn-sm" onclick="saveApiKey()">保存</button>
+    <button class="btn btn-outline btn-sm" onclick="generateInsights()">🔄 分析実行</button>
+    <button class="btn btn-outline btn-sm" onclick="document.getElementById('apiSection').style.display='none'">非表示</button>
+  </div>
+</div>
+
+<!-- Cloud Sync Settings -->
+<div class="api-section" id="gistSection">
+  <h3>🌐 クラウド同期設定</h3>
+  <p style="font-size:12px;color:var(--muted);margin-bottom:14px;line-height:1.7">
+    GitHub GistにデータをURLするとダッシュボードをウェブ公開でき、他の人が閲覧できるようになります。<br>
+    <strong style="color:var(--text)">Gist ID</strong> のみ入力すると閲覧専用モード。
+    <strong style="color:var(--text)">GitHubトークン</strong>（gistスコープ）も入力するとオーナーモード（編集・同期可能）になります。
+  </p>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
+    <div class="form-group">
+      <label>Gist ID</label>
+      <input type="text" id="gistIdInput" placeholder="例: a1b2c3d4e5f6...（32文字）"
+        style="background:var(--s2);border:1px solid var(--border);color:var(--text);padding:9px 12px;border-radius:8px;font-size:13px;font-family:inherit;outline:none;" />
+    </div>
+    <div class="form-group">
+      <label>GitHubトークン（オーナーのみ・gistスコープ）</label>
+      <input type="password" id="githubPatInput" placeholder="ghp_..."
+        style="background:var(--s2);border:1px solid var(--border);color:var(--text);padding:9px 12px;border-radius:8px;font-size:13px;font-family:inherit;outline:none;" />
+    </div>
+  </div>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+    <button class="btn btn-gold btn-sm" onclick="saveGistSettings()">💾 設定を保存</button>
+    <button class="btn btn-teal btn-sm" onclick="manualSyncFromGist()">🔄 今すぐ同期</button>
+    <button class="btn btn-danger btn-sm" onclick="clearGistPat()">🔒 トークンを削除</button>
+    <button class="btn btn-outline btn-sm" onclick="document.getElementById('gistSection').style.display='none'">非表示</button>
+  </div>
+  <details style="margin-top:14px">
+    <summary style="font-size:11px;color:var(--teal);cursor:pointer;font-weight:600">📖 初回設定手順（クリックで展開）</summary>
+    <div style="margin-top:10px;padding:12px;background:var(--s2);border-radius:8px;font-size:11px;color:var(--muted);line-height:1.9">
+      <strong style="color:var(--text)">【オーナー向け】</strong><br>
+      1. <a href="https://gist.github.com" target="_blank" style="color:var(--teal)">gist.github.com</a> で新しいGistを作成。ファイル名を <code style="color:var(--teal)">data.json</code>、内容を <code style="color:var(--teal)">[]</code> にして「Create secret gist」。<br>
+      2. GistのURLにある32文字のIDをコピー（例: <code>https://gist.github.com/username/<strong>ここがID</strong></code>）。<br>
+      3. <a href="https://github.com/settings/tokens/new?scopes=gist" target="_blank" style="color:var(--teal)">github.com/settings/tokens</a> で「gist」スコープのみのPATを作成。<br>
+      4. 上のフォームに入力して「💾 設定を保存」→「🔄 今すぐ同期」でローカルデータをGistへ転送。<br>
+      5. このHTMLを <code style="color:var(--teal)">index.html</code> に改名し、ファイル内の <code style="color:var(--teal)">const DEFAULT_GIST_ID = '7d5425efae6b412284a5e27841592f34'</code> にGist IDを貼り付けて保存。<br>
+      6. GitHubリポジトリに push → Settings &gt; Pages &gt; mainブランチで公開 → URLをシェア。<br><br>
+      <strong style="color:var(--text)">【閲覧者向け】</strong><br>
+      オーナーからURLを受け取ったら、そのままアクセスするだけで最新データが閲覧できます。<br>
+      （Gist IDが埋め込まれていない場合は、Gist IDのみ入力して「💾 設定を保存」）
+    </div>
+  </details>
+</div>
+
+<!-- Sales Input Section -->
+<div class="sales-section">
+  <h3>💰 売り上げ・購入データ入力</h3>
+  <p>配信回を選んで売り上げを手入力するか、売り上げ画面のスクショをアップロードすると自動で数値を読み取ります。</p>
+  <div class="sales-form-row">
+    <div class="form-group" style="flex:2;min-width:180px">
+      <label>配信を選択</label>
+      <select id="salesLiveSelect" style="background:var(--s2);border:1px solid var(--border);color:var(--text);padding:9px 12px;border-radius:8px;font-size:13px;font-family:inherit;outline:none;"></select>
+    </div>
+    <div class="form-group">
+      <label>売り上げ (¥)</label>
+      <input type="number" id="salesAmount" placeholder="0" style="background:var(--s2);border:1px solid var(--border);color:var(--text);padding:9px 12px;border-radius:8px;font-size:13px;font-family:inherit;outline:none;">
+    </div>
+    <div class="form-group">
+      <label>購入数</label>
+      <input type="number" id="salesPurchases" placeholder="0" style="background:var(--s2);border:1px solid var(--border);color:var(--text);padding:9px 12px;border-radius:8px;font-size:13px;font-family:inherit;outline:none;">
+    </div>
+    <div class="form-group">
+      <label>利益 (¥)</label>
+      <input type="number" id="salesProfit" placeholder="0" style="background:var(--s2);border:1px solid var(--border);color:var(--text);padding:9px 12px;border-radius:8px;font-size:13px;font-family:inherit;outline:none;">
+    </div>
+    <button class="btn btn-primary" onclick="saveSalesData()" style="flex-shrink:0;align-self:flex-end">💾 保存</button>
+  </div>
+
+  <!-- Screenshot Upload -->
+  <div class="screenshot-upload" id="screenshotUploadArea">
+    <input type="file" id="screenshotInput" accept="image/*" onchange="handleScreenshot(event)">
+    <label for="screenshotInput">
+      <div class="upload-icon">📸</div>
+      <p>売り上げ画面の<span>スクショをアップロード</span>すると自動で数値を読み取ります<br>（Claude APIキー必要）</p>
+    </label>
+    <img id="screenshotPreview" class="screenshot-preview" style="display:none">
+    <div id="screenshotResult" class="screenshot-result" style="display:none"></div>
+  </div>
+</div>
+
+<!-- Add/Edit Modal -->
+<div class="modal-overlay" id="addModal">
+  <div class="modal">
+    <h3 id="modalTitle">LIVE データを追加</h3>
+    <div class="form-grid" id="liveForm">
+      <div class="form-group" style="grid-column:1/-1">
+        <label>配信日時 *</label>
+        <input type="text" id="f_date" placeholder="例: 2026/3/15 20:00" />
+      </div>
+      <div class="form-group">
+        <label>LIVE時間</label>
+        <input type="text" id="f_liveTime" placeholder="例: 1時間30分" />
+      </div>
+      <div class="form-group">
+        <label>メモ（商品名など）</label>
+        <input type="text" id="f_memo" placeholder="例: ワインオープナー" />
+      </div>
+
+      <div class="form-section-title">👁 視聴データ</div>
+      <div class="form-group">
+        <label>総視聴数 *</label>
+        <input type="number" id="f_totalViews" placeholder="0" />
+      </div>
+      <div class="form-group">
+        <label>ユニーク視聴者数</label>
+        <input type="number" id="f_uniqueViewers" placeholder="0" />
+      </div>
+      <div class="form-group">
+        <label>アクティブ視聴者数</label>
+        <input type="number" id="f_activeViewers" placeholder="0" />
+      </div>
+      <div class="form-group">
+        <label>最高同時視聴者数 *</label>
+        <input type="number" id="f_peakConcurrent" placeholder="0" />
+      </div>
+      <div class="form-group">
+        <label>平均視聴時間</label>
+        <input type="text" id="f_avgWatchTime" placeholder="例: 1分" />
+      </div>
+
+      <div class="form-section-title">💬 エンゲージメント</div>
+      <div class="form-group">
+        <label>いいね数</label>
+        <input type="number" id="f_likes" placeholder="0" />
+      </div>
+      <div class="form-group">
+        <label>コメント数</label>
+        <input type="number" id="f_comments" placeholder="0" />
+      </div>
+      <div class="form-group">
+        <label>シェア数</label>
+        <input type="number" id="f_shares" placeholder="0" />
+      </div>
+      <div class="form-group">
+        <label>ギフト贈呈者数</label>
+        <input type="number" id="f_gifters" placeholder="0" />
+      </div>
+
+      <div class="form-section-title">📡 トラフィック流入</div>
+      <div class="form-group">
+        <label>LIVEのおすすめ (%)</label>
+        <input type="number" id="f_trafficLive" placeholder="0" min="0" max="100" />
+      </div>
+      <div class="form-group">
+        <label>その他 (%)</label>
+        <input type="number" id="f_trafficOther" placeholder="0" min="0" max="100" />
+      </div>
+
+      <div class="form-section-title">👥 フォロワー</div>
+      <div class="form-group">
+        <label>新規フォロワー数 *</label>
+        <input type="number" id="f_newFollowers" placeholder="0" />
+      </div>
+      <div class="form-group">
+        <label>フォロワー平均視聴時間</label>
+        <input type="text" id="f_followerAvgTime" placeholder="例: 5分" />
+      </div>
+      <div class="form-group">
+        <label>フォロワーユニーク数</label>
+        <input type="number" id="f_followerUnique" placeholder="0" />
+      </div>
+      <div class="form-group">
+        <label>コメント投稿者数</label>
+        <input type="number" id="f_commenters" placeholder="0" />
+      </div>
+
+      <div class="form-section-title">💎 報酬</div>
+      <div class="form-group">
+        <label>ダイヤモンド数</label>
+        <input type="number" id="f_diamonds" placeholder="0" />
+      </div>
+      <div class="form-group">
+        <label>推定額 (USD)</label>
+        <input type="number" id="f_estimatedUSD" placeholder="0.00" step="0.01" />
+      </div>
+
+      <div class="form-section-title">💰 売り上げ</div>
+      <div class="form-group">
+        <label>売り上げ (¥)</label>
+        <input type="number" id="f_sales" placeholder="0" />
+      </div>
+      <div class="form-group">
+        <label>購入数</label>
+        <input type="number" id="f_purchases" placeholder="0" />
+      </div>
+      <div class="form-group">
+        <label>利益 (¥)</label>
+        <input type="number" id="f_profit" placeholder="0" />
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="closeModal('addModal')">キャンセル</button>
+      <button class="btn btn-primary" onclick="saveLiveData()">💾 保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- Import Modal -->
+<div class="modal-overlay" id="importModal">
+  <div class="modal">
+    <h3>📥 JSON データインポート</h3>
+    <p style="font-size:12px;color:var(--muted);margin-bottom:16px">
+      ブックマークレットでコピーしたデータ、またはエクスポートしたJSONをここに貼り付けてください。<br>
+      1件のデータ（オブジェクト {}）でも、複数件の配列（[ ... ]）でも対応しています。
+    </p>
+    <div class="form-group">
+      <label>JSON データ</label>
+      <textarea id="importJson" rows="12" style="font-family:monospace;font-size:12px;resize:vertical" placeholder='{"date":"2026/3/20 20:00","totalViews":5000,...}'></textarea>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="closeModal('importModal')">キャンセル</button>
+      <button class="btn btn-teal" onclick="importJson()">📥 インポート</button>
+    </div>
+  </div>
+</div>
+
+<!-- KPI Settings Modal -->
+<div class="modal-overlay" id="kpiModal">
+  <div class="modal">
+    <h3>⚙️ KPI目標設定（月30日間）</h3>
+    <div class="form-grid">
+      <div class="form-group">
+        <label>アクティブ視聴者 目標（人/回・平均）</label>
+        <input type="number" id="kpi_activeViewers" placeholder="500">
+      </div>
+      <div class="form-group">
+        <label>CVR 目標（%）</label>
+        <input type="number" id="kpi_cvr" placeholder="3" step="0.1">
+      </div>
+      <div class="form-group">
+        <label>配信回数 目標（回/月）</label>
+        <input type="number" id="kpi_lives" placeholder="30">
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="closeModal('kpiModal')">キャンセル</button>
+      <button class="btn btn-primary" onclick="saveKpiTargets()">💾 保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ============================================================
+// STORAGE
+// ============================================================
+const STORAGE_KEY = 'imapochi_live_data';
+const INSIGHTS_KEY = 'imapochi_insights';
+const API_KEY_STORAGE = 'imapochi_claude_key';
+const DEFAULT_GIST_ID    = '';  // GitHub Pagesデプロイ時にGist IDをここに埋め込む
+const GIST_ID_STORAGE    = 'imapochi_gist_id';
+const GITHUB_PAT_STORAGE = 'imapochi_github_pat';
+
+const DEFAULT_DATA = [
+  { id: 1, date: "2026/2/11 19:06", liveTime: "1時間11分", memo: "",
+    totalViews: 8108, uniqueViewers: 7156, activeViewers: 462, peakConcurrent: 877,
+    avgWatchTime: "28秒", comments: 27, likes: 470, shares: 4, gifters: 3,
+    trafficLive: 57, trafficOther: 43,
+    followerAvgTime: "2分", followerUnique: 20, commenters: 0,
+    newFollowers: 9, diamonds: 3, estimatedUSD: 0.01 },
+  { id: 2, date: "2026/2/3 08:28", liveTime: "1時間6分", memo: "",
+    totalViews: 6667, uniqueViewers: 5593, activeViewers: 462, peakConcurrent: 384,
+    avgWatchTime: "1分", comments: 28, likes: 2344, shares: 0, gifters: 5,
+    trafficLive: 50, trafficOther: 50,
+    followerAvgTime: "6分", followerUnique: 16, commenters: 3,
+    newFollowers: 7, diamonds: 5, estimatedUSD: 0.02 },
+  { id: 3, date: "2026/2/1 17:51", liveTime: "1時間23分", memo: "",
+    totalViews: 2520, uniqueViewers: 2168, activeViewers: 69, peakConcurrent: 97,
+    avgWatchTime: "44秒", comments: 10, likes: 13, shares: 0, gifters: 0,
+    trafficLive: 67, trafficOther: 33,
+    followerAvgTime: "4分", followerUnique: 12, commenters: 0,
+    newFollowers: 2, diamonds: 1, estimatedUSD: 0 },
+  { id: 4, date: "2025/12/15 07:51", liveTime: "54分50秒", memo: "",
+    totalViews: 10573, uniqueViewers: 8885, activeViewers: 609, peakConcurrent: 583,
+    avgWatchTime: "1分", comments: 70, likes: 1164, shares: 4, gifters: 14,
+    trafficLive: 53, trafficOther: 47,
+    followerAvgTime: "5分", followerUnique: 20, commenters: 2,
+    newFollowers: 13, diamonds: 18, estimatedUSD: 0.07 }
+];
+
+function loadData() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch { return null; }
+}
+
+function saveDataLocal(data) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+}
+
+function saveData(data) {
+  saveDataLocal(data);
+  debouncedSaveToGist(data);
+}
+
+function getNextId(data) {
+  return data.length > 0 ? Math.max(...data.map(d => d.id || 0)) + 1 : 1;
+}
+
+// ============================================================
+// BOOKMARKLET — ▼ を全展開してページ全文コピー
+// ============================================================
+const expandBookmarkletCode = `javascript:(function(){
+  var btn = document.createElement('div');
+  btn.style.cssText='position:fixed;top:16px;left:50%;transform:translateX(-50%);z-index:99999;background:#13131a;color:#25f4ee;border:2px solid #25f4ee;border-radius:10px;padding:10px 20px;font-size:14px;font-weight:700;font-family:sans-serif;box-shadow:0 4px 20px #0008;';
+  btn.textContent='🔄 ▼ を展開中... しばらくお待ちください';
+  document.body.appendChild(btn);
+
+  // ▼ マークを含む要素・aria-expanded=false の要素を全部クリック
+  function clickExpanders(){
+    var clicked=0;
+    // パターン1: テキストに ▼ を含む要素
+    document.querySelectorAll('button,td,th,[role="button"],[role="tab"],a,span,div').forEach(function(el){
+      var t=(el.innerText||'').trim();
+      if((t==='▼'||t.includes('▼'))&&el.offsetParent!==null){
+        try{el.click();clicked++;}catch(e){}
+      }
+    });
+    // パターン2: aria-expanded="false"
+    document.querySelectorAll('[aria-expanded="false"]').forEach(function(el){
+      try{el.click();clicked++;}catch(e){}
+    });
+    // パターン3: SVG chevron/arrow を持つボタン（クラス名で推測）
+    document.querySelectorAll('[class*="expand"],[class*="collapse"],[class*="arrow"],[class*="chevron"],[class*="toggle"],[class*="accordion"]').forEach(function(el){
+      var aria=el.getAttribute('aria-expanded');
+      if(aria==='false'||aria===null){
+        try{el.click();clicked++;}catch(e){}
+      }
+    });
+    return clicked;
+  }
+
+  var c1=clickExpanders();
+  btn.textContent='⏳ 展開中 ('+c1+'箇所)... 2秒後にコピーします';
+
+  setTimeout(function(){
+    // 追加で残った ▼ を再クリック（遅延ロード対応）
+    clickExpanders();
+    setTimeout(function(){
+      // ページ全文を取得
+      var text=document.body.innerText;
+      navigator.clipboard.writeText(text).then(function(){
+        btn.style.color='#22c55e';
+        btn.style.borderColor='#22c55e';
+        btn.textContent='✅ ページ全文をコピーしました！ claude.ai にペーストしてください';
+        setTimeout(function(){btn.remove();},4000);
+      }).catch(function(){
+        var ta=document.createElement('textarea');
+        ta.value=text;
+        ta.style.cssText='position:fixed;top:0;left:0;opacity:0.01;';
+        document.body.appendChild(ta);ta.select();
+        document.execCommand('copy');document.body.removeChild(ta);
+        btn.style.color='#22c55e';btn.style.borderColor='#22c55e';
+        btn.textContent='✅ コピーしました！ claude.ai にペーストしてください';
+        setTimeout(function(){btn.remove();},4000);
+      });
+    },1500);
+  },2000);
+})();`;
+
+document.getElementById('expandBookmarklet').href = expandBookmarkletCode;
+
+// ============================================================
+// CLAUDE PROMPT TEMPLATE
+// ============================================================
+const CLAUDE_PROMPT = `以下はTikTok Live Centerのページ全文です。各ライブ配信のデータを読み取って、必ずJSON配列のみを返してください（説明文は不要）。
+
+フォーマット:
+[
+  {
+    "date": "配信日時（例: 2026/3/20 20:00）",
+    "liveTime": "配信時間（例: 1時間30分）",
+    "totalViews": 数値,
+    "uniqueViewers": 数値,
+    "activeViewers": 数値,
+    "peakConcurrent": 数値,
+    "avgWatchTime": "文字列（例: 1分）",
+    "likes": 数値,
+    "comments": 数値,
+    "shares": 数値,
+    "gifters": 数値,
+    "trafficLive": 数値（%、LIVEのおすすめ経由）,
+    "trafficOther": 数値（%）,
+    "newFollowers": 数値,
+    "followerAvgTime": "文字列",
+    "followerUnique": 数値,
+    "commenters": 数値,
+    "diamonds": 数値,
+    "estimatedUSD": 数値,
+    "memo": ""
+  }
+]
+
+不明な項目は 0 または "" にしてください。複数ライブがあれば全て含めてください。
+
+--- ページ全文はここから貼り付け ---`;
+
+document.getElementById('promptBox').textContent = CLAUDE_PROMPT;
+
+function copyPrompt() {
+  navigator.clipboard.writeText(CLAUDE_PROMPT).then(() => {
+    showToast('プロンプトをコピーしました。claude.ai に貼り付けてください', 'success');
+  }).catch(() => {
+    const ta = document.createElement('textarea');
+    ta.value = CLAUDE_PROMPT;
+    document.body.appendChild(ta); ta.select();
+    document.execCommand('copy'); document.body.removeChild(ta);
+    showToast('コピーしました', 'success');
+  });
+}
+
+function importFromClaude() {
+  const raw = document.getElementById('claudePasteArea').value.trim();
+  if (!raw) { showToast('ClaudeのJSONをペーストしてください', 'error'); return; }
+
+  // JSONの配列部分を抽出（Claudeが余分なテキストを含む場合にも対応）
+  let parsed;
+  const jsonMatch = raw.match(/\[[\s\S]*\]/);
+  const jsonObjMatch = raw.match(/\{[\s\S]*\}/);
+  try {
+    if (jsonMatch) {
+      parsed = JSON.parse(jsonMatch[0]);
+    } else if (jsonObjMatch) {
+      parsed = [JSON.parse(jsonObjMatch[0])];
+    } else {
+      parsed = JSON.parse(raw);
+    }
+  } catch (e) {
+    showToast('JSONの形式が正しくありません: ' + e.message, 'error'); return;
+  }
+
+  const entries = Array.isArray(parsed) ? parsed : [parsed];
+  let added = 0;
+  entries.forEach(entry => {
+    if (!entry.date) return;
+    const newEntry = { id: getNextId(liveData), ...entry };
+    // 重複チェック（同じ日時が既にある場合はスキップ）
+    const isDup = liveData.some(d => d.date === newEntry.date);
+    if (!isDup) { liveData.push(newEntry); added++; }
+  });
+
+  if (added === 0) {
+    showToast('追加できるデータがありませんでした（すでに同じ日時が存在する可能性があります）', 'error');
+    return;
+  }
+
+  saveData(liveData);
+  renderAll();
+  localStorage.removeItem(INSIGHTS_KEY);
+  renderDefaultInsights();
+  document.getElementById('claudePasteArea').value = '';
+  showToast(`✅ ${added}件のLIVEデータを取り込みました！`, 'success');
+}
+
+// ============================================================
+// STATE
+// ============================================================
+let liveData = loadData() || JSON.parse(JSON.stringify(DEFAULT_DATA));
+let editingId = null;
+let charts = {};
+let filterFrom = null;
+let filterTo = null;
+let isOwnerMode = false;
+let gistSyncTimer = null;
+
+const KPI_KEY = 'imapochi_kpi_targets';
+const DEFAULT_KPI = { lives: 30, cvr: 3, activeViewers: 500 };
+let kpiTargets = (() => { try { return JSON.parse(localStorage.getItem(KPI_KEY)) || DEFAULT_KPI; } catch { return DEFAULT_KPI; } })();
+
+// ============================================================
+// DATE UTILITIES
+// ============================================================
+function parseDate(str) {
+  if (!str) return null;
+  const [datePart, timePart = '00:00'] = str.split(' ');
+  const [y, m, d] = datePart.split('/').map(Number);
+  const [hh, mm] = timePart.split(':').map(Number);
+  return new Date(y, m - 1, d, hh, mm);
+}
+
+function toInputDate(d) {
+  return d.toISOString().slice(0, 10);
+}
+
+function startOfDay(d) { const r = new Date(d); r.setHours(0,0,0,0); return r; }
+function endOfDay(d)   { const r = new Date(d); r.setHours(23,59,59,999); return r; }
+
+// ============================================================
+// DATE FILTER
+// ============================================================
+function setPreset(preset) {
+  const today = new Date();
+  today.setHours(0,0,0,0);
+  let from, to;
+
+  if (preset === '7d') {
+    from = new Date(today); from.setDate(from.getDate() - 6);
+    to = endOfDay(today);
+  } else if (preset === '30d') {
+    from = new Date(today); from.setDate(from.getDate() - 29);
+    to = endOfDay(today);
+  } else if (preset === 'last-month') {
+    const y = today.getMonth() === 0 ? today.getFullYear()-1 : today.getFullYear();
+    const m = today.getMonth() === 0 ? 11 : today.getMonth()-1;
+    from = new Date(y, m, 1);
+    to = endOfDay(new Date(y, m+1, 0));
+  } else if (preset === 'this-month') {
+    from = new Date(today.getFullYear(), today.getMonth(), 1);
+    to = endOfDay(today);
+  } else { // all
+    from = null; to = null;
+  }
+
+  filterFrom = from; filterTo = to;
+
+  document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
+  event.currentTarget.classList.add('active');
+
+  document.getElementById('dateFrom').value = from ? toInputDate(from) : '';
+  document.getElementById('dateTo').value   = to   ? toInputDate(to)   : '';
+
+  renderAll();
+}
+
+function applyDateFilter() {
+  const fv = document.getElementById('dateFrom').value;
+  const tv = document.getElementById('dateTo').value;
+  filterFrom = fv ? startOfDay(new Date(fv)) : null;
+  filterTo   = tv ? endOfDay(new Date(tv))   : null;
+  document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
+  renderAll();
+}
+
+function getFilteredData() {
+  if (!filterFrom && !filterTo) return liveData;
+  return liveData.filter(d => {
+    const dt = parseDate(d.date);
+    if (!dt) return false;
+    if (filterFrom && dt < filterFrom) return false;
+    if (filterTo   && dt > filterTo)   return false;
+    return true;
+  });
+}
+
+// ============================================================
+// GIST CLOUD SYNC
+// ============================================================
+function getGistConfig() {
+  return {
+    gistId: localStorage.getItem(GIST_ID_STORAGE) || DEFAULT_GIST_ID,
+    pat:    localStorage.getItem(GITHUB_PAT_STORAGE) || '',
+  };
+}
+
+function setSyncStatus(status, message) {
+  const el = document.getElementById('syncStatus');
+  if (!el) return;
+  const map = {
+    idle:    { icon: '☁️',  color: 'var(--muted)',  text: 'クラウド未設定' },
+    syncing: { icon: '🔄',  color: 'var(--teal)',   text: '同期中...' },
+    ok:      { icon: '✅',  color: 'var(--green)',  text: '同期済み' },
+    error:   { icon: '⚠️',  color: 'var(--accent)', text: message || '同期エラー' },
+    offline: { icon: '📡',  color: 'var(--gold)',   text: 'オフライン' },
+  };
+  const s = map[status] || map.idle;
+  el.innerHTML = `<span style="color:${s.color}">${s.icon} ${s.text}</span>`;
+}
+
+function updateOwnerMode() {
+  const { pat } = getGistConfig();
+  isOwnerMode = pat.length > 0;
+  applyViewerModeUI();
+}
+
+function applyViewerModeUI() {
+  const hide = !isOwnerMode;
+  const ids = ['btnAddLive', 'btnImportJson', 'claudeImportBox', 'apiSection', 'kpiSettingsBtn'];
+  ids.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = hide ? 'none' : '';
+  });
+  // セールスセクションはオーナーのみ
+  document.querySelectorAll('.sales-section').forEach(el => {
+    el.style.display = hide ? 'none' : '';
+  });
+  // テーブル内の編集・削除ボタン（動的生成）
+  document.querySelectorAll('.btn-danger, .btn-edit-entry').forEach(el => {
+    el.style.display = hide ? 'none' : '';
+  });
+  // 閲覧専用バナー
+  const banner = document.getElementById('viewerBanner');
+  if (banner) banner.style.display = hide ? 'flex' : 'none';
+}
+
+async function loadFromGist() {
+  const { gistId, pat } = getGistConfig();
+  if (!gistId) { setSyncStatus('idle'); return null; }
+
+  setSyncStatus('syncing');
+  try {
+    const headers = { 'Accept': 'application/vnd.github+json' };
+    if (pat) headers['Authorization'] = `Bearer ${pat}`;
+
+    const res = await fetch(`https://api.github.com/gists/${gistId}`, { headers });
+    if (res.status === 404) throw new Error('Gist が見つかりません。Gist IDを確認してください。');
+    if (res.status === 403) throw new Error('GitHub APIのレート制限に達しました。GitHubトークンを設定すると解決します。');
+    if (!res.ok) throw new Error(`GitHub API エラー: ${res.status}`);
+
+    const gistData = await res.json();
+    const file = gistData.files['data.json'];
+    if (!file) throw new Error('Gist に data.json が見つかりません。ファイル名を確認してください。');
+
+    const parsed = JSON.parse(file.content);
+    if (!Array.isArray(parsed)) throw new Error('data.json の形式が正しくありません。');
+
+    saveDataLocal(parsed);
+    setSyncStatus('ok');
+    return parsed;
+  } catch (e) {
+    if (!navigator.onLine) {
+      setSyncStatus('offline');
+    } else {
+      setSyncStatus('error', e.message);
+      showToast('クラウドからの読み込みに失敗: ' + e.message, 'error');
+    }
+    return null;
+  }
+}
+
+async function saveToGist(data) {
+  const { gistId, pat } = getGistConfig();
+  if (!gistId || !pat) return;
+
+  setSyncStatus('syncing');
+  try {
+    const res = await fetch(`https://api.github.com/gists/${gistId}`, {
+      method: 'PATCH',
+      headers: {
+        'Accept': 'application/vnd.github+json',
+        'Authorization': `Bearer ${pat}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ files: { 'data.json': { content: JSON.stringify(data, null, 2) } } })
+    });
+    if (res.status === 401) throw new Error('GitHubトークンが無効です。トークンを確認してください。');
+    if (res.status === 404) throw new Error('Gist が見つかりません。Gist IDを確認してください。');
+    if (!res.ok) { const e = await res.json(); throw new Error(e.message || `GitHub API エラー: ${res.status}`); }
+    setSyncStatus('ok');
+  } catch (e) {
+    setSyncStatus('error', e.message);
+    showToast('クラウド同期に失敗: ' + e.message, 'error');
+  }
+}
+
+function debouncedSaveToGist(data) {
+  clearTimeout(gistSyncTimer);
+  gistSyncTimer = setTimeout(() => saveToGist(data), 1500);
+}
+
+function saveGistSettings() {
+  const gistId = document.getElementById('gistIdInput').value.trim();
+  const pat    = document.getElementById('githubPatInput').value.trim();
+  if (gistId) localStorage.setItem(GIST_ID_STORAGE, gistId);
+  else        localStorage.removeItem(GIST_ID_STORAGE);
+  if (pat) localStorage.setItem(GITHUB_PAT_STORAGE, pat);
+  else     localStorage.removeItem(GITHUB_PAT_STORAGE);
+  updateOwnerMode();
+  showToast('クラウド設定を保存しました。データを再読み込みします...', 'success');
+  setTimeout(() => init(), 500);
+}
+
+function clearGistPat() {
+  localStorage.removeItem(GITHUB_PAT_STORAGE);
+  document.getElementById('githubPatInput').value = '';
+  updateOwnerMode();
+  showToast('トークンを削除しました。閲覧専用モードに切り替わりました。', 'success');
+}
+
+async function manualSyncFromGist() {
+  const result = await loadFromGist();
+  if (result) {
+    liveData = result;
+    renderAll();
+    localStorage.removeItem(INSIGHTS_KEY);
+    renderDefaultInsights();
+    showToast('クラウドから最新データを読み込みました', 'success');
+  }
+}
+
+// ============================================================
+// INIT
+// ============================================================
+async function init() {
+  // オーナー/閲覧モードを判定
+  updateOwnerMode();
+
+  // Gistから最新データを取得（失敗時はlocalStorageキャッシュを使用）
+  const gistResult = await loadFromGist();
+  if (gistResult) {
+    liveData = gistResult;
+  } else if (!loadData()) {
+    saveDataLocal(liveData); // デフォルトデータをキャッシュ
+  }
+
+  // デフォルトフィルター: 今月（当日含む）
+  const today = new Date(); today.setHours(0,0,0,0);
+  filterFrom = new Date(today.getFullYear(), today.getMonth(), 1);
+  filterTo = endOfDay(today);
+  document.getElementById('dateFrom').value = toInputDate(filterFrom);
+  document.getElementById('dateTo').value   = toInputDate(filterTo);
+
+  renderAll();
+
+  // 設定欄の初期値を復元
+  const savedKey = localStorage.getItem(API_KEY_STORAGE);
+  if (savedKey) document.getElementById('apiKeyInput').value = savedKey;
+  const savedGistId = localStorage.getItem(GIST_ID_STORAGE) || DEFAULT_GIST_ID;
+  const savedPat    = localStorage.getItem(GITHUB_PAT_STORAGE);
+  if (savedGistId) document.getElementById('gistIdInput').value   = savedGistId;
+  if (savedPat)    document.getElementById('githubPatInput').value = savedPat;
+
+  const savedInsights = localStorage.getItem(INSIGHTS_KEY);
+  if (savedInsights) {
+    renderInsights(JSON.parse(savedInsights));
+  } else {
+    renderDefaultInsights();
+  }
+}
+
+function renderAll() {
+  const filtered = getFilteredData();
+  const sorted = [...filtered].sort((a,b) => parseDate(b.date) - parseDate(a.date));
+  renderSummary(sorted);
+  renderKPI(sorted);
+  renderCharts(sorted);
+  renderTable(sorted);
+  renderSalesSelect();
+  const total = liveData.length;
+  const shown = sorted.length;
+  document.getElementById('updatedLabel').textContent =
+    new Date().toLocaleDateString('ja-JP', {year:'numeric',month:'long',day:'numeric'}) +
+    ' 更新 · 全' + total + '回';
+  document.getElementById('filterInfo').textContent =
+    shown === total ? `全${total}件表示` : `${shown}/${total}件表示（フィルター中）`;
+}
+
+// ============================================================
+// KPI
+// ============================================================
+function renderKPI(sorted) {
+  // Compute period days for pro-rated targets
+  let periodDays = 30;
+  if (filterFrom && filterTo) {
+    periodDays = Math.max(1, Math.round((filterTo - filterFrom) / 86400000) + 1);
+  }
+  const scale = periodDays / 30;
+
+  const actualLives        = sorted.length;
+  const totalActive        = sorted.reduce((s,d) => s + (d.activeViewers||0), 0);
+  const avgActiveViewers   = sorted.length > 0 ? totalActive / sorted.length : 0;
+  const totalPurchases     = sorted.reduce((s,d) => s + (d.purchases||0), 0);
+  const actualCVR          = totalActive > 0 ? (totalPurchases / totalActive * 100) : 0;
+
+  const tLives         = kpiTargets.lives * scale;
+  const tCVR           = kpiTargets.cvr;
+  const tActiveViewers = kpiTargets.activeViewers;
+
+  const rateOf = (a, t) => t > 0 ? Math.min(Math.round(a / t * 100), 999) : 0;
+  const colorOf = r => r >= 100 ? 'green' : r >= 70 ? 'yellow' : 'red';
+
+  const items = [
+    { label: 'アクティブ視聴者（平均）', actual: Math.round(avgActiveViewers) + '人', target: Math.round(tActiveViewers) + '人', rate: rateOf(avgActiveViewers, tActiveViewers) },
+    { label: 'CVR', actual: actualCVR.toFixed(1) + '%', target: tCVR + '%', rate: rateOf(actualCVR, tCVR) },
+    { label: '配信回数', actual: actualLives + '回', target: Math.round(tLives) + '回', rate: rateOf(actualLives, tLives) },
+  ];
+
+  const label = filterFrom && filterTo
+    ? `（${toInputDate(filterFrom)} 〜 ${toInputDate(filterTo)}）`
+    : '（30日間目標）';
+  document.getElementById('kpiPeriodLabel').textContent = label;
+
+  document.getElementById('kpiGrid').innerHTML = items.map(item => {
+    const c = colorOf(item.rate);
+    const pct = Math.min(item.rate, 100);
+    return `<div class="kpi-card">
+      <div class="kpi-label">${item.label}</div>
+      <div class="kpi-values">
+        <span class="kpi-actual" style="color:var(--${c === 'green' ? 'green' : c === 'yellow' ? 'gold' : 'accent'})">${item.actual}</span>
+        <span class="kpi-target">/ ${item.target}</span>
+      </div>
+      <div class="kpi-rate ${c}">達成率 ${item.rate}%</div>
+      <div class="progress-bar"><div class="progress-fill ${c}" style="width:${pct}%"></div></div>
+    </div>`;
+  }).join('');
+}
+
+function openKpiModal() {
+  document.getElementById('kpi_lives').value        = kpiTargets.lives;
+  document.getElementById('kpi_cvr').value          = kpiTargets.cvr;
+  document.getElementById('kpi_activeViewers').value = kpiTargets.activeViewers;
+  document.getElementById('kpiModal').classList.add('open');
+}
+
+function saveKpiTargets() {
+  kpiTargets = {
+    lives:         parseFloat(document.getElementById('kpi_lives').value)         || DEFAULT_KPI.lives,
+    cvr:           parseFloat(document.getElementById('kpi_cvr').value)           || DEFAULT_KPI.cvr,
+    activeViewers: parseFloat(document.getElementById('kpi_activeViewers').value) || DEFAULT_KPI.activeViewers,
+  };
+  localStorage.setItem(KPI_KEY, JSON.stringify(kpiTargets));
+  closeModal('kpiModal');
+  renderAll();
+  showToast('KPI目標を保存しました', 'success');
+}
+
+// ============================================================
+// SALES DATA
+// ============================================================
+function renderSalesSelect() {
+  const sel = document.getElementById('salesLiveSelect');
+  if (!sel) return;
+  const sorted = [...liveData].sort((a,b) => parseDate(b.date) - parseDate(a.date));
+  sel.innerHTML = sorted.map(d =>
+    `<option value="${d.id}">${d.date}（売上:¥${(d.sales||0).toLocaleString()}）</option>`
+  ).join('');
+}
+
+function saveSalesData() {
+  const id = parseInt(document.getElementById('salesLiveSelect').value);
+  const idx = liveData.findIndex(d => d.id === id);
+  if (idx === -1) { showToast('配信を選択してください', 'error'); return; }
+  liveData[idx].sales     = parseFloat(document.getElementById('salesAmount').value)    || 0;
+  liveData[idx].purchases = parseFloat(document.getElementById('salesPurchases').value) || 0;
+  liveData[idx].profit    = parseFloat(document.getElementById('salesProfit').value)    || 0;
+  saveData(liveData);
+  renderAll();
+  document.getElementById('salesAmount').value    = '';
+  document.getElementById('salesPurchases').value = '';
+  document.getElementById('salesProfit').value    = '';
+  showToast('売り上げデータを保存しました', 'success');
+}
+
+// ============================================================
+// SCREENSHOT → CLAUDE VISION
+// ============================================================
+async function handleScreenshot(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  const preview = document.getElementById('screenshotPreview');
+  const result  = document.getElementById('screenshotResult');
+  const reader  = new FileReader();
+  reader.onload = async e => {
+    const base64 = e.target.result.split(',')[1];
+    const mime   = file.type;
+    preview.src   = e.target.result;
+    preview.style.display = 'block';
+    result.style.display  = 'block';
+    result.innerHTML = '🤖 Claude が売り上げを読み取り中...';
+
+    const apiKey = localStorage.getItem(API_KEY_STORAGE) || document.getElementById('apiKeyInput').value.trim();
+    if (!apiKey) {
+      result.innerHTML = '⚠️ Claude APIキーを設定してください（上の「Claude AI 自動インサイト設定」欄）';
+      return;
+    }
+
+    try {
+      const res = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': apiKey,
+          'anthropic-version': '2023-06-01',
+          'anthropic-dangerous-direct-browser-calls': 'true'
+        },
+        body: JSON.stringify({
+          model: 'claude-haiku-4-5-20251001',
+          max_tokens: 512,
+          messages: [{
+            role: 'user',
+            content: [
+              { type: 'image', source: { type: 'base64', media_type: mime, data: base64 } },
+              { type: 'text', text: 'この売り上げ画面から以下をJSONで抽出してください（説明文不要）：\n{"sales":売り上げ合計(数値・円),"purchases":購入数(数値),"profit":利益(数値・円)}\n不明は0にしてください。' }
+            ]
+          }]
+        })
+      });
+      if (!res.ok) { const e = await res.json(); throw new Error(e.error?.message || res.statusText); }
+      const data = await res.json();
+      const text = data.content[0].text;
+      const m = text.match(/\{[\s\S]*\}/);
+      if (!m) throw new Error('JSONが見つかりませんでした');
+      const extracted = JSON.parse(m[0]);
+
+      document.getElementById('salesAmount').value    = extracted.sales    || 0;
+      document.getElementById('salesPurchases').value = extracted.purchases || 0;
+      document.getElementById('salesProfit').value    = extracted.profit    || 0;
+
+      result.innerHTML = `✅ 読み取り完了：売上 ¥${(extracted.sales||0).toLocaleString()}、購入数 ${extracted.purchases||0}、利益 ¥${(extracted.profit||0).toLocaleString()}<br><span style="color:var(--muted);font-size:11px">上の「配信を選択」で対象を選び「💾 保存」を押してください</span>`;
+    } catch(e) {
+      result.innerHTML = `⚠️ エラー：${e.message}`;
+    }
+  };
+  reader.readAsDataURL(file);
+}
+
+// ============================================================
+// SUMMARY
+// ============================================================
+function renderSummary(sorted) {
+  const totalViews = sorted.reduce((s,d) => s + (d.totalViews||0), 0);
+  const totalFollowers = sorted.reduce((s,d) => s + (d.newFollowers||0), 0);
+  const totalDiamonds = sorted.reduce((s,d) => s + (d.diamonds||0), 0);
+  const bestViews = sorted.reduce((best,d) => d.totalViews > best.totalViews ? d : best, sorted[0] || {});
+  const bestPeak = sorted.reduce((best,d) => d.peakConcurrent > best.peakConcurrent ? d : best, sorted[0] || {});
+
+  document.getElementById('summaryCards').innerHTML = `
+    <div class="card">
+      <div class="card-label">総配信回数</div>
+      <div class="card-val red">${sorted.length}</div>
+      <div class="card-sub">累計</div>
+    </div>
+    <div class="card">
+      <div class="card-label">最高視聴数</div>
+      <div class="card-val teal">${(bestViews.totalViews||0).toLocaleString()}</div>
+      <div class="card-sub">${bestViews.date ? bestViews.date.split(' ')[0] + 'の配信' : '-'}</div>
+    </div>
+    <div class="card">
+      <div class="card-label">累計視聴数</div>
+      <div class="card-val">${totalViews.toLocaleString()}</div>
+      <div class="card-sub">${sorted.length}回合計</div>
+    </div>
+    <div class="card">
+      <div class="card-label">累計新規フォロワー</div>
+      <div class="card-val green">+${totalFollowers}</div>
+      <div class="card-sub">平均 ${sorted.length ? (totalFollowers/sorted.length).toFixed(1) : 0}/回</div>
+    </div>
+    <div class="card">
+      <div class="card-label">最高同時視聴者</div>
+      <div class="card-val teal">${(bestPeak.peakConcurrent||0).toLocaleString()}</div>
+      <div class="card-sub">${bestPeak.date ? bestPeak.date.split(' ')[0] + 'の配信' : '-'}</div>
+    </div>
+    <div class="card">
+      <div class="card-label">累計ダイヤ</div>
+      <div class="card-val gold">${totalDiamonds}</div>
+      <div class="card-sub">推定 USD${(totalDiamonds * 0.004).toFixed(2)}</div>
+    </div>
+  `;
+}
+
+// ============================================================
+// CHARTS
+// ============================================================
+function renderCharts(sorted) {
+  const displayed = [...sorted].reverse(); // chronological
+  const labels = displayed.map(d => d.date.split(' ')[0]);
+  const COLORS = { red: '#fe2c55', teal: '#25f4ee', gold: '#ffd700', green: '#22c55e', purple: '#a855f7' };
+
+  function makeChart(id, type, data, opts={}) {
+    if (charts[id]) charts[id].destroy();
+    charts[id] = new Chart(document.getElementById(id), {
+      type, data,
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: type !== 'pie' ? {
+          x: { ticks: { color: '#6b6b85', font: { size: 11 } }, grid: { color: '#2a2a3a' } },
+          y: { ticks: { color: '#6b6b85', font: { size: 11 } }, grid: { color: '#2a2a3a' } }
+        } : {},
+        ...opts
+      }
+    });
+  }
+
+  makeChart('viewsChart', 'bar', {
+    labels,
+    datasets: [{ label: '視聴数', data: displayed.map(d=>d.totalViews), backgroundColor: COLORS.teal+'88', borderColor: COLORS.teal, borderWidth: 2, borderRadius: 6 }]
+  });
+  makeChart('engageChart', 'bar', {
+    labels,
+    datasets: [
+      { label: 'いいね', data: displayed.map(d=>d.likes), backgroundColor: COLORS.red+'88', borderColor: COLORS.red, borderWidth: 2, borderRadius: 6 },
+      { label: 'コメント', data: displayed.map(d=>d.comments), backgroundColor: COLORS.gold+'88', borderColor: COLORS.gold, borderWidth: 2, borderRadius: 6 }
+    ]
+  }, { plugins: { legend: { display: true, labels: { color: '#6b6b85', font: { size: 11 } } } } });
+  makeChart('peakChart', 'line', {
+    labels,
+    datasets: [{ label: '最高同時視聴者', data: displayed.map(d=>d.peakConcurrent), borderColor: COLORS.purple, backgroundColor: COLORS.purple+'22', borderWidth: 2, tension: 0.4, pointBackgroundColor: COLORS.purple, pointRadius: 5 }]
+  });
+  makeChart('followerChart', 'bar', {
+    labels,
+    datasets: [{ label: '新規フォロワー', data: displayed.map(d=>d.newFollowers), backgroundColor: COLORS.green+'88', borderColor: COLORS.green, borderWidth: 2, borderRadius: 6 }]
+  });
+}
+
+// ============================================================
+// TABLE
+// ============================================================
+function renderTable(sorted) {
+  const tbody = document.getElementById('liveTableBody');
+  tbody.innerHTML = '';
+  const maxViews = Math.max(...sorted.map(d=>d.totalViews||0));
+
+  sorted.forEach((d, i) => {
+    const isBest = d.totalViews === maxViews;
+    const tr = document.createElement('tr');
+    const cvr = (d.activeViewers||0) > 0 ? ((d.purchases||0)/(d.activeViewers||1)*100).toFixed(1) : '0.0';
+    tr.innerHTML = `
+      <td class="date">${d.date} ${isBest ? '<span style="color:var(--gold);font-size:10px">★ 最高</span>' : ''}${d.memo ? '<br><span style="color:var(--muted);font-size:10px">' + d.memo + '</span>' : ''}</td>
+      <td>${d.liveTime || '-'}</td>
+      <td class="num">${(d.totalViews||0).toLocaleString()}</td>
+      <td class="num">${(d.peakConcurrent||0).toLocaleString()}</td>
+      <td class="highlight">${(d.likes||0).toLocaleString()}</td>
+      <td>${d.comments||0}</td>
+      <td style="color:var(--green);font-weight:700">+${d.newFollowers||0}</td>
+      <td class="gold-text">💎${d.diamonds||0}</td>
+      <td style="color:var(--green);font-weight:700;border-left:2px solid var(--border)">${d.sales ? '¥'+d.sales.toLocaleString() : '-'}</td>
+      <td style="font-weight:700">${d.purchases||0}</td>
+      <td style="color:var(--teal);font-weight:700">${cvr}%</td>
+      <td style="color:var(--gold);font-weight:700">${d.profit ? '¥'+d.profit.toLocaleString() : '-'}</td>
+      <td style="display:flex;gap:4px;align-items:center;flex-wrap:wrap">
+        <button class="expand-btn" onclick="toggleDetail(${i}, this)">▼ 詳細</button>
+        <button class="btn btn-outline btn-sm btn-edit-entry" onclick="openEditModal(${d.id})">✏️</button>
+        <button class="btn btn-danger btn-sm" onclick="deleteEntry(${d.id})">🗑</button>
+      </td>
+    `;
+    tbody.appendChild(tr);
+
+    const dr = document.createElement('tr');
+    dr.className = 'detail-row';
+    dr.id = `detail-${i}`;
+    dr.innerHTML = `<td colspan="13">
+      <div class="detail-inner">
+        <div class="detail-grid">
+          <div class="detail-block">
+            <h4>👁 視聴</h4>
+            <div class="kv"><span class="k">総視聴数</span><span class="v">${(d.totalViews||0).toLocaleString()}</span></div>
+            <div class="kv"><span class="k">ユニーク視聴者</span><span class="v">${(d.uniqueViewers||0).toLocaleString()}</span></div>
+            <div class="kv"><span class="k">アクティブ視聴者</span><span class="v">${d.activeViewers||0}</span></div>
+            <div class="kv"><span class="k">最高同時視聴者</span><span class="v" style="color:var(--teal)">${d.peakConcurrent||0}</span></div>
+            <div class="kv"><span class="k">平均視聴時間</span><span class="v">${d.avgWatchTime||'-'}</span></div>
+          </div>
+          <div class="detail-block">
+            <h4>💬 エンゲージメント</h4>
+            <div class="kv"><span class="k">いいね</span><span class="v" style="color:var(--accent)">${(d.likes||0).toLocaleString()}</span></div>
+            <div class="kv"><span class="k">コメント</span><span class="v">${d.comments||0}</span></div>
+            <div class="kv"><span class="k">シェア</span><span class="v">${d.shares||0}</span></div>
+            <div class="kv"><span class="k">ギフト贈呈者</span><span class="v">${d.gifters||0}</span></div>
+          </div>
+          <div class="detail-block">
+            <h4>📡 トラフィック流入</h4>
+            <div class="kv"><span class="k">LIVEのおすすめ</span><span class="v" style="color:var(--accent)">${d.trafficLive||0}%</span></div>
+            <div class="kv"><span class="k">その他</span><span class="v">${d.trafficOther||0}%</span></div>
+            <div class="traffic-bar" style="margin-top:8px">
+              <div class="tb-live" style="width:${d.trafficLive||0}%"></div>
+              <div class="tb-other" style="width:${d.trafficOther||0}%"></div>
+            </div>
+          </div>
+          <div class="detail-block">
+            <h4>👥 フォロワー</h4>
+            <div class="kv"><span class="k">新規フォロワー</span><span class="v" style="color:var(--green)">+${d.newFollowers||0}</span></div>
+            <div class="kv"><span class="k">フォロワー平均視聴</span><span class="v">${d.followerAvgTime||'-'}</span></div>
+            <div class="kv"><span class="k">フォロワーユニーク</span><span class="v">${d.followerUnique||0}</span></div>
+            <div class="kv"><span class="k">コメント投稿者</span><span class="v">${d.commenters||0}</span></div>
+          </div>
+          <div class="detail-block">
+            <h4>💎 報酬</h4>
+            <div class="kv"><span class="k">ダイヤモンド</span><span class="v" style="color:var(--gold)">${d.diamonds||0}</span></div>
+            <div class="kv"><span class="k">推定額</span><span class="v">USD${(d.estimatedUSD||0).toFixed(2)}</span></div>
+          </div>
+          <div class="detail-block">
+            <h4>💰 売り上げ</h4>
+            <div class="kv"><span class="k">売り上げ</span><span class="v" style="color:var(--green)">¥${(d.sales||0).toLocaleString()}</span></div>
+            <div class="kv"><span class="k">購入数</span><span class="v">${d.purchases||0}</span></div>
+            <div class="kv"><span class="k">利益</span><span class="v" style="color:var(--gold)">¥${(d.profit||0).toLocaleString()}</span></div>
+            <div class="kv"><span class="k">CVR</span><span class="v" style="color:var(--teal)">${(d.activeViewers||0)>0?((d.purchases||0)/(d.activeViewers||1)*100).toFixed(1):'0.0'}%</span></div>
+          </div>
+        </div>
+      </div>
+    </td>`;
+    tbody.appendChild(dr);
+  });
+  applyViewerModeUI(); // 動的生成ボタンにも閲覧モードを適用
+}
+
+function toggleDetail(i, btn) {
+  const row = document.getElementById(`detail-${i}`);
+  const isOpen = row.classList.toggle('open');
+  btn.textContent = isOpen ? '▲ 閉じる' : '▼ 詳細';
+  btn.classList.toggle('open', isOpen);
+}
+
+// ============================================================
+// MODAL
+// ============================================================
+function openAddModal() {
+  editingId = null;
+  document.getElementById('modalTitle').textContent = 'LIVE データを追加';
+  clearForm();
+  document.getElementById('addModal').classList.add('open');
+}
+
+function openEditModal(id) {
+  const entry = liveData.find(d => d.id === id);
+  if (!entry) return;
+  editingId = id;
+  document.getElementById('modalTitle').textContent = 'LIVE データを編集';
+  fillForm(entry);
+  document.getElementById('addModal').classList.add('open');
+}
+
+function closeModal(id) {
+  document.getElementById(id).classList.remove('open');
+}
+
+const FORM_FIELDS = ['date','liveTime','memo','totalViews','uniqueViewers','activeViewers',
+  'peakConcurrent','avgWatchTime','likes','comments','shares','gifters','trafficLive',
+  'trafficOther','newFollowers','followerAvgTime','followerUnique','commenters',
+  'diamonds','estimatedUSD','sales','purchases','profit'];
+const FORM_NUM = new Set(['totalViews','uniqueViewers','activeViewers','peakConcurrent',
+  'likes','comments','shares','gifters','trafficLive','trafficOther','newFollowers',
+  'followerUnique','commenters','diamonds','estimatedUSD','sales','purchases','profit']);
+
+function clearForm() {
+  FORM_FIELDS.forEach(k => { const el = document.getElementById('f_'+k); if(el) el.value = ''; });
+}
+
+function fillForm(d) {
+  FORM_FIELDS.forEach(k => {
+    const el = document.getElementById('f_'+k);
+    if (el && d[k] !== undefined) el.value = d[k];
+  });
+}
+
+function getFormData() {
+  const g = id => (document.getElementById('f_' + id) || {}).value || '';
+  const n = id => parseFloat(g(id)) || 0;
+  const obj = {};
+  FORM_FIELDS.forEach(k => { obj[k] = FORM_NUM.has(k) ? n(k) : g(k); });
+  return obj;
+}
+
+function saveLiveData() {
+  const formData = getFormData();
+  if (!formData.date) { showToast('配信日時は必須です', 'error'); return; }
+
+  if (editingId !== null) {
+    const idx = liveData.findIndex(d => d.id === editingId);
+    if (idx !== -1) liveData[idx] = { ...liveData[idx], ...formData };
+  } else {
+    liveData.push({ id: getNextId(liveData), ...formData });
+  }
+
+  saveData(liveData);
+  renderAll();
+  closeModal('addModal');
+  localStorage.removeItem(INSIGHTS_KEY);
+  renderDefaultInsights();
+  showToast(editingId ? 'データを更新しました' : 'ライブデータを追加しました', 'success');
+}
+
+function deleteEntry(id) {
+  if (!confirm('このライブデータを削除しますか？')) return;
+  liveData = liveData.filter(d => d.id !== id);
+  saveData(liveData);
+  renderAll();
+  localStorage.removeItem(INSIGHTS_KEY);
+  renderDefaultInsights();
+  showToast('削除しました', 'success');
+}
+
+// ============================================================
+// IMPORT / EXPORT
+// ============================================================
+function openImportModal() {
+  document.getElementById('importJson').value = '';
+  document.getElementById('importModal').classList.add('open');
+}
+
+function importJson() {
+  const raw = document.getElementById('importJson').value.trim();
+  if (!raw) { showToast('データを入力してください', 'error'); return; }
+
+  let parsed;
+  try { parsed = JSON.parse(raw); } catch(e) { showToast('JSON形式が正しくありません: ' + e.message, 'error'); return; }
+
+  const entries = Array.isArray(parsed) ? parsed : [parsed];
+  let added = 0;
+  entries.forEach(entry => {
+    if (!entry.date) return;
+    // Remove internal bookmarklet fields
+    delete entry._note; delete entry._rawNumbers;
+    const newEntry = { id: getNextId(liveData), ...entry };
+    liveData.push(newEntry);
+    added++;
+  });
+
+  if (added === 0) { showToast('追加できるデータがありませんでした（dateフィールドが必要です）', 'error'); return; }
+
+  saveData(liveData);
+  renderAll();
+  closeModal('importModal');
+  localStorage.removeItem(INSIGHTS_KEY);
+  renderDefaultInsights();
+  showToast(`${added}件のデータをインポートしました`, 'success');
+}
+
+function exportData() {
+  const json = JSON.stringify(liveData, null, 2);
+  const blob = new Blob([json], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `imapochi_live_data_${new Date().toISOString().slice(0,10)}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast('エクスポートしました', 'success');
+}
+
+// ============================================================
+// CLAUDE AI INSIGHTS
+// ============================================================
+function saveApiKey() {
+  const key = document.getElementById('apiKeyInput').value.trim();
+  if (!key) { showToast('APIキーを入力してください', 'error'); return; }
+  localStorage.setItem(API_KEY_STORAGE, key);
+  showToast('APIキーを保存しました', 'success');
+}
+
+async function generateInsights() {
+  const apiKey = localStorage.getItem(API_KEY_STORAGE) || document.getElementById('apiKeyInput').value.trim();
+  if (!apiKey) { showToast('Claude APIキーを設定してください', 'error'); return; }
+
+  const area = document.getElementById('insightsArea');
+  area.innerHTML = '<div class="loading">🤖 Claude AIが分析中...</div>';
+
+  const dataStr = JSON.stringify(liveData.map(d => ({
+    date: d.date, liveTime: d.liveTime, memo: d.memo,
+    totalViews: d.totalViews, peakConcurrent: d.peakConcurrent,
+    activeViewers: d.activeViewers, likes: d.likes, comments: d.comments,
+    shares: d.shares, newFollowers: d.newFollowers, diamonds: d.diamonds,
+    trafficLive: d.trafficLive, trafficOther: d.trafficOther,
+    avgWatchTime: d.avgWatchTime
+  })), null, 2);
+
+  const prompt = `あなたはTikTok LIVEの分析の専門家です。
+以下は「いまポチch」というTikTokアカウントのLIVE配信データです。
+
+${dataStr}
+
+このデータをもとに、以下の形式でJSONを返してください（他のテキストは不要）:
+[
+  {"type":"gold","icon":"🏆","title":"最高パフォーマンス分析","body":"..."},
+  {"type":"warn","icon":"⚠️","title":"改善が必要なポイント","body":"..."},
+  {"type":"","icon":"📊","title":"トレンド・傾向","body":"..."},
+  {"type":"","icon":"💡","title":"次回配信への提案","body":"..."}
+]
+typeは"gold"、"warn"、または""（空文字）のいずれか。
+bodyは日本語で2〜3文、具体的な数値を含めてください。`;
+
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-calls': 'true'
+      },
+      body: JSON.stringify({
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 1024,
+        messages: [{ role: 'user', content: prompt }]
+      })
+    });
+
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.error?.message || res.statusText);
+    }
+
+    const data = await res.json();
+    const text = data.content[0].text;
+    const jsonMatch = text.match(/\[[\s\S]*\]/);
+    if (!jsonMatch) throw new Error('JSONが見つかりませんでした');
+
+    const insights = JSON.parse(jsonMatch[0]);
+    localStorage.setItem(INSIGHTS_KEY, JSON.stringify(insights));
+    renderInsights(insights);
+    showToast('AIインサイトを生成しました', 'success');
+  } catch(e) {
+    area.innerHTML = `<div class="insight warn"><strong>⚠️ エラー</strong><span>${e.message}</span></div>`;
+    showToast('AIインサイトの生成に失敗しました: ' + e.message, 'error');
+  }
+}
+
+function renderInsights(insights) {
+  const area = document.getElementById('insightsArea');
+  area.innerHTML = insights.map(ins => `
+    <div class="insight ${ins.type||''}">
+      <strong>${ins.icon} ${ins.title}</strong>
+      <span>${ins.body}</span>
+    </div>
+  `).join('');
+}
+
+function renderDefaultInsights() {
+  const sorted = [...liveData].sort((a,b) => new Date(b.date) - new Date(a.date));
+  if (sorted.length === 0) { document.getElementById('insightsArea').innerHTML = ''; return; }
+
+  const best = sorted.reduce((b,d) => d.totalViews > b.totalViews ? d : b, sorted[0]);
+  const worst = sorted.reduce((b,d) => d.totalViews < b.totalViews ? d : b, sorted[0]);
+  const avgFollowers = (sorted.reduce((s,d)=>s+(d.newFollowers||0),0)/sorted.length).toFixed(1);
+
+  const insights = [
+    { type: 'gold', icon: '🏆', title: `最高パフォーマンス回：${best.date.split(' ')[0]}`,
+      body: `視聴${(best.totalViews||0).toLocaleString()}・最高同時${best.peakConcurrent||0}人・いいね${(best.likes||0).toLocaleString()}・フォロワー+${best.newFollowers||0}。` },
+    { type: 'warn', icon: '⚠️', title: `要改善：${worst.date.split(' ')[0]}`,
+      body: `視聴${(worst.totalViews||0).toLocaleString()}で全${sorted.length}回中最低。配信時間帯・内容の見直しを検討してください。` },
+    { type: '', icon: '📊', title: `流入の傾向`,
+      body: `LIVEのおすすめ経由が平均${Math.round(sorted.reduce((s,d)=>s+(d.trafficLive||0),0)/sorted.length)}%。推薦アルゴリズムに依存しているため、投稿からの流入増加が課題です。` },
+    { type: '', icon: '👥', title: `フォロワー獲得`,
+      body: `平均${avgFollowers}人/回のフォロワー獲得。Claude AIでより深い分析をするには上のAPIキー設定欄からAPIキーを入力してください。` }
+  ];
+  renderInsights(insights);
+}
+
+// ============================================================
+// TOAST
+// ============================================================
+function showToast(msg, type='success') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = `toast ${type} show`;
+  setTimeout(() => t.className = 'toast', 3000);
+}
+
+// Close modal on overlay click
+document.querySelectorAll('.modal-overlay').forEach(overlay => {
+  overlay.addEventListener('click', e => {
+    if (e.target === overlay) overlay.classList.remove('open');
+  });
+});
+
+init();
+</script>
+</body>
+</html>
