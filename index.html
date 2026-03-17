@@ -425,7 +425,7 @@ td.gold-text { color: var(--gold); }
       2. GistのURLにある32文字のIDをコピー（例: <code>https://gist.github.com/username/<strong>ここがID</strong></code>）。<br>
       3. <a href="https://github.com/settings/tokens/new?scopes=gist" target="_blank" style="color:var(--teal)">github.com/settings/tokens</a> で「gist」スコープのみのPATを作成。<br>
       4. 上のフォームに入力して「💾 設定を保存」→「🔄 今すぐ同期」でローカルデータをGistへ転送。<br>
-      5. このHTMLを <code style="color:var(--teal)">index.html</code> に改名し、ファイル内の <code style="color:var(--teal)">const DEFAULT_GIST_ID = '7d5425efae6b412284a5e27841592f34'</code> にGist IDを貼り付けて保存。<br>
+      5. このHTMLを <code style="color:var(--teal)">index.html</code> に改名し、ファイル内の <code style="color:var(--teal)">const DEFAULT_GIST_ID = ''</code> にGist IDを貼り付けて保存。<br>
       6. GitHubリポジトリに push → Settings &gt; Pages &gt; mainブランチで公開 → URLをシェア。<br><br>
       <strong style="color:var(--text)">【閲覧者向け】</strong><br>
       オーナーからURLを受け取ったら、そのままアクセスするだけで最新データが閲覧できます。<br>
@@ -641,7 +641,7 @@ td.gold-text { color: var(--gold); }
 const STORAGE_KEY = 'imapochi_live_data';
 const INSIGHTS_KEY = 'imapochi_insights';
 const API_KEY_STORAGE = 'imapochi_claude_key';
-const DEFAULT_GIST_ID    = '';  // GitHub Pagesデプロイ時にGist IDをここに埋め込む
+const DEFAULT_GIST_ID    = '7d5425efae6b412284a5e27841592f34';  // GitHub Pagesデプロイ時にGist IDをここに埋め込む
 const GIST_ID_STORAGE    = 'imapochi_gist_id';
 const GITHUB_PAT_STORAGE = 'imapochi_github_pat';
 
@@ -1008,6 +1008,12 @@ async function loadFromGist() {
     const parsed = JSON.parse(file.content);
     if (!Array.isArray(parsed)) throw new Error('data.json の形式が正しくありません。');
 
+    // Gistが空（[]）の場合はローカルデータを保護する（初回セットアップ時にデータが消えるのを防ぐ）
+    if (parsed.length === 0) {
+      setSyncStatus('ok');
+      return null; // nullを返してlocalStorageを上書きしない
+    }
+
     saveDataLocal(parsed);
     setSyncStatus('ok');
     return parsed;
@@ -1091,10 +1097,13 @@ async function init() {
 
   // Gistから最新データを取得（失敗時はlocalStorageキャッシュを使用）
   const gistResult = await loadFromGist();
-  if (gistResult) {
+  if (gistResult && gistResult.length > 0) {
+    // Gistにデータがある場合のみ上書き（空Gistでローカルデータが消えるのを防ぐ）
     liveData = gistResult;
   } else if (!loadData()) {
     saveDataLocal(liveData); // デフォルトデータをキャッシュ
+  } else {
+    liveData = loadData(); // localStorageから読み直す
   }
 
   // デフォルトフィルター: 今月（当日含む）
