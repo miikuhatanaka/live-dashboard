@@ -84,6 +84,8 @@ td.highlight { color: var(--accent); font-weight: 700; }
 td.gold-text { color: var(--gold); }
 
 /* Detail expand */
+.total-row { background: var(--s2); border-top: 2px solid var(--accent); position: sticky; bottom: 0; z-index: 2; }
+.total-row td { padding: 10px 8px; }
 .detail-row { display: none; }
 .detail-row.open { display: table-row; }
 .detail-row td { padding: 0; }
@@ -996,7 +998,7 @@ async function loadFromGist() {
     const headers = { 'Accept': 'application/vnd.github+json' };
     if (pat) headers['Authorization'] = `Bearer ${pat}`;
 
-    const res = await fetch(`https://api.github.com/gists/${gistId}`, { headers });
+    const res = await fetch(`https://api.github.com/gists/${gistId}`, { headers, cache: 'no-store' });
     if (res.status === 404) throw new Error('Gist が見つかりません。Gist IDを確認してください。');
     if (res.status === 403) throw new Error('GitHub APIのレート制限に達しました。GitHubトークンを設定すると解決します。');
     if (!res.ok) throw new Error(`GitHub API エラー: ${res.status}`);
@@ -1315,8 +1317,10 @@ function renderSummary(sorted) {
   const totalViews = sorted.reduce((s,d) => s + (d.totalViews||0), 0);
   const totalFollowers = sorted.reduce((s,d) => s + (d.newFollowers||0), 0);
   const totalDiamonds = sorted.reduce((s,d) => s + (d.diamonds||0), 0);
-  const bestViews = sorted.reduce((best,d) => d.totalViews > best.totalViews ? d : best, sorted[0] || {});
-  const bestPeak = sorted.reduce((best,d) => d.peakConcurrent > best.peakConcurrent ? d : best, sorted[0] || {});
+  const totalSales = sorted.reduce((s,d) => s + (d.sales||0), 0);
+  const totalPurchases = sorted.reduce((s,d) => s + (d.purchases||0), 0);
+  const totalProfit = sorted.reduce((s,d) => s + (d.profit||0), 0);
+  const avgSales = sorted.length ? Math.round(totalSales / sorted.length) : 0;
 
   document.getElementById('summaryCards').innerHTML = `
     <div class="card">
@@ -1325,29 +1329,39 @@ function renderSummary(sorted) {
       <div class="card-sub">累計</div>
     </div>
     <div class="card">
-      <div class="card-label">最高視聴数</div>
-      <div class="card-val teal">${(bestViews.totalViews||0).toLocaleString()}</div>
-      <div class="card-sub">${bestViews.date ? bestViews.date.split(' ')[0] + 'の配信' : '-'}</div>
-    </div>
-    <div class="card">
-      <div class="card-label">累計視聴数</div>
+      <div class="card-label">累計視聴者数</div>
       <div class="card-val">${totalViews.toLocaleString()}</div>
       <div class="card-sub">${sorted.length}回合計</div>
     </div>
     <div class="card">
       <div class="card-label">累計新規フォロワー</div>
-      <div class="card-val green">+${totalFollowers}</div>
+      <div class="card-val green">+${totalFollowers.toLocaleString()}</div>
       <div class="card-sub">平均 ${sorted.length ? (totalFollowers/sorted.length).toFixed(1) : 0}/回</div>
     </div>
     <div class="card">
-      <div class="card-label">最高同時視聴者</div>
-      <div class="card-val teal">${(bestPeak.peakConcurrent||0).toLocaleString()}</div>
-      <div class="card-sub">${bestPeak.date ? bestPeak.date.split(' ')[0] + 'の配信' : '-'}</div>
+      <div class="card-label">累計ダイヤ</div>
+      <div class="card-val gold">${totalDiamonds.toLocaleString()}</div>
+      <div class="card-sub">推定 USD${(totalDiamonds * 0.004).toFixed(2)}</div>
     </div>
     <div class="card">
-      <div class="card-label">累計ダイヤ</div>
-      <div class="card-val gold">${totalDiamonds}</div>
-      <div class="card-sub">推定 USD${(totalDiamonds * 0.004).toFixed(2)}</div>
+      <div class="card-label">累計売上</div>
+      <div class="card-val green">¥${totalSales.toLocaleString()}</div>
+      <div class="card-sub">${sorted.length}回合計</div>
+    </div>
+    <div class="card">
+      <div class="card-label">累計購入回数</div>
+      <div class="card-val">${totalPurchases.toLocaleString()}</div>
+      <div class="card-sub">${sorted.length}回合計</div>
+    </div>
+    <div class="card">
+      <div class="card-label">1配信あたりの売上</div>
+      <div class="card-val green">¥${avgSales.toLocaleString()}</div>
+      <div class="card-sub">平均</div>
+    </div>
+    <div class="card">
+      <div class="card-label">累計利益</div>
+      <div class="card-val gold">¥${totalProfit.toLocaleString()}</div>
+      <div class="card-sub">${sorted.length}回合計</div>
     </div>
   `;
 }
@@ -1484,6 +1498,41 @@ function renderTable(sorted) {
     </td>`;
     tbody.appendChild(dr);
   });
+
+  // 合計行
+  if (sorted.length > 0) {
+    const sumViews = sorted.reduce((s,d) => s + (d.totalViews||0), 0);
+    const avgPeak = Math.round(sorted.reduce((s,d) => s + (d.peakConcurrent||0), 0) / sorted.length);
+    const sumLikes = sorted.reduce((s,d) => s + (d.likes||0), 0);
+    const sumComments = sorted.reduce((s,d) => s + (d.comments||0), 0);
+    const sumFollowers = sorted.reduce((s,d) => s + (d.newFollowers||0), 0);
+    const sumDiamonds = sorted.reduce((s,d) => s + (d.diamonds||0), 0);
+    const sumSales = sorted.reduce((s,d) => s + (d.sales||0), 0);
+    const sumPurchases = sorted.reduce((s,d) => s + (d.purchases||0), 0);
+    const sumActive = sorted.reduce((s,d) => s + (d.activeViewers||0), 0);
+    const totalCvr = sumActive > 0 ? (sumPurchases / sumActive * 100).toFixed(1) : '0.0';
+    const sumProfit = sorted.reduce((s,d) => s + (d.profit||0), 0);
+
+    const totalRow = document.createElement('tr');
+    totalRow.className = 'total-row';
+    totalRow.innerHTML = `
+      <td style="font-weight:700">合計 (${sorted.length}回)</td>
+      <td>-</td>
+      <td class="num" style="font-weight:700">${sumViews.toLocaleString()}</td>
+      <td class="num" style="font-weight:700">⌀${avgPeak.toLocaleString()}</td>
+      <td style="font-weight:700">${sumLikes.toLocaleString()}</td>
+      <td style="font-weight:700">${sumComments.toLocaleString()}</td>
+      <td style="color:var(--green);font-weight:700">+${sumFollowers.toLocaleString()}</td>
+      <td class="gold-text" style="font-weight:700">💎${sumDiamonds.toLocaleString()}</td>
+      <td style="color:var(--green);font-weight:700;border-left:2px solid var(--border)">¥${sumSales.toLocaleString()}</td>
+      <td style="font-weight:700">${sumPurchases.toLocaleString()}</td>
+      <td style="color:var(--teal);font-weight:700">${totalCvr}%</td>
+      <td style="color:var(--gold);font-weight:700">¥${sumProfit.toLocaleString()}</td>
+      <td></td>
+    `;
+    tbody.appendChild(totalRow);
+  }
+
   applyViewerModeUI(); // 動的生成ボタンにも閲覧モードを適用
 }
 
