@@ -1537,27 +1537,68 @@ function renderProductDetailBlock(d) {
     </div>`;
   }
 
-  let rows = '';
+  // variantBreakdown(注文CSV実績)があれば各variantごとに1行ずつ展開する
+  // なければ従来通り listing1行
+  const rows = [];
   visible.forEach(p => {
-    const profitText = '¥' + Math.round(p.totalProfit || 0).toLocaleString();
-    const profitClass = (p.totalProfit || 0) >= 0 ? 'profit-pos' : 'profit-neg';
-    const skuTag = `<span class="sku-tag">${escapeHtml(p.masterKey)}</span>`;
-    rows += `<tr>
-      <td class="product-name">
-        ${skuTag}
-        <span class="tik" title="${escapeHtml(p.tiktokName || '')}">${escapeHtml((p.tiktokName || '').slice(0, 50))}${(p.tiktokName || '').length > 50 ? '…' : ''}</span>
-      </td>
-      <td style="text-align:right">${(p.impressions || 0).toLocaleString()}</td>
-      <td style="text-align:right">${p.ctr != null ? p.ctr.toFixed(2) + '%' : '-'}</td>
-      <td style="text-align:right;font-weight:600">${(p.sold || 0).toLocaleString()}</td>
-      <td style="text-align:right;color:var(--green);font-weight:600">¥${(p.gmv || 0).toLocaleString()}</td>
-      <td style="text-align:right" class="${profitClass}">${profitText}</td>
-    </tr>`;
+    if (Array.isArray(p.variantBreakdown) && p.variantBreakdown.length > 0) {
+      const totalQty = p.variantBreakdown.reduce((s, b) => s + (b.qty || 0), 0) || 1;
+      const sorted = [...p.variantBreakdown].sort((a, b) => (b.qty || 0) - (a.qty || 0));
+      sorted.forEach((b, i) => {
+        const impPortion = Math.round((p.impressions || 0) * ((b.qty || 0) / totalQty));
+        const profitText = '¥' + Math.round(b.totalProfit || 0).toLocaleString();
+        const profitClass = (b.totalProfit || 0) >= 0 ? 'profit-pos' : 'profit-neg';
+        const isFirst = i === 0;
+        rows.push({
+          sold: b.qty || 0,
+          gmv: b.subtotalYen || 0,
+          html: `<tr>
+            <td class="product-name">
+              <span class="sku-tag">${escapeHtml(b.masterKey)}</span> <span style="color:var(--teal);font-size:10px;margin-left:4px" title="注文CSVからの実績値">✓実績</span>
+              ${isFirst ? `<span class="tik" title="${escapeHtml(p.tiktokName || '')}">${escapeHtml((p.tiktokName || '').slice(0, 50))}${(p.tiktokName || '').length > 50 ? '…' : ''}</span>` : ''}
+            </td>
+            <td style="text-align:right">${impPortion.toLocaleString()}</td>
+            <td style="text-align:right">${isFirst && p.ctr != null ? p.ctr.toFixed(2) + '%' : '-'}</td>
+            <td style="text-align:right;font-weight:600">${(b.qty || 0).toLocaleString()}</td>
+            <td style="text-align:right;color:var(--green);font-weight:600">¥${(b.subtotalYen || 0).toLocaleString()}</td>
+            <td style="text-align:right" class="${profitClass}">${profitText}</td>
+          </tr>`
+        });
+      });
+    } else {
+      const profitText = '¥' + Math.round(p.totalProfit || 0).toLocaleString();
+      const profitClass = (p.totalProfit || 0) >= 0 ? 'profit-pos' : 'profit-neg';
+      const skuTag = `<span class="sku-tag">${escapeHtml(p.masterKey)}</span>`;
+      const noteText = p.profitNote && /mix/.test(p.profitNote) ? ' <span style="color:var(--gold);font-size:10px" title="implied unit priceベースのmix推定">~推定</span>' : '';
+      rows.push({
+        sold: p.sold || 0,
+        gmv: p.gmv || 0,
+        html: `<tr>
+          <td class="product-name">
+            ${skuTag}${noteText}
+            <span class="tik" title="${escapeHtml(p.tiktokName || '')}">${escapeHtml((p.tiktokName || '').slice(0, 50))}${(p.tiktokName || '').length > 50 ? '…' : ''}</span>
+          </td>
+          <td style="text-align:right">${(p.impressions || 0).toLocaleString()}</td>
+          <td style="text-align:right">${p.ctr != null ? p.ctr.toFixed(2) + '%' : '-'}</td>
+          <td style="text-align:right;font-weight:600">${(p.sold || 0).toLocaleString()}</td>
+          <td style="text-align:right;color:var(--green);font-weight:600">¥${(p.gmv || 0).toLocaleString()}</td>
+          <td style="text-align:right" class="${profitClass}">${profitText}</td>
+        </tr>`
+      });
+    }
   });
+
+  // 行全体を販売数降順でソート(variant行も含めて)
+  rows.sort((a, b) => b.sold - a.sold || b.gmv - a.gmv);
+
+  const preciseCount = visible.filter(p => Array.isArray(p.variantBreakdown) && p.variantBreakdown.length > 0).length;
+  const preciseBadge = preciseCount > 0
+    ? `<span style="color:var(--teal);font-size:11px;font-weight:600;margin-left:8px">✓実績 ${preciseCount}/${visible.length}件</span>`
+    : '';
 
   return `
     <div class="product-sub">
-      <h4>🛍 商品別明細 (${visible.length}SKU / 販売数降順)</h4>
+      <h4>🛍 商品別明細 (${rows.length}行 / 販売数降順)${preciseBadge}</h4>
       ${warnHtml}
       <table>
         <thead>
@@ -1570,7 +1611,7 @@ function renderProductDetailBlock(d) {
             <th style="text-align:right">粗利</th>
           </tr>
         </thead>
-        <tbody>${rows}</tbody>
+        <tbody>${rows.map(r => r.html).join('')}</tbody>
       </table>
     </div>
   `;
@@ -1583,27 +1624,48 @@ function renderProductSummary(sorted) {
   const body = document.getElementById('productSummaryBody');
   if (!body) return;
 
-  // 各商品を masterKey で集計（masterKey がない商品は tiktokName で識別）
+  // 各商品を masterKey で集計。variantBreakdown(注文CSV実績)があればvariant別に分解集計
   const agg = {};
   sorted.forEach(d => {
     if (!Array.isArray(d.products)) return;
     d.products.forEach(p => {
-      const key = p.masterKey || ('（未登録）' + (p.tiktokName || '').slice(0, 20));
-      if (!agg[key]) {
-        agg[key] = {
-          key,
-          masterKey: p.masterKey,
-          sampleName: p.tiktokName || p.masterKey || '',
-          impressions: 0, sold: 0, gmv: 0, totalProfit: 0,
-          broadcasts: 0, missing: !!p.profitMissing
-        };
+      // variantBreakdown(注文CSVから抽出した実績)があれば各variantを個別行に
+      if (Array.isArray(p.variantBreakdown) && p.variantBreakdown.length > 0) {
+        const totalQty = p.variantBreakdown.reduce((s, b) => s + (b.qty || 0), 0) || 1;
+        p.variantBreakdown.forEach(b => {
+          const key = b.masterKey;
+          if (!agg[key]) {
+            agg[key] = {
+              key, masterKey: key, sampleName: p.tiktokName || key,
+              impressions: 0, sold: 0, gmv: 0, totalProfit: 0,
+              broadcasts: 0, missing: false, precise: true
+            };
+          }
+          // Impressionsはlisting単位の値しか無いので qty比率で按分
+          agg[key].impressions += Math.round((p.impressions || 0) * ((b.qty || 0) / totalQty));
+          agg[key].sold        += (b.qty || 0);
+          agg[key].gmv         += (b.subtotalYen || 0);
+          agg[key].totalProfit += (b.totalProfit || 0);
+          agg[key].broadcasts  += 1;
+        });
+      } else {
+        // variantBreakdown無しは従来通り listing単位で集計
+        const key = p.masterKey || ('（未登録）' + (p.tiktokName || '').slice(0, 20));
+        if (!agg[key]) {
+          agg[key] = {
+            key, masterKey: p.masterKey,
+            sampleName: p.tiktokName || p.masterKey || '',
+            impressions: 0, sold: 0, gmv: 0, totalProfit: 0,
+            broadcasts: 0, missing: !!p.profitMissing, precise: false
+          };
+        }
+        agg[key].impressions += p.impressions || 0;
+        agg[key].sold        += p.sold || 0;
+        agg[key].gmv         += p.gmv || 0;
+        agg[key].totalProfit += p.totalProfit || 0;
+        agg[key].broadcasts  += 1;
+        if (p.profitMissing) agg[key].missing = true;
       }
-      agg[key].impressions += p.impressions || 0;
-      agg[key].sold        += p.sold || 0;
-      agg[key].gmv         += p.gmv || 0;
-      agg[key].totalProfit += p.totalProfit || 0;
-      agg[key].broadcasts  += 1;
-      if (p.profitMissing) agg[key].missing = true;
     });
   });
 
@@ -1636,8 +1698,9 @@ function renderProductSummary(sorted) {
     <tbody>`;
   rows.forEach(r => {
     const profitClass = r.totalProfit >= 0 ? 'profit-pos' : 'profit-neg';
+    const preciseMark = r.precise ? ' <span style="color:var(--teal);font-size:10px" title="注文CSVからの実績値">✓</span>' : '';
     const nameHtml = r.masterKey
-      ? `<span class="sku-tag">${escapeHtml(r.masterKey)}</span>`
+      ? `<span class="sku-tag">${escapeHtml(r.masterKey)}</span>${preciseMark}`
       : `<span class="sku-tag missing">⚠ 未登録</span> <span style="color:var(--muted);font-size:11px">${escapeHtml(r.sampleName.slice(0, 40))}...</span>`;
     const cvr = r.impressions > 0 ? (r.sold / r.impressions * 100) : null;
     const cvrText = cvr === null ? '—' : cvr.toFixed(2) + '%';
