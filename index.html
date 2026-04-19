@@ -436,6 +436,7 @@ td.gold-text { color: var(--gold); }
 
     <h4 style="font-size:13px;color:var(--accent);text-transform:uppercase;letter-spacing:.5px;margin-top:16px;margin-bottom:8px">利益</h4>
     <div class="def-item"><strong>粗利 (profit)</strong><span>売価 − 原価（仕入+梱包資材）。送料・TikTok手数料は含まない。<br>アフィリエイト商品は <code>GMV × 成果報酬率</code> で計算される。</span></div>
+    <div class="def-item"><strong>純利益 (netProfit)</strong><span>粗利から <strong>TikTok販売手数料</strong>(自社商品GMV×10%)、<strong>送料</strong>(梱包数×¥185)、<strong>梱包資材費</strong>(梱包数×¥5)を差し引いた値。<br><em>アフィリエイト商品は「販売手数料・送料・梱包資材」すべて対象外</em>（元セラーが発送を担当・販売手数料は成果報酬5%ですでに控除済み扱い）。<span class="def-formula">純利益 = 粗利 − 自社商品GMV×販売手数料率 − 梱包数×(送料+梱包資材)</span></span></div>
     <div class="def-item"><strong>unitProfit / totalProfit</strong><span><code>unitProfit</code>は1個あたりの粗利、<code>totalProfit</code>はその配信での合計粗利。variant mix対象商品では加重平均。</span></div>
 
     <h4 style="font-size:13px;color:var(--accent);text-transform:uppercase;letter-spacing:.5px;margin-top:16px;margin-bottom:8px">視聴・エンゲージメント</h4>
@@ -804,16 +805,24 @@ function saveNetProfitConfig(c) { localStorage.setItem(NET_PROFIT_CONFIG_KEY, JS
 let netProfitConfig = loadNetProfitConfig();
 
 // 純利益計算: 粗利(profit) − TikTok手数料 − 送料 − 梱包資材費
+// ※アフィリエイト商品はTikTok手数料・送料・梱包資材すべて対象外
+//   (発送は元セラーが行う / 粗利=GMV×5%ですでに手数料控除後の想定)
 function computeNetProfit(d) {
   const gross = d.profit || 0;
   const sales = d.sales || 0;
+  let affiliateGmv = 0;
+  if (Array.isArray(d.products)) {
+    d.products.forEach(p => { if (p.isAffiliate) affiliateGmv += (p.gmv || 0); });
+  }
+  const nonAffiliateGmv = Math.max(0, sales - affiliateGmv);
+
   const pkg = d.packageCount || 0;
   const feeRate = (d.feeRate != null) ? d.feeRate : netProfitConfig.feeRate;
-  const tiktokFee = Math.round(sales * feeRate);
+  const tiktokFee = Math.round(nonAffiliateGmv * feeRate);
   const shippingFee = Math.round(pkg * netProfitConfig.shippingFeePerPackage);
   const packagingCost = Math.round(pkg * netProfitConfig.packagingCostPerPackage);
   const net = gross - tiktokFee - shippingFee - packagingCost;
-  return { gross, tiktokFee, shippingFee, packagingCost, net, feeRate, packageCount: pkg };
+  return { gross, tiktokFee, shippingFee, packagingCost, net, feeRate, packageCount: pkg, affiliateGmv, nonAffiliateGmv };
 }
 const GIST_ID_STORAGE    = 'imapochi_gist_id';
 const GITHUB_PAT_STORAGE = 'imapochi_github_pat';
@@ -1898,10 +1907,14 @@ function renderTable(sorted) {
             ${(() => {
               const n = computeNetProfit(d);
               const netColor = n.net >= 0 ? 'var(--green)' : 'var(--accent)';
+              const affLine = n.affiliateGmv > 0
+                ? `<div class="kv"><span class="k" style="font-size:11px;color:var(--muted)">（内 アフィリエイトGMV: ¥${n.affiliateGmv.toLocaleString()} は手数料・送料対象外）</span><span class="v"></span></div>`
+                : '';
               return `
               <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border)">
                 <div class="kv"><span class="k">粗利(商品のみ)</span><span class="v" style="color:var(--gold)">¥${n.gross.toLocaleString()}</span></div>
-                <div class="kv"><span class="k">−TikTok手数料 (${(n.feeRate*100).toFixed(0)}%)</span><span class="v" style="color:var(--accent)">−¥${n.tiktokFee.toLocaleString()}</span></div>
+                ${affLine}
+                <div class="kv"><span class="k">−TikTok手数料 (${(n.feeRate*100).toFixed(0)}% × 自社GMV ¥${n.nonAffiliateGmv.toLocaleString()})</span><span class="v" style="color:var(--accent)">−¥${n.tiktokFee.toLocaleString()}</span></div>
                 <div class="kv"><span class="k">−送料 (${n.packageCount}梱包×¥${netProfitConfig.shippingFeePerPackage})</span><span class="v" style="color:var(--accent)">−¥${n.shippingFee.toLocaleString()}</span></div>
                 <div class="kv"><span class="k">−梱包資材 (${n.packageCount}梱包×¥${netProfitConfig.packagingCostPerPackage})</span><span class="v" style="color:var(--accent)">−¥${n.packagingCost.toLocaleString()}</span></div>
                 <div class="kv" style="margin-top:6px;padding-top:6px;border-top:2px solid var(--border)"><span class="k" style="font-weight:700">純利益</span><span class="v" style="color:${netColor};font-weight:700;font-size:14px">¥${n.net.toLocaleString()}</span></div>
