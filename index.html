@@ -332,7 +332,7 @@ td.gold-text { color: var(--gold); }
   <div class="kpi-header">
     <h2>🎯 重要指標 <span id="kpiPeriodLabel" style="font-size:13px;color:var(--muted)">（月次目標対比）</span></h2>
     <div style="font-size:11px;color:var(--muted)">
-      行動量 → <span style="color:var(--teal)">リーチ</span> → <span style="color:var(--gold)">リスト質</span> → <span style="color:var(--purple)">成約</span> → <span style="color:var(--green)">成果</span> → <span style="color:var(--gold)">深度</span>
+      行動量 → <span style="color:var(--teal)">リーチ</span> → <span style="color:var(--gold)">リスト質</span> → <span style="color:var(--purple)">成約</span> → <span style="color:var(--green)">成果</span>
     </div>
   </div>
   <div class="kpi-grid" id="kpiGrid"></div>
@@ -1493,15 +1493,6 @@ function renderKPI(sorted) {
       rate: target ? rateOf(totalSales, target.projectedSales) : 0,
       note: target ? `月商目標¥${(target.projectedSales/1000).toFixed(0)}K` : '',
       color: 'green'
-    },
-    {
-      label: '🔄 リピート率(件数ベース)',
-      actual: repeatOrderRate.toFixed(1) + '%',
-      target: '—',
-      rate: 0,
-      note: `リピ注文${repOrders}件/総注文${totOrders}件(全期間)`,
-      color: 'gold',
-      noTarget: true
     },
   ];
 
