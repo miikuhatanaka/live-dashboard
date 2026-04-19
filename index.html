@@ -338,7 +338,8 @@ td.gold-text { color: var(--gold); }
         <th style="border-left:2px solid var(--border)">売上</th>
         <th>購入数</th>
         <th>CVR</th>
-        <th>利益</th>
+        <th>粗利</th>
+        <th>純利益</th>
         <th></th>
       </tr>
     </thead>
@@ -365,6 +366,46 @@ td.gold-text { color: var(--gold); }
   <div class="chart-card">
     <div class="chart-title">新規フォロワー獲得数</div>
     <div class="chart-wrap"><canvas id="followerChart"></canvas></div>
+  </div>
+</div>
+
+<!-- 純利益計算の設定 -->
+<div class="prod-summary-card" style="border-color:var(--gold)">
+  <h2 style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap">
+    ⚙ 純利益計算の設定
+    <button class="btn btn-outline btn-sm" onclick="toggleNetProfitConfig()" id="npCfgToggle">▼ 開く</button>
+  </h2>
+  <div class="sub">純利益 = 粗利 − TikTok手数料 − 送料 − 梱包資材費</div>
+  <div id="npCfgPanel" style="display:none;margin-top:12px;padding:14px;background:var(--s2);border-radius:8px;border:1px solid var(--border)">
+    <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(220px, 1fr));gap:12px">
+      <div>
+        <div style="font-size:11px;color:var(--muted);margin-bottom:4px;text-transform:uppercase;letter-spacing:.5px">TikTok手数料率</div>
+        <div style="display:flex;align-items:center;gap:6px">
+          <input type="number" id="np_feeRate" step="0.1" style="background:var(--bg);border:1px solid var(--border);color:var(--text);padding:6px 10px;border-radius:6px;font-size:13px;width:80px">
+          <span style="color:var(--muted)">% (現行10%、旧7%)</span>
+        </div>
+      </div>
+      <div>
+        <div style="font-size:11px;color:var(--muted);margin-bottom:4px;text-transform:uppercase;letter-spacing:.5px">1梱包あたり送料</div>
+        <div style="display:flex;align-items:center;gap:6px">
+          <span style="color:var(--muted)">¥</span>
+          <input type="number" id="np_shipping" style="background:var(--bg);border:1px solid var(--border);color:var(--text);padding:6px 10px;border-radius:6px;font-size:13px;width:90px">
+          <span style="color:var(--muted);font-size:11px">(ClickPost ¥185想定)</span>
+        </div>
+      </div>
+      <div>
+        <div style="font-size:11px;color:var(--muted);margin-bottom:4px;text-transform:uppercase;letter-spacing:.5px">1梱包あたり梱包資材費</div>
+        <div style="display:flex;align-items:center;gap:6px">
+          <span style="color:var(--muted)">¥</span>
+          <input type="number" id="np_packaging" style="background:var(--bg);border:1px solid var(--border);color:var(--text);padding:6px 10px;border-radius:6px;font-size:13px;width:90px">
+          <span style="color:var(--muted);font-size:11px">(袋・緩衝材など)</span>
+        </div>
+      </div>
+    </div>
+    <div style="margin-top:14px;display:flex;gap:8px;align-items:center">
+      <button class="btn btn-gold btn-sm" onclick="saveNetProfitSettings()">💾 保存して再計算</button>
+      <span id="npSaveStatus" style="font-size:12px;color:var(--muted)"></span>
+    </div>
   </div>
 </div>
 
@@ -679,8 +720,12 @@ td.gold-text { color: var(--gold); }
         <input type="number" id="f_purchases" placeholder="0" />
       </div>
       <div class="form-group">
-        <label>利益 (¥)</label>
+        <label>粗利 (¥)</label>
         <input type="number" id="f_profit" placeholder="0" />
+      </div>
+      <div class="form-group">
+        <label>梱包数 (純利益計算用)</label>
+        <input type="number" id="f_packageCount" placeholder="0" />
       </div>
     </div>
     <div class="modal-actions">
@@ -745,6 +790,31 @@ const STORAGE_KEY = 'imapochi_live_data';
 const INSIGHTS_KEY = 'imapochi_insights';
 const API_KEY_STORAGE = 'imapochi_claude_key';
 const DEFAULT_GIST_ID    = '7d5425efae6b412284a5e27841592f34';  // GitHub Pagesデプロイ時にGist IDをここに埋め込む
+const NET_PROFIT_CONFIG_KEY = 'imapochi_net_profit_config';
+
+// 純利益計算の設定（localStorage保存）
+function loadNetProfitConfig() {
+  try {
+    const raw = localStorage.getItem(NET_PROFIT_CONFIG_KEY);
+    if (raw) return { feeRate: 0.10, shippingFeePerPackage: 185, packagingCostPerPackage: 5, ...JSON.parse(raw) };
+  } catch {}
+  return { feeRate: 0.10, shippingFeePerPackage: 185, packagingCostPerPackage: 5 };
+}
+function saveNetProfitConfig(c) { localStorage.setItem(NET_PROFIT_CONFIG_KEY, JSON.stringify(c)); }
+let netProfitConfig = loadNetProfitConfig();
+
+// 純利益計算: 粗利(profit) − TikTok手数料 − 送料 − 梱包資材費
+function computeNetProfit(d) {
+  const gross = d.profit || 0;
+  const sales = d.sales || 0;
+  const pkg = d.packageCount || 0;
+  const feeRate = (d.feeRate != null) ? d.feeRate : netProfitConfig.feeRate;
+  const tiktokFee = Math.round(sales * feeRate);
+  const shippingFee = Math.round(pkg * netProfitConfig.shippingFeePerPackage);
+  const packagingCost = Math.round(pkg * netProfitConfig.packagingCostPerPackage);
+  const net = gross - tiktokFee - shippingFee - packagingCost;
+  return { gross, tiktokFee, shippingFee, packagingCost, net, feeRate, packageCount: pkg };
+}
 const GIST_ID_STORAGE    = 'imapochi_gist_id';
 const GITHUB_PAT_STORAGE = 'imapochi_github_pat';
 
@@ -1423,6 +1493,11 @@ function renderSummary(sorted) {
   const totalPurchases = sorted.reduce((s,d) => s + (d.purchases||0), 0);
   const totalProfit = sorted.reduce((s,d) => s + (d.profit||0), 0);
   const avgSales = sorted.length ? Math.round(totalSales / sorted.length) : 0;
+  const npAgg = sorted.reduce((acc, d) => {
+    const n = computeNetProfit(d);
+    acc.net += n.net; acc.tiktokFee += n.tiktokFee; acc.shippingFee += n.shippingFee; acc.packagingCost += n.packagingCost; acc.packageCount += n.packageCount;
+    return acc;
+  }, { net: 0, tiktokFee: 0, shippingFee: 0, packagingCost: 0, packageCount: 0 });
 
   document.getElementById('summaryCards').innerHTML = `
     <div class="card">
@@ -1461,9 +1536,14 @@ function renderSummary(sorted) {
       <div class="card-sub">平均</div>
     </div>
     <div class="card">
-      <div class="card-label">累計利益</div>
+      <div class="card-label">累計粗利</div>
       <div class="card-val gold">¥${totalProfit.toLocaleString()}</div>
-      <div class="card-sub">${sorted.length}回合計</div>
+      <div class="card-sub">手数料・送料 引く前</div>
+    </div>
+    <div class="card" title="粗利からTikTok手数料・送料・梱包資材費を差し引いた金額" style="border:1px solid var(--accent)">
+      <div class="card-label">累計純利益</div>
+      <div class="card-val ${npAgg.net >= 0 ? 'green' : 'red'}">¥${npAgg.net.toLocaleString()}</div>
+      <div class="card-sub">手数料 −¥${npAgg.tiktokFee.toLocaleString()} / 送料 −¥${npAgg.shippingFee.toLocaleString()} / 梱包 −¥${npAgg.packagingCost.toLocaleString()}</div>
     </div>
   `;
 }
@@ -1758,6 +1838,7 @@ function renderTable(sorted) {
       <td style="font-weight:700">${d.purchases||0}</td>
       <td style="color:var(--teal);font-weight:700">${cvr}%</td>
       <td style="color:var(--gold);font-weight:700">${d.profit ? '¥'+d.profit.toLocaleString() : '-'}</td>
+      <td style="font-weight:700;color:${(() => { const n=computeNetProfit(d); return n.net>=0?'var(--green)':'var(--accent)'; })()}">${(() => { const n=computeNetProfit(d); return n.packageCount===0 && d.sales===0 ? '-' : '¥'+n.net.toLocaleString(); })()}</td>
       <td style="display:flex;gap:4px;align-items:center;flex-wrap:wrap">
         <button class="expand-btn" onclick="toggleDetail(${i}, this)">▼ 詳細</button>
         <button class="btn btn-outline btn-sm btn-edit-entry" onclick="openEditModal(${d.id})">✏️</button>
@@ -1769,7 +1850,7 @@ function renderTable(sorted) {
     const dr = document.createElement('tr');
     dr.className = 'detail-row';
     dr.id = `detail-${i}`;
-    dr.innerHTML = `<td colspan="13">
+    dr.innerHTML = `<td colspan="14">
       <div class="detail-inner">
         <div class="detail-grid">
           <div class="detail-block">
@@ -1809,11 +1890,24 @@ function renderTable(sorted) {
             <div class="kv"><span class="k">推定額</span><span class="v">USD${(d.estimatedUSD||0).toFixed(2)}</span></div>
           </div>
           <div class="detail-block">
-            <h4>💰 売り上げ</h4>
-            <div class="kv"><span class="k">売り上げ</span><span class="v" style="color:var(--green)">¥${(d.sales||0).toLocaleString()}</span></div>
+            <h4>💰 売り上げ・純利益</h4>
+            <div class="kv"><span class="k">売り上げ(GMV)</span><span class="v" style="color:var(--green)">¥${(d.sales||0).toLocaleString()}</span></div>
             <div class="kv"><span class="k">購入数</span><span class="v">${d.purchases||0}</span></div>
-            <div class="kv"><span class="k">利益</span><span class="v" style="color:var(--gold)">¥${(d.profit||0).toLocaleString()}</span></div>
+            <div class="kv"><span class="k">梱包数</span><span class="v">${d.packageCount != null ? d.packageCount + ' 個' : '<span style=\"color:var(--accent)\">未入力</span>'}</span></div>
             <div class="kv"><span class="k">CVR</span><span class="v" style="color:var(--teal)">${(d.activeViewers||0)>0?((d.purchases||0)/(d.activeViewers||1)*100).toFixed(1):'0.0'}%</span></div>
+            ${(() => {
+              const n = computeNetProfit(d);
+              const netColor = n.net >= 0 ? 'var(--green)' : 'var(--accent)';
+              return `
+              <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border)">
+                <div class="kv"><span class="k">粗利(商品のみ)</span><span class="v" style="color:var(--gold)">¥${n.gross.toLocaleString()}</span></div>
+                <div class="kv"><span class="k">−TikTok手数料 (${(n.feeRate*100).toFixed(0)}%)</span><span class="v" style="color:var(--accent)">−¥${n.tiktokFee.toLocaleString()}</span></div>
+                <div class="kv"><span class="k">−送料 (${n.packageCount}梱包×¥${netProfitConfig.shippingFeePerPackage})</span><span class="v" style="color:var(--accent)">−¥${n.shippingFee.toLocaleString()}</span></div>
+                <div class="kv"><span class="k">−梱包資材 (${n.packageCount}梱包×¥${netProfitConfig.packagingCostPerPackage})</span><span class="v" style="color:var(--accent)">−¥${n.packagingCost.toLocaleString()}</span></div>
+                <div class="kv" style="margin-top:6px;padding-top:6px;border-top:2px solid var(--border)"><span class="k" style="font-weight:700">純利益</span><span class="v" style="color:${netColor};font-weight:700;font-size:14px">¥${n.net.toLocaleString()}</span></div>
+              </div>
+              `;
+            })()}
           </div>
           ${renderProductDetailBlock(d)}
         </div>
@@ -1835,6 +1929,7 @@ function renderTable(sorted) {
     const sumActive = sorted.reduce((s,d) => s + (d.activeViewers||0), 0);
     const totalCvr = sumActive > 0 ? (sumPurchases / sumActive * 100).toFixed(1) : '0.0';
     const sumProfit = sorted.reduce((s,d) => s + (d.profit||0), 0);
+    const sumNet = sorted.reduce((s,d) => s + computeNetProfit(d).net, 0);
 
     const totalRow = document.createElement('tr');
     totalRow.className = 'total-row';
@@ -1851,6 +1946,7 @@ function renderTable(sorted) {
       <td style="font-weight:700">${sumPurchases.toLocaleString()}</td>
       <td style="color:var(--teal);font-weight:700">${totalCvr}%</td>
       <td style="color:var(--gold);font-weight:700">¥${sumProfit.toLocaleString()}</td>
+      <td style="color:${sumNet>=0?'var(--green)':'var(--accent)'};font-weight:700">¥${sumNet.toLocaleString()}</td>
       <td></td>
     `;
     tbody.appendChild(totalRow);
@@ -1889,6 +1985,36 @@ function openDefModal() {
   document.getElementById('defModal').classList.add('open');
 }
 
+// 純利益設定パネル
+function toggleNetProfitConfig() {
+  const panel = document.getElementById('npCfgPanel');
+  const btn = document.getElementById('npCfgToggle');
+  const isOpen = panel.style.display !== 'none';
+  if (isOpen) {
+    panel.style.display = 'none';
+    btn.textContent = '▼ 開く';
+  } else {
+    // populate current values
+    document.getElementById('np_feeRate').value = (netProfitConfig.feeRate * 100).toFixed(1);
+    document.getElementById('np_shipping').value = netProfitConfig.shippingFeePerPackage;
+    document.getElementById('np_packaging').value = netProfitConfig.packagingCostPerPackage;
+    panel.style.display = 'block';
+    btn.textContent = '▲ 閉じる';
+  }
+}
+function saveNetProfitSettings() {
+  const feeRatePct = parseFloat(document.getElementById('np_feeRate').value) || 10;
+  const shipping = parseFloat(document.getElementById('np_shipping').value) || 185;
+  const packaging = parseFloat(document.getElementById('np_packaging').value) || 5;
+  netProfitConfig = { feeRate: feeRatePct / 100, shippingFeePerPackage: shipping, packagingCostPerPackage: packaging };
+  saveNetProfitConfig(netProfitConfig);
+  const status = document.getElementById('npSaveStatus');
+  status.textContent = `✅ 保存: 手数料${feeRatePct}% / 送料¥${shipping} / 梱包¥${packaging}`;
+  status.style.color = 'var(--green)';
+  setTimeout(() => { status.textContent = ''; }, 3000);
+  renderAll();
+}
+
 function closeModal(id) {
   document.getElementById(id).classList.remove('open');
 }
@@ -1896,10 +2022,10 @@ function closeModal(id) {
 const FORM_FIELDS = ['date','liveTime','memo','totalViews','uniqueViewers','activeViewers',
   'peakConcurrent','avgWatchTime','likes','comments','shares','gifters','trafficLive',
   'trafficOther','newFollowers','followerAvgTime','followerUnique','commenters',
-  'diamonds','estimatedUSD','sales','purchases','profit'];
+  'diamonds','estimatedUSD','sales','purchases','profit','packageCount'];
 const FORM_NUM = new Set(['totalViews','uniqueViewers','activeViewers','peakConcurrent',
   'likes','comments','shares','gifters','trafficLive','trafficOther','newFollowers',
-  'followerUnique','commenters','diamonds','estimatedUSD','sales','purchases','profit']);
+  'followerUnique','commenters','diamonds','estimatedUSD','sales','purchases','profit','packageCount']);
 
 function clearForm() {
   FORM_FIELDS.forEach(k => { const el = document.getElementById('f_'+k); if(el) el.value = ''; });
