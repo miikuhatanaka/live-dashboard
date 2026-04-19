@@ -324,9 +324,6 @@ td.gold-text { color: var(--gold); }
   <span class="filter-info" id="filterInfo"></span>
 </div>
 
-<!-- 顧客リピート分析（全期間・CSV実績ベース） -->
-<div id="customerStatsArea"></div>
-
 <!-- Summary -->
 <div class="summary" id="summaryCards"></div>
 
@@ -338,6 +335,9 @@ td.gold-text { color: var(--gold); }
   </div>
   <div class="kpi-grid" id="kpiGrid"></div>
 </div>
+
+<!-- 顧客リピート分析（全期間・CSV実績ベース。自社商品のみで集計） -->
+<div id="customerStatsArea"></div>
 
 <!-- Detail table -->
 <div class="section">
@@ -478,7 +478,8 @@ td.gold-text { color: var(--gold); }
     <div class="def-item"><strong>masterKey</strong><span>粗利マスタでのSKU識別キー。例:<code>ソックス1足</code>, <code>ソックス5足セット</code>, <code>シルクシュシュ1個</code>。</span></div>
     <div class="def-item"><strong>variant mix (加重mix計算)</strong><span>1個バラ売り価格とセット価格の両方が存在するSKU(ソックス/メタルヘアゴム/マルチポーチ/リボン小物入れ/各シュシュ)で、<strong>implied unit price = GMV÷販売数</strong>から変種の比率を推定して加重平均で粗利を見積もる方式。<br>例: ソックス 7個 ¥2,211 → 単価¥315.86 → 1足¥100(4.2個) + 5足セット¥490(2.8個) と推定。</span></div>
     <div class="def-item"><strong>未登録 (profitMissing)</strong><span>粗利マスタに紐付かない商品。アフィリエイトや他社商品など、粗利計算対象外。各配信の商品明細では非表示、上の商品別サマリーでは⚠マーク付きで表示。</span></div>
-    <div class="def-item"><strong>商品種別バッジ <span class="src-badge own">🏪 自社</span> / <span class="src-badge affiliate">🔗 アフィリ</span></strong><span><strong>自社</strong>: 自分で仕入れ・梱包・発送する商品。粗利から TikTok販売手数料・送料・梱包資材費が引かれる。<br><strong>アフィリ(アフィリエイト)</strong>: 他社商品の販売促進を代行し成果報酬(通常5%)を受け取る商品。元セラーが発送するため、販売手数料・送料・梱包資材は自社負担ゼロ。<br>現在のアフィリ商品: 割れチョコ / 亀田製菓30枚セット / ハード&サワーグミ5種</span></div>
+    <div class="def-item"><strong>商品種別バッジ <span class="src-badge own">🏪 自社</span> / <span class="src-badge affiliate">🔗 アフィリ</span></strong><span><strong>自社</strong>: 自分で仕入れ・梱包・発送する商品。粗利から TikTok販売手数料・送料・梱包資材費が引かれる。<br><strong>アフィリ(アフィリエイト)</strong>: 他社商品の販売促進を代行し成果報酬を受け取る商品。元セラーが発送するため、販売手数料・送料・梱包資材は自社負担ゼロ。<br>現在のアフィリ商品:<ul style="margin:4px 0 0 16px;padding:0;font-size:12px"><li>割れチョコ / 亀田製菓30枚セット / ハード&サワーグミ5種 — 成果報酬5%</li><li><em>駄菓子つめあわせ25点 — 特殊アフィリ(赤字は全て自社負担、-¥200/個すべてもろもろ込み)</em></li></ul></span></div>
+    <div class="def-item"><strong>顧客リピート分析（※自社のみ）</strong><span>リピート率・新規購入単価・リピート購入単価はすべて<em>自社商品のみ</em>で集計。<br>アフィリエイト商品(駄菓子・亀田・割れチョコ・グミ)は元セラーが発送するため、自社のTikTok Shop注文CSVに含まれない。そのため自然に自社商品のみの統計になる。</span></div>
 
     <div class="modal-actions">
       <button class="btn btn-outline" onclick="closeModal('defModal')">閉じる</button>
@@ -848,15 +849,23 @@ saveNetProfitConfig(netProfitConfig);
 // 顧客リピート統計(Gistから初期ロード、customer-stats.jsonの内容)
 let customerStats = null;
 
-// アフィリエイト商品のmasterKey一覧(profit-master.jsonのcommissionRate持ちと同期)
+// アフィリエイト商品のmasterKey一覧(profit-master.jsonのcommissionRate持ち or isAffiliate:trueと同期)
 // ※マスタに変更があれば更新する
 const AFFILIATE_MASTER_KEYS = new Set([
   '割れチョコ1袋200g',
   '亀田製菓30枚セット',
-  'ハード&サワーグミ5種'
+  'ハード&サワーグミ5種',
+  '駄菓子つめあわせ25点'  // 特殊アフィリ: 赤字すべて自社負担。profit=-200/個(もろもろ込み)
+]);
+// 駄菓子は『特殊アフィリ』: アフィリ扱いで手数料/送料は追加控除せず、profit=-200/個をそのまま使用
+const SPECIAL_DISTRIBUTOR_AFFILIATE_KEYS = new Set([
+  '駄菓子つめあわせ25点'
 ]);
 function isAffiliateKey(masterKey) {
   return !!(masterKey && AFFILIATE_MASTER_KEYS.has(masterKey));
+}
+function isSpecialDistributorAffiliateKey(masterKey) {
+  return !!(masterKey && SPECIAL_DISTRIBUTOR_AFFILIATE_KEYS.has(masterKey));
 }
 
 // 純利益計算: 粗利(profit) − TikTok手数料 − 送料 − 梱包資材費
@@ -1580,8 +1589,8 @@ function renderCustomerStats() {
   area.innerHTML = `
     <div class="cust-stats">
       <div class="cust-stats-header">
-        <h2>👥 顧客リピート分析（全期間実績）</h2>
-        <span class="meta">期間: ${rangeText} / 更新: ${updated} / 注文CSV: ${escapeHtml(src)}</span>
+        <h2>👥 顧客リピート分析（全期間実績・<span style="color:var(--accent)">※自社のみ</span>）</h2>
+        <span class="meta">期間: ${rangeText} / 更新: ${updated} / ソース: ${escapeHtml(src)}</span>
       </div>
       <div class="cust-stats-grid">
         <div class="cust-card" title="2回以上購入した顧客 ÷ ユニーク顧客数">
