@@ -338,6 +338,16 @@ td.gold-text { color: var(--gold); }
   <div class="kpi-grid" id="kpiGrid"></div>
 </div>
 
+<!-- ムーンショット数値対比(デフォルト非表示、トグルボタンで開閉) -->
+<div class="prod-summary-card" style="border-color:#a855f7">
+  <h2 style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap">
+    <span>🌙 ムーンショット数値対比</span>
+    <button class="btn btn-outline btn-sm" onclick="toggleMoonshot()" id="moonshotToggle" style="font-weight:600">▼ 開く</button>
+  </h2>
+  <div class="sub">1配信¥1,500,000 を10%確率で達成するためのKPIマイルストーン(ぞうねこ27チャレ実績ベース)</div>
+  <div id="moonshotBody" style="display:none;margin-top:14px"></div>
+</div>
+
 <!-- 顧客リピート分析（全期間・CSV実績ベース。自社商品のみで集計） -->
 <div id="customerStatsArea"></div>
 
@@ -852,6 +862,8 @@ saveNetProfitConfig(netProfitConfig);
 let customerStats = null;
 // 事業計画月次目標(Gistから初期ロード、business-plan-targets.jsonの内容)
 let businessPlan = null;
+// ムーンショット目標(Gistから初期ロード、moonshot-targets.jsonの内容)
+let moonshotTargets = null;
 
 // アフィリエイト商品のmasterKey一覧(profit-master.jsonのcommissionRate持ち or isAffiliate:trueと同期)
 // ※マスタに変更があれば更新する
@@ -1272,6 +1284,13 @@ async function loadFromGist() {
         businessPlan = JSON.parse(planFile.content);
       } catch (e) { console.warn('business-plan-targets.json parse error', e); }
     }
+    // ムーンショット目標(あれば)を同時ロード
+    const moonFile = gistData.files['moonshot-targets.json'];
+    if (moonFile) {
+      try {
+        moonshotTargets = JSON.parse(moonFile.content);
+      } catch (e) { console.warn('moonshot-targets.json parse error', e); }
+    }
 
     // Gistが空（[]）の場合はローカルデータを保護する（初回セットアップ時にデータが消えるのを防ぐ）
     if (parsed.length === 0) {
@@ -1664,6 +1683,124 @@ async function handleScreenshot(event) {
 // ============================================================
 // SUMMARY
 // ============================================================
+// ============================================================
+// MOONSHOT COMPARISON
+// ============================================================
+function toggleMoonshot() {
+  const body = document.getElementById('moonshotBody');
+  const btn = document.getElementById('moonshotToggle');
+  const isOpen = body.style.display !== 'none';
+  if (isOpen) {
+    body.style.display = 'none';
+    btn.textContent = '▼ 開く';
+  } else {
+    renderMoonshot();
+    body.style.display = 'block';
+    btn.textContent = '▲ 閉じる';
+  }
+}
+
+function renderMoonshot() {
+  const body = document.getElementById('moonshotBody');
+  if (!body) return;
+  if (!moonshotTargets) {
+    body.innerHTML = '<div style="color:var(--muted);padding:20px;text-align:center">ムーンショット目標データがGistに見つかりません</div>';
+    return;
+  }
+  const t = moonshotTargets;
+
+  // 実績を計算(全配信横断)
+  const filtered = getFilteredData();
+  const totalActive = filtered.reduce((s,d) => s + (d.activeViewers||0), 0);
+  const activeCount = filtered.filter(d => (d.activeViewers||0) > 0).length;
+  const avgActive = activeCount > 0 ? Math.round(totalActive / activeCount) : 0;
+  const totalSales = filtered.reduce((s,d) => s + (d.sales||0), 0);
+  const totalPurchases = filtered.reduce((s,d) => s + (d.purchases||0), 0);
+  const totalViewsAll = filtered.reduce((s,d) => s + (d.totalViews||0), 0);
+  const avgSalesPerLive = filtered.length > 0 ? Math.round(totalSales / filtered.length) : 0;
+  const actualAOV = totalPurchases > 0 ? Math.round(totalSales / totalPurchases) : 0;
+  const actualCVR = totalViewsAll > 0 ? (totalPurchases / totalViewsAll * 100) : 0;
+  const actualRPV = totalViewsAll > 0 ? (totalSales / totalViewsAll) : 0;
+
+  const tgt = t.perLiveTargets;
+
+  // KPI対比カード配列
+  const kpiCompares = [
+    { label: '💰 1配信売上', actual: avgSalesPerLive, target: tgt.sales.target, benchmark: null, fmt: v => '¥' + v.toLocaleString(), note: '本丸の結果指標' },
+    { label: '💎 AOV (1注文単価)', actual: actualAOV, target: tgt.aov.target, benchmark: tgt.aov.benchmarkZouneko, fmt: v => '¥' + v.toLocaleString(), note: tgt.aov.note },
+    { label: '🎯 CVR (購入/視聴)', actual: actualCVR, target: tgt.cvrByViews.target, benchmark: tgt.cvrByViews.benchmarkZouneko, fmt: v => v.toFixed(2) + '%', note: tgt.cvrByViews.note },
+    { label: '📺 1配信アクティブ視聴者', actual: avgActive, target: tgt.activeUsers.target, benchmark: tgt.activeUsers.benchmarkZouneko, fmt: v => v.toLocaleString() + '人', note: tgt.activeUsers.note },
+    { label: '💡 RPV (1視聴者/売上)', actual: actualRPV, target: tgt.rpv.target, benchmark: tgt.rpv.benchmarkZouneko, fmt: v => '¥' + v.toFixed(2), note: tgt.rpv.note },
+  ];
+
+  const defHtml = `
+    <div style="background:#1a0e2e;border-left:3px solid #a855f7;padding:12px 16px;border-radius:6px;margin-bottom:14px;font-size:12px;line-height:1.7">
+      <strong style="color:#c084fc">📘 ムーンショット定義:</strong> ${escapeHtml(t.definition.goal)}<br>
+      <span style="color:var(--muted)">${escapeHtml(t.definition.rationale)}</span><br>
+      <span style="color:var(--muted)">ベンチマーク: ${escapeHtml(t.definition.benchmark)}</span><br>
+      <span style="color:var(--muted)">目標達成時期: ${escapeHtml(t.definition.period)}</span>
+    </div>
+  `;
+
+  let cardsHtml = '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:10px;margin-bottom:14px">';
+  kpiCompares.forEach(k => {
+    const ratio = k.target > 0 ? (k.actual / k.target * 100) : 0;
+    const barPct = Math.min(ratio, 100);
+    const color = ratio >= 100 ? 'var(--green)' : ratio >= 50 ? 'var(--gold)' : 'var(--accent)';
+    const gap = k.target - k.actual;
+    const multi = k.actual > 0 ? (k.target / k.actual).toFixed(1) + '倍' : '—';
+    const bmHtml = k.benchmark ? `<span style="color:var(--muted);font-size:10px">（ぞうねこ: ${k.fmt(k.benchmark)}）</span>` : '';
+    cardsHtml += `
+      <div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:12px 14px">
+        <div style="font-size:11px;color:var(--muted);font-weight:600;margin-bottom:4px">${k.label} ${bmHtml}</div>
+        <div style="display:flex;align-items:baseline;gap:6px;margin-bottom:4px">
+          <span style="font-size:18px;font-weight:700;color:${color}">${k.fmt(k.actual)}</span>
+          <span style="font-size:11px;color:var(--muted)">→ ${k.fmt(k.target)}</span>
+        </div>
+        <div style="font-size:11px;color:var(--muted);margin-bottom:6px">現状${ratio.toFixed(1)}%・残<strong style="color:var(--accent)">${multi}</strong>改善必要</div>
+        <div style="height:4px;background:var(--border);border-radius:2px;overflow:hidden">
+          <div style="height:100%;background:${color};width:${barPct}%;transition:width .4s ease"></div>
+        </div>
+        ${k.note ? `<div style="font-size:10px;color:var(--muted);margin-top:6px;line-height:1.4">${escapeHtml(k.note)}</div>` : ''}
+      </div>
+    `;
+  });
+  cardsHtml += '</div>';
+
+  // タイムライン
+  const monthKeys = Object.keys(t.timeline).sort();
+  let timelineHtml = '<h4 style="font-size:13px;color:var(--text);margin:16px 0 8px">📅 月次マイルストーン</h4>';
+  timelineHtml += '<table style="width:100%;font-size:12px;border-collapse:collapse">';
+  timelineHtml += '<thead><tr><th style="text-align:left;padding:6px;border-bottom:1px solid var(--border);color:var(--muted);font-size:11px">月</th><th style="text-align:right;padding:6px;border-bottom:1px solid var(--border);color:var(--muted);font-size:11px">AOV目標</th><th style="text-align:right;padding:6px;border-bottom:1px solid var(--border);color:var(--muted);font-size:11px">CVR目標</th><th style="text-align:right;padding:6px;border-bottom:1px solid var(--border);color:var(--muted);font-size:11px">1配信売上期待値</th><th style="text-align:left;padding:6px;border-bottom:1px solid var(--border);color:var(--muted);font-size:11px">フェーズ</th></tr></thead><tbody>';
+  monthKeys.forEach(mk => {
+    const m = t.timeline[mk];
+    timelineHtml += `<tr>
+      <td style="padding:6px;border-bottom:1px solid var(--border);font-weight:600">${mk}</td>
+      <td style="padding:6px;text-align:right;border-bottom:1px solid var(--border)">¥${m.aov.toLocaleString()}</td>
+      <td style="padding:6px;text-align:right;border-bottom:1px solid var(--border)">${m.cvr}%</td>
+      <td style="padding:6px;text-align:right;border-bottom:1px solid var(--border);font-weight:600;color:${m.perLiveSales >= 1500000 ? 'var(--green)' : 'var(--text)'}">¥${m.perLiveSales.toLocaleString()}</td>
+      <td style="padding:6px;border-bottom:1px solid var(--border);color:var(--muted);font-size:11px">${escapeHtml(m.phase)}</td>
+    </tr>`;
+  });
+  timelineHtml += '</tbody></table>';
+
+  // 戦略
+  let strategyHtml = '<h4 style="font-size:13px;color:var(--text);margin:16px 0 8px">🎯 3つの勝ち筋</h4><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:10px">';
+  t.keyStrategies.forEach(s => {
+    strategyHtml += `
+      <div style="background:var(--bg);border:1px solid var(--border);border-left:3px solid #c084fc;border-radius:6px;padding:10px 12px">
+        <div style="font-size:12px;font-weight:700;color:#c084fc;margin-bottom:6px">優先度${s.priority}: ${escapeHtml(s.title)}</div>
+        <ul style="font-size:11px;color:var(--muted);margin:0;padding-left:16px;line-height:1.6">
+          ${s.levers.map(l => `<li>${escapeHtml(l)}</li>`).join('')}
+        </ul>
+      </div>
+    `;
+  });
+  strategyHtml += '</div>';
+
+  body.innerHTML = defHtml + cardsHtml + timelineHtml + strategyHtml;
+}
+
 function renderCustomerStats() {
   const area = document.getElementById('customerStatsArea');
   if (!area) return;
