@@ -135,6 +135,15 @@ td.gold-text { color: var(--gold); }
 .prod-summary-card .profit-neg { color: var(--accent); }
 .prod-summary-card .empty { color: var(--muted); padding: 20px; text-align: center; font-size: 13px; }
 
+/* 定義モーダル用 */
+.def-item { display: block; padding: 10px 0; border-bottom: 1px solid var(--border); font-size: 13px; line-height: 1.6; }
+.def-item:last-child { border-bottom: none; }
+.def-item strong { display: block; color: var(--teal); font-size: 13px; margin-bottom: 4px; }
+.def-item span { color: var(--text); }
+.def-item em { color: var(--accent); font-style: normal; font-weight: 600; }
+.def-item code { background: var(--s2); padding: 1px 6px; border-radius: 4px; color: var(--gold); font-size: 11px; font-family: 'Space Grotesk', monospace; }
+.def-formula { display: block; margin-top: 6px; padding: 6px 10px; background: var(--s2); border-left: 2px solid var(--teal); border-radius: 4px; font-size: 12px; font-family: 'Space Grotesk', monospace; color: var(--teal); }
+
 /* Insight boxes */
 .insights { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; margin-bottom: 24px; }
 .insight { background: var(--s1); border: 1px solid var(--border); border-left: 3px solid var(--teal); border-radius: 8px; padding: 14px 16px; font-size: 13px; line-height: 1.6; }
@@ -361,9 +370,48 @@ td.gold-text { color: var(--gold); }
 
 <!-- 商品別サマリー（期間内の全配信を横断して集計） -->
 <div class="prod-summary-card">
-  <h2>🛍 商品別サマリー</h2>
+  <h2 style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap">
+    🛍 商品別サマリー
+    <button class="btn btn-outline btn-sm" onclick="openDefModal()" style="font-weight:600">📖 用語の定義</button>
+  </h2>
   <div class="sub">選択期間内の全配信を横断した商品別集計。ダッシュボード更新くんが登録した商品のみ表示されます。</div>
   <div id="productSummaryBody"></div>
+</div>
+
+<!-- 用語定義モーダル -->
+<div class="modal-overlay" id="defModal" onclick="if(event.target.id==='defModal')closeModal('defModal')">
+  <div class="modal" style="max-width:720px">
+    <h3 style="margin-bottom:8px">📖 用語・KPI 定義</h3>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:16px">ダッシュボードで使っている指標の意味と計算方法</div>
+
+    <h4 style="font-size:13px;color:var(--accent);text-transform:uppercase;letter-spacing:.5px;margin-top:12px;margin-bottom:8px">成約系</h4>
+    <div class="def-item"><strong>CVR (商品別)</strong><span>販売数 ÷ 商品インプレッション数。その商品が表示されたうち何割が実際に売れたか。<br>高いほどアイコン・価格・説明が刺さっている証。<span class="def-formula">CVR = sold / impressions × 100%</span></span></div>
+    <div class="def-item"><strong>CVR (配信全体)</strong><span>購入数 ÷ アクティブ視聴者数。配信全体での購買転換率。<span class="def-formula">CVR = purchases / activeViewers × 100%</span></span></div>
+    <div class="def-item"><strong>CTR</strong><span>商品クリック数 ÷ 商品インプレッション数。TikTokが自動で出す値。商品詳細画面を開いた割合。</span></div>
+
+    <h4 style="font-size:13px;color:var(--accent);text-transform:uppercase;letter-spacing:.5px;margin-top:16px;margin-bottom:8px">流通・売上</h4>
+    <div class="def-item"><strong>GMV</strong><span>Gross Merchandise Value = 流通総額。税込の売上金額。手数料・原価・送料を差し引く<em>前</em>の数字。</span></div>
+    <div class="def-item"><strong>販売数 (sold)</strong><span>注文の件数。TikTokはlisting(商品ID)単位で出すため、1個/セットなどの変種内訳は直接取れない。<br>本ダッシュボードでは<strong>implied unit price(GMV÷販売数)から比率を推定する加重mix計算</strong>で粗利を見積もる。</span></div>
+
+    <h4 style="font-size:13px;color:var(--accent);text-transform:uppercase;letter-spacing:.5px;margin-top:16px;margin-bottom:8px">利益</h4>
+    <div class="def-item"><strong>粗利 (profit)</strong><span>売価 − 原価（仕入+梱包資材）。送料・TikTok手数料は含まない。<br>アフィリエイト商品は <code>GMV × 成果報酬率</code> で計算される。</span></div>
+    <div class="def-item"><strong>unitProfit / totalProfit</strong><span><code>unitProfit</code>は1個あたりの粗利、<code>totalProfit</code>はその配信での合計粗利。variant mix対象商品では加重平均。</span></div>
+
+    <h4 style="font-size:13px;color:var(--accent);text-transform:uppercase;letter-spacing:.5px;margin-top:16px;margin-bottom:8px">視聴・エンゲージメント</h4>
+    <div class="def-item"><strong>インプレッション数</strong><span>LIVEや商品が表示された回数（同じ人が複数回見たらカウントされる）。</span></div>
+    <div class="def-item"><strong>視聴数 (totalViews)</strong><span>視聴セッション数。1人が何度も入退室したら複数回カウント。</span></div>
+    <div class="def-item"><strong>ユニーク視聴者 (uniqueViewers)</strong><span>重複を除いた実人数。</span></div>
+    <div class="def-item"><strong>表示GPM</strong><span>GMV per Mille(Thousand)。 1,000インプレッションあたりのGMV。アルゴリズムの評価指標に近い。</span></div>
+
+    <h4 style="font-size:13px;color:var(--accent);text-transform:uppercase;letter-spacing:.5px;margin-top:16px;margin-bottom:8px">粗利マスタ関連</h4>
+    <div class="def-item"><strong>masterKey</strong><span>粗利マスタでのSKU識別キー。例:<code>ソックス1足</code>, <code>ソックス5足セット</code>, <code>シルクシュシュ1個</code>。</span></div>
+    <div class="def-item"><strong>variant mix (加重mix計算)</strong><span>1個バラ売り価格とセット価格の両方が存在するSKU(ソックス/メタルヘアゴム/マルチポーチ/リボン小物入れ/各シュシュ)で、<strong>implied unit price = GMV÷販売数</strong>から変種の比率を推定して加重平均で粗利を見積もる方式。<br>例: ソックス 7個 ¥2,211 → 単価¥315.86 → 1足¥100(4.2個) + 5足セット¥490(2.8個) と推定。</span></div>
+    <div class="def-item"><strong>未登録 (profitMissing)</strong><span>粗利マスタに紐付かない商品。アフィリエイトや他社商品など、粗利計算対象外。各配信の商品明細では非表示、上の商品別サマリーでは⚠マーク付きで表示。</span></div>
+
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="closeModal('defModal')">閉じる</button>
+    </div>
+  </div>
 </div>
 
 <!-- AI Insights -->
@@ -1570,6 +1618,9 @@ function renderProductSummary(sorted) {
   const sumSold = rows.reduce((s, r) => s + r.sold, 0);
   const sumProfit = rows.reduce((s, r) => s + r.totalProfit, 0);
 
+  const sumImp = rows.reduce((s, r) => s + r.impressions, 0);
+  const totalCvr = sumImp > 0 ? (sumSold / sumImp * 100) : 0;
+
   let html = `<table>
     <thead>
       <tr>
@@ -1577,6 +1628,7 @@ function renderProductSummary(sorted) {
         <th class="num-col">登場配信数</th>
         <th class="num-col">Imp合計</th>
         <th class="num-col">販売数</th>
+        <th class="num-col">CVR <span style="color:var(--muted);cursor:help" title="販売数 ÷ 商品インプレッション数。1回表示されて何割が購入したか。値を算出できないものは — (分母0)">ⓘ</span></th>
         <th class="num-col">GMV</th>
         <th class="num-col">粗利</th>
       </tr>
@@ -1587,11 +1639,16 @@ function renderProductSummary(sorted) {
     const nameHtml = r.masterKey
       ? `<span class="sku-tag">${escapeHtml(r.masterKey)}</span>`
       : `<span class="sku-tag missing">⚠ 未登録</span> <span style="color:var(--muted);font-size:11px">${escapeHtml(r.sampleName.slice(0, 40))}...</span>`;
+    const cvr = r.impressions > 0 ? (r.sold / r.impressions * 100) : null;
+    const cvrText = cvr === null ? '—' : cvr.toFixed(2) + '%';
+    // ハイライト: CVR 1%以上はteal色、0.1%未満はmuted
+    const cvrColor = cvr === null ? 'var(--muted)' : cvr >= 1 ? 'var(--teal)' : cvr >= 0.1 ? 'var(--text)' : 'var(--muted)';
     html += `<tr>
       <td>${nameHtml}</td>
       <td class="num-col">${r.broadcasts}</td>
       <td class="num-col">${r.impressions.toLocaleString()}</td>
       <td class="num-col">${r.sold.toLocaleString()}</td>
+      <td class="num-col" style="color:${cvrColor};font-weight:600">${cvrText}</td>
       <td class="num-col">¥${r.gmv.toLocaleString()}</td>
       <td class="num-col ${profitClass}">${r.missing ? '—' : '¥' + Math.round(r.totalProfit).toLocaleString()}</td>
     </tr>`;
@@ -1599,8 +1656,9 @@ function renderProductSummary(sorted) {
   html += `<tr style="border-top:2px solid var(--accent);background:var(--s2)">
       <td style="font-weight:700">合計 (${rows.length}SKU)</td>
       <td class="num-col">—</td>
-      <td class="num-col">—</td>
+      <td class="num-col" style="font-weight:700">${sumImp.toLocaleString()}</td>
       <td class="num-col" style="font-weight:700">${sumSold.toLocaleString()}</td>
+      <td class="num-col" style="font-weight:700;color:var(--teal)">${sumImp > 0 ? totalCvr.toFixed(2) + '%' : '—'}</td>
       <td class="num-col" style="font-weight:700;color:var(--green)">¥${sumGmv.toLocaleString()}</td>
       <td class="num-col profit-pos" style="font-weight:700">¥${Math.round(sumProfit).toLocaleString()}</td>
     </tr>`;
@@ -1762,6 +1820,10 @@ function openEditModal(id) {
   document.getElementById('modalTitle').textContent = 'LIVE データを編集';
   fillForm(entry);
   document.getElementById('addModal').classList.add('open');
+}
+
+function openDefModal() {
+  document.getElementById('defModal').classList.add('open');
 }
 
 function closeModal(id) {
