@@ -1471,18 +1471,29 @@ function renderCharts(sorted) {
 function renderProductDetailBlock(d) {
   if (!Array.isArray(d.products) || d.products.length === 0) return '';
 
+  // 粗利マスタ未登録は詳細では非表示。件数のみ警告表示
   const missing = d.products.filter(p => p.profitMissing);
+  const visible = d.products.filter(p => !p.profitMissing);
+  // 販売数降順(同数ならGMV降順)
+  visible.sort((a, b) => (b.sold || 0) - (a.sold || 0) || (b.gmv || 0) - (a.gmv || 0));
+
   const warnHtml = missing.length > 0
-    ? `<div class="product-warn"><strong>⚠ 粗利マスタ未登録: ${missing.length}件</strong> — 利益計算はこれらの商品を除外しています。ダッシュボード更新くんに粗利を教えて登録してください。</div>`
+    ? `<div class="product-warn"><strong>ℹ 粗利マスタ未登録: ${missing.length}件を非表示</strong> — 粗利計算対象外のSKU(他社商品など)はこの明細から省いています。</div>`
     : '';
 
+  if (visible.length === 0) {
+    return `<div class="product-sub">
+      <h4>🛍 商品別明細</h4>
+      ${warnHtml}
+      <div style="color:var(--muted);font-size:12px;padding:8px">この配信では粗利マスタ登録商品での販売がありませんでした。</div>
+    </div>`;
+  }
+
   let rows = '';
-  d.products.forEach(p => {
-    const profitText = p.profitMissing ? '—' : '¥' + Math.round(p.totalProfit || 0).toLocaleString();
+  visible.forEach(p => {
+    const profitText = '¥' + Math.round(p.totalProfit || 0).toLocaleString();
     const profitClass = (p.totalProfit || 0) >= 0 ? 'profit-pos' : 'profit-neg';
-    const skuTag = p.masterKey
-      ? `<span class="sku-tag">${escapeHtml(p.masterKey)}</span>`
-      : `<span class="sku-tag missing">⚠ 未登録</span>`;
+    const skuTag = `<span class="sku-tag">${escapeHtml(p.masterKey)}</span>`;
     rows += `<tr>
       <td class="product-name">
         ${skuTag}
@@ -1498,7 +1509,7 @@ function renderProductDetailBlock(d) {
 
   return `
     <div class="product-sub">
-      <h4>🛍 商品別明細 (${d.products.length}SKU)</h4>
+      <h4>🛍 商品別明細 (${visible.length}SKU / 販売数降順)</h4>
       ${warnHtml}
       <table>
         <thead>
@@ -1506,7 +1517,7 @@ function renderProductDetailBlock(d) {
             <th>商品</th>
             <th style="text-align:right">Imp</th>
             <th style="text-align:right">CTR</th>
-            <th style="text-align:right">販売数</th>
+            <th style="text-align:right">販売数 ▼</th>
             <th style="text-align:right">GMV</th>
             <th style="text-align:right">粗利</th>
           </tr>
