@@ -332,7 +332,7 @@ td.gold-text { color: var(--gold); }
   <div class="kpi-header">
     <h2>🎯 重要指標 <span id="kpiPeriodLabel" style="font-size:13px;color:var(--muted)">（月次目標対比）</span></h2>
     <div style="font-size:11px;color:var(--muted)">
-      行動量 → <span style="color:var(--teal)">リーチ</span> → <span style="color:var(--gold)">リスト質</span> → <span style="color:var(--purple)">成約</span> → <span style="color:var(--green)">成果</span>
+      <span style="color:var(--green)">📌 リスト総量</span> → 行動量 → <span style="color:var(--teal)">リーチ</span> → <span style="color:var(--gold)">リスト質</span> → <span style="color:var(--purple)">成約</span> → <span style="color:var(--green)">成果</span>
     </div>
   </div>
   <div class="kpi-grid" id="kpiGrid"></div>
@@ -1452,8 +1452,30 @@ function renderKPI(sorted) {
   const rateOf = (a, t) => t > 0 ? Math.min(Math.round(a / t * 100), 999) : 0;
   const colorOf = r => r >= 100 ? 'green' : r >= 70 ? 'yellow' : 'red';
 
-  // ユーザー指定の順序: 配信回数 → 1配信アクティブ → リピート率(ユニーク) → CVR → 売上 → リピート率(件数)
+  // 累計ユニーク顧客数の当月目標を計算(business-planから累積)
+  let cumulativeCustomerTarget = 0;
+  let cumulativeUpToMonth = 0;
+  if (businessPlan && businessPlan.monthlyTargets) {
+    const monthsOrdered = Object.keys(businessPlan.monthlyTargets).sort();
+    for (const mk of monthsOrdered) {
+      cumulativeUpToMonth += (businessPlan.monthlyTargets[mk].newUniqueCustomers || 0);
+      if (mk === monthKey) {
+        cumulativeCustomerTarget = cumulativeUpToMonth;
+        break;
+      }
+    }
+  }
+
+  // ユーザー指定の順序: 累計リスト → 配信回数 → 1配信アクティブ → リピート率 → CVR → 売上
   const items = [
+    {
+      label: '🗂 累計ユニーク顧客数(=リスト)',
+      actual: uniqueCustomers.toLocaleString() + '人',
+      target: cumulativeCustomerTarget > 0 ? cumulativeCustomerTarget.toLocaleString() + '人' : '—',
+      rate: cumulativeCustomerTarget > 0 ? rateOf(uniqueCustomers, cumulativeCustomerTarget) : 0,
+      note: 'このフェーズの最重要KPI。購入者リストの総積み上げ量',
+      color: 'green'
+    },
     {
       label: '🎙 配信回数',
       actual: actualLives + '回',
@@ -1713,6 +1735,11 @@ function renderSummary(sorted) {
   }, { net: 0, tiktokFee: 0, shippingFee: 0, packagingCost: 0, packageCount: 0 });
 
   document.getElementById('summaryCards').innerHTML = `
+    <div class="card" style="border:2px solid var(--green)">
+      <div class="card-label" style="color:var(--green)">🗂 累計顧客数（リスト）</div>
+      <div class="card-val green">${(customerStats?.totals?.uniqueCustomers || 0).toLocaleString()}</div>
+      <div class="card-sub">全期間ユニーク。このフェーズの最重要指標</div>
+    </div>
     <div class="card">
       <div class="card-label">総配信回数</div>
       <div class="card-val red">${sorted.length}</div>
