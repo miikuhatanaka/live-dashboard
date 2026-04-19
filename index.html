@@ -344,7 +344,8 @@ td.gold-text { color: var(--gold); }
     <span>🌙 ムーンショット数値対比</span>
     <button class="btn btn-outline btn-sm" onclick="toggleMoonshot()" id="moonshotToggle" style="font-weight:600">▼ 開く</button>
   </h2>
-  <div class="sub">1配信¥1,500,000 を10%確率で達成するためのKPIマイルストーン(ぞうねこ27チャレ実績ベース)</div>
+  <div class="sub">1配信¥1,500,000 を10%確率で達成するためのKPIマイルストーン(ぞうねこ27チャレ実績ベース)<br>
+  <span style="color:var(--gold);font-size:11px">※比較指標はぞうねこ公開値に合わせて統一: 視聴者=uniqueViewers（累計ユニーク視聴者）/ CVR=購入÷延べ視聴(totalViews) / RPV=売上÷延べ視聴</span></div>
   <div id="moonshotBody" style="display:none;margin-top:14px"></div>
 </div>
 
@@ -1709,28 +1710,30 @@ function renderMoonshot() {
   }
   const t = moonshotTargets;
 
-  // 実績を計算(全配信横断)
+  // 実績を計算(全配信横断) ※ぞうねこ比較のためuniqueViewers/totalViewsベースで統一
   const filtered = getFilteredData();
-  const totalActive = filtered.reduce((s,d) => s + (d.activeViewers||0), 0);
-  const activeCount = filtered.filter(d => (d.activeViewers||0) > 0).length;
-  const avgActive = activeCount > 0 ? Math.round(totalActive / activeCount) : 0;
+  const totalUnique = filtered.reduce((s,d) => s + (d.uniqueViewers||0), 0);
+  const totalViewsAll = filtered.reduce((s,d) => s + (d.totalViews||0), 0);
+  const uniqueCount = filtered.filter(d => (d.uniqueViewers||0) > 0).length;
+  const avgUniqueViewers = uniqueCount > 0 ? Math.round(totalUnique / uniqueCount) : 0;
   const totalSales = filtered.reduce((s,d) => s + (d.sales||0), 0);
   const totalPurchases = filtered.reduce((s,d) => s + (d.purchases||0), 0);
-  const totalViewsAll = filtered.reduce((s,d) => s + (d.totalViews||0), 0);
   const avgSalesPerLive = filtered.length > 0 ? Math.round(totalSales / filtered.length) : 0;
   const actualAOV = totalPurchases > 0 ? Math.round(totalSales / totalPurchases) : 0;
+  // CVR = 購入÷延べ視聴(totalViews) ※ぞうねこ公開値と同じ分母
   const actualCVR = totalViewsAll > 0 ? (totalPurchases / totalViewsAll * 100) : 0;
+  // RPV = 売上÷延べ視聴
   const actualRPV = totalViewsAll > 0 ? (totalSales / totalViewsAll) : 0;
 
   const tgt = t.perLiveTargets;
 
-  // KPI対比カード配列
+  // KPI対比カード配列(ぞうねこ比較のため uniqueViewers/totalViewsベース統一)
   const kpiCompares = [
     { label: '💰 1配信売上', actual: avgSalesPerLive, target: tgt.sales.target, benchmark: null, fmt: v => '¥' + v.toLocaleString(), note: '本丸の結果指標' },
     { label: '💎 AOV (1注文単価)', actual: actualAOV, target: tgt.aov.target, benchmark: tgt.aov.benchmarkZouneko, fmt: v => '¥' + v.toLocaleString(), note: tgt.aov.note },
-    { label: '🎯 CVR (購入/視聴)', actual: actualCVR, target: tgt.cvrByViews.target, benchmark: tgt.cvrByViews.benchmarkZouneko, fmt: v => v.toFixed(2) + '%', note: tgt.cvrByViews.note },
-    { label: '📺 1配信アクティブ視聴者', actual: avgActive, target: tgt.activeUsers.target, benchmark: tgt.activeUsers.benchmarkZouneko, fmt: v => v.toLocaleString() + '人', note: tgt.activeUsers.note },
-    { label: '💡 RPV (1視聴者/売上)', actual: actualRPV, target: tgt.rpv.target, benchmark: tgt.rpv.benchmarkZouneko, fmt: v => '¥' + v.toFixed(2), note: tgt.rpv.note },
+    { label: '🎯 CVR (購入÷延べ視聴)', actual: actualCVR, target: tgt.cvrByTotalViews.target, benchmark: tgt.cvrByTotalViews.benchmarkZouneko, fmt: v => v.toFixed(2) + '%', note: tgt.cvrByTotalViews.note },
+    { label: '👥 1配信ユニーク視聴者', actual: avgUniqueViewers, target: tgt.uniqueViewers.target, benchmark: tgt.uniqueViewers.benchmarkZouneko, fmt: v => v.toLocaleString() + '人', note: tgt.uniqueViewers.note },
+    { label: '💡 RPV (売上÷延べ視聴)', actual: actualRPV, target: tgt.rpv.target, benchmark: tgt.rpv.benchmarkZouneko, fmt: v => '¥' + v.toFixed(2), note: tgt.rpv.note },
   ];
 
   const defHtml = `
