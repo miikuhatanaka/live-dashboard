@@ -120,6 +120,11 @@ td.gold-text { color: var(--gold); }
 .sku-tag { display: inline-block; background: var(--s2); border: 1px solid var(--border); color: var(--teal); padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; }
 .sku-tag.missing { border-color: var(--accent); color: var(--accent); background: #2a1015; }
 
+/* 商品種別バッジ（自社 / アフィリエイト） */
+.src-badge { display: inline-block; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 700; margin-left: 4px; vertical-align: middle; letter-spacing: .3px; }
+.src-badge.own { background: rgba(37, 244, 238, 0.12); color: var(--teal); border: 1px solid rgba(37, 244, 238, 0.4); }
+.src-badge.affiliate { background: rgba(168, 85, 247, 0.15); color: #c084fc; border: 1px solid rgba(168, 85, 247, 0.5); }
+
 /* Product Summary section (aggregate across broadcasts) */
 .prod-summary-card { background: var(--s1); border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin-bottom: 24px; }
 .prod-summary-card h2 { font-size: 15px; font-weight: 600; margin-bottom: 12px; }
@@ -473,6 +478,7 @@ td.gold-text { color: var(--gold); }
     <div class="def-item"><strong>masterKey</strong><span>粗利マスタでのSKU識別キー。例:<code>ソックス1足</code>, <code>ソックス5足セット</code>, <code>シルクシュシュ1個</code>。</span></div>
     <div class="def-item"><strong>variant mix (加重mix計算)</strong><span>1個バラ売り価格とセット価格の両方が存在するSKU(ソックス/メタルヘアゴム/マルチポーチ/リボン小物入れ/各シュシュ)で、<strong>implied unit price = GMV÷販売数</strong>から変種の比率を推定して加重平均で粗利を見積もる方式。<br>例: ソックス 7個 ¥2,211 → 単価¥315.86 → 1足¥100(4.2個) + 5足セット¥490(2.8個) と推定。</span></div>
     <div class="def-item"><strong>未登録 (profitMissing)</strong><span>粗利マスタに紐付かない商品。アフィリエイトや他社商品など、粗利計算対象外。各配信の商品明細では非表示、上の商品別サマリーでは⚠マーク付きで表示。</span></div>
+    <div class="def-item"><strong>商品種別バッジ <span class="src-badge own">🏪 自社</span> / <span class="src-badge affiliate">🔗 アフィリ</span></strong><span><strong>自社</strong>: 自分で仕入れ・梱包・発送する商品。粗利から TikTok販売手数料・送料・梱包資材費が引かれる。<br><strong>アフィリ(アフィリエイト)</strong>: 他社商品の販売促進を代行し成果報酬(通常5%)を受け取る商品。元セラーが発送するため、販売手数料・送料・梱包資材は自社負担ゼロ。<br>現在のアフィリ商品: 割れチョコ / 亀田製菓30枚セット / ハード&サワーグミ5種</span></div>
 
     <div class="modal-actions">
       <button class="btn btn-outline" onclick="closeModal('defModal')">閉じる</button>
@@ -841,6 +847,17 @@ saveNetProfitConfig(netProfitConfig);
 
 // 顧客リピート統計(Gistから初期ロード、customer-stats.jsonの内容)
 let customerStats = null;
+
+// アフィリエイト商品のmasterKey一覧(profit-master.jsonのcommissionRate持ちと同期)
+// ※マスタに変更があれば更新する
+const AFFILIATE_MASTER_KEYS = new Set([
+  '割れチョコ1袋200g',
+  '亀田製菓30枚セット',
+  'ハード&サワーグミ5種'
+]);
+function isAffiliateKey(masterKey) {
+  return !!(masterKey && AFFILIATE_MASTER_KEYS.has(masterKey));
+}
 
 // 純利益計算: 粗利(profit) − TikTok手数料 − 送料 − 梱包資材費
 // ※アフィリエイト商品はTikTok手数料・送料・梱包資材すべて対象外
@@ -1741,12 +1758,13 @@ function renderProductDetailBlock(d) {
         const profitText = '¥' + Math.round(b.totalProfit || 0).toLocaleString();
         const profitClass = (b.totalProfit || 0) >= 0 ? 'profit-pos' : 'profit-neg';
         const isFirst = i === 0;
+        const badge = sourceBadge(b.masterKey);
         rows.push({
           sold: b.qty || 0,
           gmv: b.subtotalYen || 0,
           html: `<tr>
             <td class="product-name">
-              <span class="sku-tag">${escapeHtml(b.masterKey)}</span> <span style="color:var(--teal);font-size:10px;margin-left:4px" title="注文CSVからの実績値">✓実績</span>
+              <span class="sku-tag">${escapeHtml(b.masterKey)}</span>${badge} <span style="color:var(--teal);font-size:10px;margin-left:4px" title="注文CSVからの実績値">✓実績</span>
               ${isFirst ? `<span class="tik" title="${escapeHtml(p.tiktokName || '')}">${escapeHtml((p.tiktokName || '').slice(0, 50))}${(p.tiktokName || '').length > 50 ? '…' : ''}</span>` : ''}
             </td>
             <td style="text-align:right">${impPortion.toLocaleString()}</td>
@@ -1761,13 +1779,14 @@ function renderProductDetailBlock(d) {
       const profitText = '¥' + Math.round(p.totalProfit || 0).toLocaleString();
       const profitClass = (p.totalProfit || 0) >= 0 ? 'profit-pos' : 'profit-neg';
       const skuTag = `<span class="sku-tag">${escapeHtml(p.masterKey)}</span>`;
+      const badge = sourceBadge(p.masterKey, p.isAffiliate);
       const noteText = p.profitNote && /mix/.test(p.profitNote) ? ' <span style="color:var(--gold);font-size:10px" title="implied unit priceベースのmix推定">~推定</span>' : '';
       rows.push({
         sold: p.sold || 0,
         gmv: p.gmv || 0,
         html: `<tr>
           <td class="product-name">
-            ${skuTag}${noteText}
+            ${skuTag}${badge}${noteText}
             <span class="tik" title="${escapeHtml(p.tiktokName || '')}">${escapeHtml((p.tiktokName || '').slice(0, 50))}${(p.tiktokName || '').length > 50 ? '…' : ''}</span>
           </td>
           <td style="text-align:right">${(p.impressions || 0).toLocaleString()}</td>
@@ -1830,7 +1849,8 @@ function renderProductSummary(sorted) {
             agg[key] = {
               key, masterKey: key, sampleName: p.tiktokName || key,
               impressions: 0, sold: 0, gmv: 0, totalProfit: 0,
-              broadcasts: 0, missing: false, precise: true
+              broadcasts: 0, missing: false, precise: true,
+              isAffiliate: isAffiliateKey(key)
             };
           }
           // Impressionsはlisting単位の値しか無いので qty比率で按分
@@ -1848,7 +1868,8 @@ function renderProductSummary(sorted) {
             key, masterKey: p.masterKey,
             sampleName: p.tiktokName || p.masterKey || '',
             impressions: 0, sold: 0, gmv: 0, totalProfit: 0,
-            broadcasts: 0, missing: !!p.profitMissing, precise: false
+            broadcasts: 0, missing: !!p.profitMissing, precise: false,
+            isAffiliate: !!p.isAffiliate || isAffiliateKey(p.masterKey)
           };
         }
         agg[key].impressions += p.impressions || 0;
@@ -1879,6 +1900,7 @@ function renderProductSummary(sorted) {
     <thead>
       <tr>
         <th>商品 (masterKey)</th>
+        <th>種別</th>
         <th class="num-col">登場配信数</th>
         <th class="num-col">Imp合計</th>
         <th class="num-col">販売数</th>
@@ -1894,12 +1916,14 @@ function renderProductSummary(sorted) {
     const nameHtml = r.masterKey
       ? `<span class="sku-tag">${escapeHtml(r.masterKey)}</span>${preciseMark}`
       : `<span class="sku-tag missing">⚠ 未登録</span> <span style="color:var(--muted);font-size:11px">${escapeHtml(r.sampleName.slice(0, 40))}...</span>`;
+    const badgeHtml = r.masterKey ? sourceBadge(r.masterKey, r.isAffiliate) : '<span style="color:var(--muted);font-size:11px">—</span>';
     const cvr = r.impressions > 0 ? (r.sold / r.impressions * 100) : null;
     const cvrText = cvr === null ? '—' : cvr.toFixed(2) + '%';
     // ハイライト: CVR 1%以上はteal色、0.1%未満はmuted
     const cvrColor = cvr === null ? 'var(--muted)' : cvr >= 1 ? 'var(--teal)' : cvr >= 0.1 ? 'var(--text)' : 'var(--muted)';
     html += `<tr>
       <td>${nameHtml}</td>
+      <td>${badgeHtml}</td>
       <td class="num-col">${r.broadcasts}</td>
       <td class="num-col">${r.impressions.toLocaleString()}</td>
       <td class="num-col">${r.sold.toLocaleString()}</td>
@@ -1908,8 +1932,11 @@ function renderProductSummary(sorted) {
       <td class="num-col ${profitClass}">${r.missing ? '—' : '¥' + Math.round(r.totalProfit).toLocaleString()}</td>
     </tr>`;
   });
+  const ownCount = rows.filter(r => r.masterKey && !r.isAffiliate).length;
+  const affCount = rows.filter(r => r.isAffiliate).length;
   html += `<tr style="border-top:2px solid var(--accent);background:var(--s2)">
       <td style="font-weight:700">合計 (${rows.length}SKU)</td>
+      <td style="font-size:11px;color:var(--muted)">自社${ownCount} / アフィリ${affCount}</td>
       <td class="num-col">—</td>
       <td class="num-col" style="font-weight:700">${sumImp.toLocaleString()}</td>
       <td class="num-col" style="font-weight:700">${sumSold.toLocaleString()}</td>
@@ -1923,6 +1950,14 @@ function renderProductSummary(sorted) {
 
 function escapeHtml(s) {
   return String(s || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+// 商品種別バッジ: 自社 / アフィリエイト を可視化
+function sourceBadge(masterKey, isAffiliateFlag) {
+  const aff = isAffiliateFlag != null ? !!isAffiliateFlag : isAffiliateKey(masterKey);
+  return aff
+    ? '<span class="src-badge affiliate" title="アフィリエイト商品: 元セラーが発送。粗利=GMV×成果報酬率。販売手数料・送料・梱包資材は対象外">🔗 アフィリ</span>'
+    : '<span class="src-badge own" title="自社仕入れ商品: 自分で梱包・発送。TikTok手数料・送料・梱包資材が粗利から引かれる">🏪 自社</span>';
 }
 
 // ============================================================
