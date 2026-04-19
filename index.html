@@ -332,7 +332,7 @@ td.gold-text { color: var(--gold); }
   <div class="kpi-header">
     <h2>🎯 重要指標 <span id="kpiPeriodLabel" style="font-size:13px;color:var(--muted)">（月次目標対比）</span></h2>
     <div style="font-size:11px;color:var(--muted)">
-      <span style="color:var(--teal)">← 配信(リーチ)</span> → <span style="color:var(--green)">リスト積み上げ</span> → <span style="color:var(--gold)">リストの質(リピート) →</span>
+      行動量 → <span style="color:var(--teal)">リーチ</span> → <span style="color:var(--gold)">リスト質</span> → <span style="color:var(--purple)">成約</span> → <span style="color:var(--green)">成果</span> → <span style="color:var(--gold)">深度</span>
     </div>
   </div>
   <div class="kpi-grid" id="kpiGrid"></div>
@@ -1420,80 +1420,112 @@ function renderAll() {
 // ============================================================
 function renderKPI(sorted) {
   // 当月または選択月のKEY (YYYY-MM) を決定
-  // filterToがあればその月、なければ今日
   const refDate = filterTo || new Date();
   const y = refDate.getFullYear();
   const m = String(refDate.getMonth() + 1).padStart(2, '0');
   const monthKey = `${y}-${m}`;
-
-  // 事業計画から当月目標を取得
   const target = businessPlan && businessPlan.monthlyTargets && businessPlan.monthlyTargets[monthKey];
 
   // 実績算出
   const actualLives = sorted.length;
   const totalActive = sorted.reduce((s,d) => s + (d.activeViewers||0), 0);
+  const totalPurchases = sorted.reduce((s,d) => s + (d.purchases||0), 0);
+  const totalSales = sorted.reduce((s,d) => s + (d.sales||0), 0);
   const entriesWithActive = sorted.filter(d => (d.activeViewers||0) > 0);
   const avgActivePerLive = entriesWithActive.length > 0
     ? Math.round(totalActive / entriesWithActive.length)
     : 0;
 
-  // 新規ユニーク顧客数とリピート率は customer-stats.json を参照（全期間集計）
-  // 月次フィルタ相当の集計はまだ未実装なので、customerStats を使いつつ注記
+  // CVR(case D: ユニーク購入者/アクティブ視聴) — ただし customer-stats は全期間なので
+  // 簡易版として配信ベースCVR(件数/アクティブ)を実績として使用
+  const actualCVR = totalActive > 0 ? (totalPurchases / totalActive * 100) : 0;
+
+  // customer-stats(全期間)
   const uniqueCustomers = customerStats?.totals?.uniqueCustomers || 0;
   const repeatCustomers = customerStats?.totals?.repeatCustomers || 0;
-  const repeatRate = customerStats?.totals?.repeatRate || 0;
+  const repeatRate = customerStats?.totals?.repeatRate || 0;  // ユニーク顧客ベース
+  const newOrders = customerStats?.totals?.newOrderCount || 0;
+  const repOrders = customerStats?.totals?.repeatOrderCount || 0;
+  const totOrders = newOrders + repOrders;
+  const repeatOrderRate = totOrders > 0 ? (repOrders / totOrders * 100) : 0;  // 件数ベース
 
   const rateOf = (a, t) => t > 0 ? Math.min(Math.round(a / t * 100), 999) : 0;
   const colorOf = r => r >= 100 ? 'green' : r >= 70 ? 'yellow' : 'red';
 
-  // ファネル順: 左=配信・リーチ → 中=リスト積み上げ → 右=リスト質
+  // ユーザー指定の順序: 配信回数 → 1配信アクティブ → リピート率(ユニーク) → CVR → 売上 → リピート率(件数)
   const items = [
     {
-      label: '📺 1配信あたりアクティブユーザー',
-      icon: 'リーチ',
-      actual: avgActivePerLive.toLocaleString() + '人/配信',
-      actualNum: avgActivePerLive,
-      target: target ? target.perLiveActiveUsers.toLocaleString() + '人/配信' : '—',
-      targetNum: target ? target.perLiveActiveUsers : 0,
-      note: target ? `月間のべ${target.monthlyActiveUsers.toLocaleString()}人/${target.lives}配信` : '',
-      rate: target ? rateOf(avgActivePerLive, target.perLiveActiveUsers) : 0,
+      label: '🎙 配信回数',
+      actual: actualLives + '回',
+      target: target ? target.lives + '回' : '—',
+      rate: target ? rateOf(actualLives, target.lives) : 0,
+      note: target ? `月${target.lives}回目標` : '',
       color: 'teal'
     },
     {
-      label: '🧑 月間新規ユニーク顧客数',
-      icon: 'リスト積み上げ',
-      actual: uniqueCustomers.toLocaleString() + '人',
-      actualNum: uniqueCustomers,
-      target: target ? target.newUniqueCustomers.toLocaleString() + '人' : '—',
-      targetNum: target ? target.newUniqueCustomers : 0,
-      note: `※customer-stats全期間集計(月次フィルタ未対応)`,
-      rate: target ? rateOf(uniqueCustomers, target.newUniqueCustomers) : 0,
+      label: '📺 1配信あたりアクティブユーザー',
+      actual: avgActivePerLive.toLocaleString() + '人',
+      target: target ? target.perLiveActiveUsers.toLocaleString() + '人' : '—',
+      rate: target ? rateOf(avgActivePerLive, target.perLiveActiveUsers) : 0,
+      note: target ? `月間のべ ${target.monthlyActiveUsers.toLocaleString()}人` : '',
+      color: 'teal'
+    },
+    {
+      label: '🔁 リピート率(ユニーク)',
+      actual: repeatRate.toFixed(1) + '%',
+      target: target ? (target.repeatRateTarget * 100).toFixed(0) + '%' : '—',
+      rate: target ? rateOf(repeatRate, target.repeatRateTarget * 100) : 0,
+      note: `リピーター${repeatCustomers}人/ユニーク${uniqueCustomers}人(全期間)`,
+      color: 'gold'
+    },
+    {
+      label: '🎯 CVR (購入数/アクティブ)',
+      actual: actualCVR.toFixed(2) + '%',
+      target: target ? (target.cvrTarget * 100).toFixed(1) + '%' : '3.0%',
+      rate: target ? rateOf(actualCVR, target.cvrTarget * 100) : rateOf(actualCVR, 3),
+      note: `購入${totalPurchases}件/アクティブ${totalActive.toLocaleString()}人`,
+      color: 'purple'
+    },
+    {
+      label: '💰 売上 (GMV)',
+      actual: '¥' + totalSales.toLocaleString(),
+      target: target ? '¥' + target.projectedSales.toLocaleString() : '—',
+      rate: target ? rateOf(totalSales, target.projectedSales) : 0,
+      note: target ? `月商目標¥${(target.projectedSales/1000).toFixed(0)}K` : '',
       color: 'green'
     },
     {
-      label: '🔁 月次リピート率(ユニーク)',
-      icon: 'リストの質',
-      actual: repeatRate.toFixed(1) + '%',
-      actualNum: repeatRate,
-      target: target ? (target.repeatRateTarget * 100).toFixed(0) + '%' : '—',
-      targetNum: target ? target.repeatRateTarget * 100 : 0,
-      note: `リピーター${repeatCustomers}人 / ユニーク${uniqueCustomers}人`,
-      rate: target ? rateOf(repeatRate, target.repeatRateTarget * 100) : 0,
-      color: 'gold'
+      label: '🔄 リピート率(件数ベース)',
+      actual: repeatOrderRate.toFixed(1) + '%',
+      target: '—',
+      rate: 0,
+      note: `リピ注文${repOrders}件/総注文${totOrders}件(全期間)`,
+      color: 'gold',
+      noTarget: true
     },
   ];
 
-  // 期間ラベル
   let label = `（${monthKey} 月次目標対比）`;
   if (!target) label += ' ⚠計画なし';
   document.getElementById('kpiPeriodLabel').textContent = label;
 
   document.getElementById('kpiGrid').innerHTML = items.map(item => {
+    if (item.noTarget) {
+      return `<div class="kpi-card">
+        <div class="kpi-label">${item.label}</div>
+        <div class="kpi-values">
+          <span class="kpi-actual" style="color:var(--${item.color})">${item.actual}</span>
+          <span class="kpi-target">/ 参考値</span>
+        </div>
+        <div class="kpi-rate" style="color:var(--muted)">— </div>
+        <div class="progress-bar"><div class="progress-fill" style="width:0%"></div></div>
+        ${item.note ? `<div style="font-size:10px;color:var(--muted);margin-top:6px;line-height:1.4">${item.note}</div>` : ''}
+      </div>`;
+    }
     const c = colorOf(item.rate);
     const pct = Math.min(item.rate, 100);
     const colorCss = c === 'green' ? 'var(--green)' : c === 'yellow' ? 'var(--gold)' : 'var(--accent)';
     return `<div class="kpi-card">
-      <div style="font-size:10px;color:var(--${item.color});text-transform:uppercase;letter-spacing:.6px;font-weight:700;margin-bottom:4px">${item.icon}</div>
       <div class="kpi-label">${item.label}</div>
       <div class="kpi-values">
         <span class="kpi-actual" style="color:${colorCss}">${item.actual}</span>
