@@ -106,6 +106,35 @@ td.gold-text { color: var(--gold); }
 .expand-btn:hover { border-color: var(--accent); color: var(--accent); }
 .expand-btn.open { border-color: var(--teal); color: var(--teal); }
 
+/* Product sub-table (inside detail expand) */
+.product-sub { grid-column: 1 / -1; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 12px 14px; }
+.product-sub h4 { font-size: 11px; color: var(--accent); text-transform: uppercase; letter-spacing: .5px; margin-bottom: 10px; font-weight: 700; }
+.product-sub table { font-size: 12px; }
+.product-sub thead th { padding: 6px 10px; background: transparent; }
+.product-sub tbody td { padding: 6px 10px; }
+.product-sub tbody tr:hover { background: var(--s1); }
+.product-warn { background: #4a1a1a; border: 1px solid var(--accent); color: #ffb0b8; padding: 8px 12px; border-radius: 6px; font-size: 12px; margin-bottom: 10px; }
+.product-warn strong { color: var(--accent); }
+.product-name { max-width: 340px; line-height: 1.4; }
+.product-name .tik { color: var(--muted); font-size: 11px; display: block; margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sku-tag { display: inline-block; background: var(--s2); border: 1px solid var(--border); color: var(--teal); padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; }
+.sku-tag.missing { border-color: var(--accent); color: var(--accent); background: #2a1015; }
+
+/* Product Summary section (aggregate across broadcasts) */
+.prod-summary-card { background: var(--s1); border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin-bottom: 24px; }
+.prod-summary-card h2 { font-size: 15px; font-weight: 600; margin-bottom: 12px; }
+.prod-summary-card .sub { font-size: 12px; color: var(--muted); margin-bottom: 14px; }
+.prod-summary-card table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.prod-summary-card thead th { text-align: left; padding: 8px 12px; background: var(--s2); font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; }
+.prod-summary-card thead th.num-col { text-align: right; }
+.prod-summary-card tbody td { padding: 10px 12px; border-bottom: 1px solid var(--border); }
+.prod-summary-card tbody td.num-col { text-align: right; font-weight: 600; }
+.prod-summary-card tbody tr:hover { background: var(--s2); }
+.prod-summary-card tbody tr:last-child td { border-bottom: none; }
+.prod-summary-card .profit-pos { color: var(--gold); }
+.prod-summary-card .profit-neg { color: var(--accent); }
+.prod-summary-card .empty { color: var(--muted); padding: 20px; text-align: center; font-size: 13px; }
+
 /* Insight boxes */
 .insights { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; margin-bottom: 24px; }
 .insight { background: var(--s1); border: 1px solid var(--border); border-left: 3px solid var(--teal); border-radius: 8px; padding: 14px 16px; font-size: 13px; line-height: 1.6; }
@@ -330,10 +359,33 @@ td.gold-text { color: var(--gold); }
   </div>
 </div>
 
+<!-- 商品別サマリー（期間内の全配信を横断して集計） -->
+<div class="prod-summary-card">
+  <h2>🛍 商品別サマリー</h2>
+  <div class="sub">選択期間内の全配信を横断した商品別集計。ダッシュボード更新くんが登録した商品のみ表示されます。</div>
+  <div id="productSummaryBody"></div>
+</div>
+
 <!-- AI Insights -->
 <div id="insightsArea" class="insights"></div>
 
-<!-- Claude-in-Chrome Import Flow -->
+<!-- ダッシュボード更新くん 案内バナー -->
+<div class="claude-import-box" style="border-color: var(--gold);">
+  <h3 style="color: var(--gold);">🤖 ダッシュボード更新くん（推奨）</h3>
+  <p class="sub">
+    配信後の更新は、<strong style="color:var(--gold)">Claude Codeで <code>/dashboard-updater</code></strong> を実行するか、
+    「<strong>配信データを更新</strong>」と話しかけるだけで完了します。<br>
+    ① TikTok Live Centerの▼を全展開してページ全文コピー<br>
+    ② Claude Code に貼り付ける<br>
+    →商品別GMV・粗利計算・Gistへの書き戻しまで自動化されます。<br><br>
+    ※ 初回のみ GitHub PAT（gistスコープ）のセットアップが要ります。手順は
+    <code style="color:var(--teal)">.claude/secrets/README.md</code> を参照。
+  </p>
+</div>
+
+<!-- Claude-in-Chrome Import Flow（旧フロー・フォールバック用） -->
+<details style="margin-bottom:24px">
+<summary style="cursor:pointer;color:var(--muted);font-size:12px;padding:8px">▶ 旧フロー（Claude in Chrome 経由のJSONインポート）※更新くんが使えないときのみ</summary>
 <div class="claude-import-box" id="claudeImportBox">
   <h3>🤖 Claude in Chrome で自動取り込み</h3>
   <p class="sub">TikTok Live Centerの▼マークをすべて展開→テキストをコピー→Claude in Chromeにプロンプトとともにペーストするだけで、全ライブのデータをJSONに変換してここに取り込めます。</p>
@@ -378,6 +430,7 @@ td.gold-text { color: var(--gold); }
     </div>
   </div>
 </div>
+</details>
 
 <!-- Claude API settings -->
 <div class="api-section" id="apiSection">
@@ -1139,6 +1192,7 @@ function renderAll() {
   renderSummary(sorted);
   renderKPI(sorted);
   renderCharts(sorted);
+  renderProductSummary(sorted);
   renderTable(sorted);
   renderSalesSelect();
   const total = liveData.length;
@@ -1412,6 +1466,142 @@ function renderCharts(sorted) {
 }
 
 // ============================================================
+// PRODUCT DETAIL BLOCK (1配信分の商品明細テーブル、detail-expand用)
+// ============================================================
+function renderProductDetailBlock(d) {
+  if (!Array.isArray(d.products) || d.products.length === 0) return '';
+
+  const missing = d.products.filter(p => p.profitMissing);
+  const warnHtml = missing.length > 0
+    ? `<div class="product-warn"><strong>⚠ 粗利マスタ未登録: ${missing.length}件</strong> — 利益計算はこれらの商品を除外しています。ダッシュボード更新くんに粗利を教えて登録してください。</div>`
+    : '';
+
+  let rows = '';
+  d.products.forEach(p => {
+    const profitText = p.profitMissing ? '—' : '¥' + Math.round(p.totalProfit || 0).toLocaleString();
+    const profitClass = (p.totalProfit || 0) >= 0 ? 'profit-pos' : 'profit-neg';
+    const skuTag = p.masterKey
+      ? `<span class="sku-tag">${escapeHtml(p.masterKey)}</span>`
+      : `<span class="sku-tag missing">⚠ 未登録</span>`;
+    rows += `<tr>
+      <td class="product-name">
+        ${skuTag}
+        <span class="tik" title="${escapeHtml(p.tiktokName || '')}">${escapeHtml((p.tiktokName || '').slice(0, 50))}${(p.tiktokName || '').length > 50 ? '…' : ''}</span>
+      </td>
+      <td style="text-align:right">${(p.impressions || 0).toLocaleString()}</td>
+      <td style="text-align:right">${p.ctr != null ? p.ctr.toFixed(2) + '%' : '-'}</td>
+      <td style="text-align:right;font-weight:600">${(p.sold || 0).toLocaleString()}</td>
+      <td style="text-align:right;color:var(--green);font-weight:600">¥${(p.gmv || 0).toLocaleString()}</td>
+      <td style="text-align:right" class="${profitClass}">${profitText}</td>
+    </tr>`;
+  });
+
+  return `
+    <div class="product-sub">
+      <h4>🛍 商品別明細 (${d.products.length}SKU)</h4>
+      ${warnHtml}
+      <table>
+        <thead>
+          <tr>
+            <th>商品</th>
+            <th style="text-align:right">Imp</th>
+            <th style="text-align:right">CTR</th>
+            <th style="text-align:right">販売数</th>
+            <th style="text-align:right">GMV</th>
+            <th style="text-align:right">粗利</th>
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>
+  `;
+}
+
+// ============================================================
+// PRODUCT SUMMARY (期間内全配信を横断した商品別集計)
+// ============================================================
+function renderProductSummary(sorted) {
+  const body = document.getElementById('productSummaryBody');
+  if (!body) return;
+
+  // 各商品を masterKey で集計（masterKey がない商品は tiktokName で識別）
+  const agg = {};
+  sorted.forEach(d => {
+    if (!Array.isArray(d.products)) return;
+    d.products.forEach(p => {
+      const key = p.masterKey || ('（未登録）' + (p.tiktokName || '').slice(0, 20));
+      if (!agg[key]) {
+        agg[key] = {
+          key,
+          masterKey: p.masterKey,
+          sampleName: p.tiktokName || p.masterKey || '',
+          impressions: 0, sold: 0, gmv: 0, totalProfit: 0,
+          broadcasts: 0, missing: !!p.profitMissing
+        };
+      }
+      agg[key].impressions += p.impressions || 0;
+      agg[key].sold        += p.sold || 0;
+      agg[key].gmv         += p.gmv || 0;
+      agg[key].totalProfit += p.totalProfit || 0;
+      agg[key].broadcasts  += 1;
+      if (p.profitMissing) agg[key].missing = true;
+    });
+  });
+
+  const rows = Object.values(agg).sort((a, b) => b.gmv - a.gmv);
+
+  if (rows.length === 0) {
+    body.innerHTML = '<div class="empty">この期間内の商品別データはありません。ダッシュボード更新くんで取り込むと表示されます。</div>';
+    return;
+  }
+
+  const sumGmv = rows.reduce((s, r) => s + r.gmv, 0);
+  const sumSold = rows.reduce((s, r) => s + r.sold, 0);
+  const sumProfit = rows.reduce((s, r) => s + r.totalProfit, 0);
+
+  let html = `<table>
+    <thead>
+      <tr>
+        <th>商品 (masterKey)</th>
+        <th class="num-col">登場配信数</th>
+        <th class="num-col">Imp合計</th>
+        <th class="num-col">販売数</th>
+        <th class="num-col">GMV</th>
+        <th class="num-col">粗利</th>
+      </tr>
+    </thead>
+    <tbody>`;
+  rows.forEach(r => {
+    const profitClass = r.totalProfit >= 0 ? 'profit-pos' : 'profit-neg';
+    const nameHtml = r.masterKey
+      ? `<span class="sku-tag">${escapeHtml(r.masterKey)}</span>`
+      : `<span class="sku-tag missing">⚠ 未登録</span> <span style="color:var(--muted);font-size:11px">${escapeHtml(r.sampleName.slice(0, 40))}...</span>`;
+    html += `<tr>
+      <td>${nameHtml}</td>
+      <td class="num-col">${r.broadcasts}</td>
+      <td class="num-col">${r.impressions.toLocaleString()}</td>
+      <td class="num-col">${r.sold.toLocaleString()}</td>
+      <td class="num-col">¥${r.gmv.toLocaleString()}</td>
+      <td class="num-col ${profitClass}">${r.missing ? '—' : '¥' + Math.round(r.totalProfit).toLocaleString()}</td>
+    </tr>`;
+  });
+  html += `<tr style="border-top:2px solid var(--accent);background:var(--s2)">
+      <td style="font-weight:700">合計 (${rows.length}SKU)</td>
+      <td class="num-col">—</td>
+      <td class="num-col">—</td>
+      <td class="num-col" style="font-weight:700">${sumSold.toLocaleString()}</td>
+      <td class="num-col" style="font-weight:700;color:var(--green)">¥${sumGmv.toLocaleString()}</td>
+      <td class="num-col profit-pos" style="font-weight:700">¥${Math.round(sumProfit).toLocaleString()}</td>
+    </tr>`;
+  html += '</tbody></table>';
+  body.innerHTML = html;
+}
+
+function escapeHtml(s) {
+  return String(s || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+// ============================================================
 // TABLE
 // ============================================================
 function renderTable(sorted) {
@@ -1493,6 +1683,7 @@ function renderTable(sorted) {
             <div class="kv"><span class="k">利益</span><span class="v" style="color:var(--gold)">¥${(d.profit||0).toLocaleString()}</span></div>
             <div class="kv"><span class="k">CVR</span><span class="v" style="color:var(--teal)">${(d.activeViewers||0)>0?((d.purchases||0)/(d.activeViewers||1)*100).toFixed(1):'0.0'}%</span></div>
           </div>
+          ${renderProductDetailBlock(d)}
         </div>
       </div>
     </td>`;
