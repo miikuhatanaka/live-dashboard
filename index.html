@@ -373,6 +373,7 @@ td.gold-text { color: var(--gold); }
         <th>ダイヤ</th>
         <th style="border-left:2px solid var(--border)">売上</th>
         <th>購入数</th>
+        <th>AOV</th>
         <th>CVR</th>
         <th>粗利</th>
         <th>純利益</th>
@@ -841,7 +842,7 @@ const NET_PROFIT_CONFIG_KEY = 'imapochi_net_profit_config';
 // 2026-04-20時点: TikTok Shop販売手数料は一律7%。2026/5/11からカテゴリ別(7〜12%)へ改定予定
 const DEFAULT_FEE_RATE = 0.07;
 const DEFAULT_SHIPPING = 185;
-const DEFAULT_PACKAGING = 5;
+const DEFAULT_PACKAGING = 20;
 function loadNetProfitConfig() {
   try {
     const raw = localStorage.getItem(NET_PROFIT_CONFIG_KEY);
@@ -849,6 +850,8 @@ function loadNetProfitConfig() {
       const saved = JSON.parse(raw);
       // 旧デフォルト値(10%)をそのまま保存してしまっているケースを自動補正
       if (saved.feeRate === 0.10) saved.feeRate = DEFAULT_FEE_RATE;
+      // 旧梱包資材費デフォルト(¥5)を新デフォルト(¥20)に自動補正
+      if (saved.packagingCostPerPackage === 5) saved.packagingCostPerPackage = DEFAULT_PACKAGING;
       return { feeRate: DEFAULT_FEE_RATE, shippingFeePerPackage: DEFAULT_SHIPPING, packagingCostPerPackage: DEFAULT_PACKAGING, ...saved };
     }
   } catch {}
@@ -1896,9 +1899,9 @@ function renderSummary(sorted) {
       <div class="card-sub">平均 ${sorted.length ? (totalFollowers/sorted.length).toFixed(1) : 0}/回</div>
     </div>
     <div class="card">
-      <div class="card-label">累計ダイヤ</div>
-      <div class="card-val gold">${totalDiamonds.toLocaleString()}</div>
-      <div class="card-sub">推定 USD${(totalDiamonds * 0.004).toFixed(2)}</div>
+      <div class="card-label">平均AOV (1注文あたり)</div>
+      <div class="card-val gold">${totalPurchases > 0 ? '¥' + Math.round(totalSales / totalPurchases).toLocaleString() : '—'}</div>
+      <div class="card-sub">売上¥${totalSales.toLocaleString()} ÷ 注文${totalPurchases.toLocaleString()}件</div>
     </div>
     <div class="card">
       <div class="card-label">累計売上</div>
@@ -2234,6 +2237,7 @@ function renderTable(sorted) {
       <td class="gold-text">💎${d.diamonds||0}</td>
       <td style="color:var(--green);font-weight:700;border-left:2px solid var(--border)">${d.sales ? '¥'+d.sales.toLocaleString() : '-'}</td>
       <td style="font-weight:700">${d.purchases||0}</td>
+      <td style="color:var(--gold);font-weight:700">${(d.purchases||0) > 0 ? '¥'+Math.round((d.sales||0)/d.purchases).toLocaleString() : '-'}</td>
       <td style="color:var(--teal);font-weight:700">${cvr}%</td>
       <td style="color:var(--gold);font-weight:700">${d.profit ? '¥'+d.profit.toLocaleString() : '-'}</td>
       <td style="font-weight:700;color:${(() => { const n=computeNetProfit(d); return n.net>=0?'var(--green)':'var(--accent)'; })()}">${(() => { const n=computeNetProfit(d); return n.packageCount===0 && d.sales===0 ? '-' : '¥'+n.net.toLocaleString(); })()}</td>
@@ -2248,7 +2252,7 @@ function renderTable(sorted) {
     const dr = document.createElement('tr');
     dr.className = 'detail-row';
     dr.id = `detail-${i}`;
-    dr.innerHTML = `<td colspan="14">
+    dr.innerHTML = `<td colspan="15">
       <div class="detail-inner">
         <div class="detail-grid">
           <div class="detail-block">
@@ -2346,6 +2350,7 @@ function renderTable(sorted) {
       <td class="gold-text" style="font-weight:700">💎${sumDiamonds.toLocaleString()}</td>
       <td style="color:var(--green);font-weight:700;border-left:2px solid var(--border)">¥${sumSales.toLocaleString()}</td>
       <td style="font-weight:700">${sumPurchases.toLocaleString()}</td>
+      <td style="color:var(--gold);font-weight:700">${sumPurchases > 0 ? '¥'+Math.round(sumSales/sumPurchases).toLocaleString() : '-'}</td>
       <td style="color:var(--teal);font-weight:700">${totalCvr}%</td>
       <td style="color:var(--gold);font-weight:700">¥${sumProfit.toLocaleString()}</td>
       <td style="color:${sumNet>=0?'var(--green)':'var(--accent)'};font-weight:700">¥${sumNet.toLocaleString()}</td>
