@@ -836,6 +836,8 @@ const STORAGE_KEY = 'imapochi_live_data';
 const INSIGHTS_KEY = 'imapochi_insights';
 const API_KEY_STORAGE = 'imapochi_claude_key';
 const DEFAULT_GIST_ID    = '7d5425efae6b412284a5e27841592f34';  // GitHub Pagesデプロイ時にGist IDをここに埋め込む
+// 公開デプロイ判定: *.github.io で開かれた場合は強制ビューア専用モード（PAT読み込み禁止・編集UI非表示）
+const IS_PUBLIC_DEPLOY = (typeof location !== 'undefined' && location.protocol === 'https:' && /\.github\.io$/i.test(location.hostname));
 const NET_PROFIT_CONFIG_KEY = 'imapochi_net_profit_config';
 
 // 純利益計算の設定（localStorage保存）
@@ -1209,7 +1211,7 @@ function getFilteredData() {
 function getGistConfig() {
   return {
     gistId: localStorage.getItem(GIST_ID_STORAGE) || DEFAULT_GIST_ID,
-    pat:    localStorage.getItem(GITHUB_PAT_STORAGE) || '',
+    pat:    IS_PUBLIC_DEPLOY ? '' : (localStorage.getItem(GITHUB_PAT_STORAGE) || ''),
   };
 }
 
@@ -1240,6 +1242,9 @@ function applyViewerModeUI() {
     const el = document.getElementById(id);
     if (el) el.style.display = hide ? 'none' : '';
   });
+  // 公開デプロイ時はクラウド同期設定UI自体を隠す（PAT入力欄は機能しないので混乱防止）
+  const gistSection = document.getElementById('gistSection');
+  if (gistSection) gistSection.style.display = IS_PUBLIC_DEPLOY ? 'none' : '';
   // セールスセクションはオーナーのみ
   document.querySelectorAll('.sales-section').forEach(el => {
     el.style.display = hide ? 'none' : '';
@@ -1250,7 +1255,14 @@ function applyViewerModeUI() {
   });
   // 閲覧専用バナー
   const banner = document.getElementById('viewerBanner');
-  if (banner) banner.style.display = hide ? 'flex' : 'none';
+  if (banner) {
+    banner.style.display = hide ? 'flex' : 'none';
+    // 公開デプロイ時は文言を「公開ページのため閲覧専用」に差し替え（PAT入力導線を案内しない）
+    if (IS_PUBLIC_DEPLOY) {
+      const msg = banner.querySelector('span');
+      if (msg) msg.innerHTML = '<strong style="color:var(--text)">閲覧専用モード</strong> — このページは公開ダッシュボードです。データの追加・編集はオーナーのローカル環境からのみ可能です。';
+    }
+  }
 }
 
 async function loadFromGist() {
