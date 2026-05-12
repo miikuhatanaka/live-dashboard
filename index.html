@@ -108,6 +108,8 @@ td.gold-text { color: var(--gold); }
 
 /* Product sub-table (inside detail expand) */
 .product-sub { grid-column: 1 / -1; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 12px 14px; }
+.product-sub tr.row-zero { display: none; }
+.product-sub.show-zero tr.row-zero { display: table-row; opacity: 0.55; }
 .product-sub h4 { font-size: 11px; color: var(--accent); text-transform: uppercase; letter-spacing: .5px; margin-bottom: 10px; font-weight: 700; }
 .product-sub table { font-size: 12px; }
 .product-sub thead th { padding: 6px 10px; background: transparent; }
@@ -416,10 +418,14 @@ td.gold-text { color: var(--gold); }
   <div id="npCfgPanel" style="display:none;margin-top:12px;padding:14px;background:var(--s2);border-radius:8px;border:1px solid var(--border)">
     <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(220px, 1fr));gap:12px">
       <div>
-        <div style="font-size:11px;color:var(--muted);margin-bottom:4px;text-transform:uppercase;letter-spacing:.5px">TikTok手数料率</div>
+        <div style="font-size:11px;color:var(--muted);margin-bottom:4px;text-transform:uppercase;letter-spacing:.5px">TikTok手数料率 <span style="color:var(--accent);font-size:10px">※2026/5/10以前の旧料率のみ</span></div>
         <div style="display:flex;align-items:center;gap:6px">
           <input type="number" id="np_feeRate" step="0.1" style="background:var(--bg);border:1px solid var(--border);color:var(--text);padding:6px 10px;border-radius:6px;font-size:13px;width:80px">
-          <span style="color:var(--muted)">% (現行一律7%、2026/5/11よりカテゴリ別7〜12%へ改定)</span>
+          <span style="color:var(--muted)">%</span>
+        </div>
+        <div style="font-size:10px;color:var(--muted);margin-top:4px;line-height:1.5">
+          5/10以前: 一律(この値)<br>
+          5/11以降: SKUのカテゴリ別に自動判定(7〜12%)
         </div>
       </div>
       <div>
@@ -492,7 +498,7 @@ td.gold-text { color: var(--gold); }
     <div class="def-item"><strong>masterKey</strong><span>粗利マスタでのSKU識別キー。例:<code>ソックス1足</code>, <code>ソックス5足セット</code>, <code>シルクシュシュ1個</code>。</span></div>
     <div class="def-item"><strong>variant mix (加重mix計算)</strong><span>1個バラ売り価格とセット価格の両方が存在するSKU(ソックス/メタルヘアゴム/マルチポーチ/リボン小物入れ/各シュシュ)で、<strong>implied unit price = GMV÷販売数</strong>から変種の比率を推定して加重平均で粗利を見積もる方式。<br>例: ソックス 7個 ¥2,211 → 単価¥315.86 → 1足¥100(4.2個) + 5足セット¥490(2.8個) と推定。</span></div>
     <div class="def-item"><strong>未登録 (profitMissing)</strong><span>粗利マスタに紐付かない商品。アフィリエイトや他社商品など、粗利計算対象外。各配信の商品明細では非表示、上の商品別サマリーでは⚠マーク付きで表示。</span></div>
-    <div class="def-item"><strong>商品種別バッジ <span class="src-badge own">🏪 自社</span> / <span class="src-badge affiliate">🔗 アフィリ</span></strong><span><strong>自社</strong>: 自分で仕入れ・梱包・発送する商品。粗利から TikTok販売手数料・送料・梱包資材費が引かれる。<br><strong>アフィリ(アフィリエイト)</strong>: 他社商品の販売促進を代行し成果報酬を受け取る商品。元セラーが発送するため、販売手数料・送料・梱包資材は自社負担ゼロ。<br>現在のアフィリ商品:<ul style="margin:4px 0 0 16px;padding:0;font-size:12px"><li>割れチョコ / 亀田製菓30枚セット / ハード&サワーグミ5種 — 成果報酬5%</li><li><em>駄菓子つめあわせ25点 — 特殊アフィリ(赤字は全て自社負担、-¥200/個すべてもろもろ込み)</em></li></ul></span></div>
+    <div class="def-item"><strong>商品種別バッジ <span class="src-badge own">🏪 自社</span> / <span class="src-badge affiliate">🔗 アフィリ</span></strong><span><strong>自社</strong>: 自分で仕入れ・梱包・発送する商品。粗利から TikTok販売手数料・送料・梱包資材費が引かれる。<br><strong>アフィリ(アフィリエイト)</strong>: 他社商品の販売促進を代行し成果報酬を受け取る商品。元セラーが発送するため、販売手数料・送料・梱包資材は自社負担ゼロ。<br>現在のアフィリ商品:<ul style="margin:4px 0 0 16px;padding:0;font-size:12px"><li>割れチョコ / 亀田製菓30枚セット / ハード&サワーグミ5種 — 成果報酬5%</li><li><em>駄菓子つめあわせ25点 — 特殊アフィリ(赤字は全て自社負担、-¥158/個 = 売価¥490 − 仕入¥648)</em></li></ul></span></div>
     <div class="def-item"><strong>顧客リピート分析（※自社のみ）</strong><span>リピート率・新規購入単価・リピート購入単価はすべて<em>自社商品のみ</em>で集計。<br>アフィリエイト商品(駄菓子・亀田・割れチョコ・グミ)は元セラーが発送するため、自社のTikTok Shop注文CSVに含まれない。そのため自然に自社商品のみの統計になる。</span></div>
 
     <div class="modal-actions">
@@ -841,10 +847,73 @@ const IS_PUBLIC_DEPLOY = (typeof location !== 'undefined' && location.protocol =
 const NET_PROFIT_CONFIG_KEY = 'imapochi_net_profit_config';
 
 // 純利益計算の設定（localStorage保存）
-// 2026-04-20時点: TikTok Shop販売手数料は一律7%。2026/5/11からカテゴリ別(7〜12%)へ改定予定
+// 2026-05-11以前: TikTok Shop販売手数料は一律7%(np_feeRate inputで上書き可)
+// 2026-05-11以降: 商品カテゴリ別(7〜12%)、SKU prefixで判定
 const DEFAULT_FEE_RATE = 0.07;
 const DEFAULT_SHIPPING = 185;
 const DEFAULT_PACKAGING = 20;
+
+// TikTok Shop Japan 2026-05-11改定: カテゴリ別販売手数料
+// 旧: 一律7% → 新: 7〜12%(カテゴリ別)
+// SKU prefixで判定。マッチしないSKUはdefaultRate(12%)にフォールバック
+// 詳細: data/tiktok-fee-rates.json
+const FEE_CATEGORY_RULES = {
+  effectiveFrom: '2026/5/11 00:00:00',  // JST、Date()でローカルtime parse
+  defaultRate: 0.12,
+  defaultCategory: 'ファッション小物',
+  // 最長prefix一致。同率(12%)はdefaultで吸収されるが監査性のため明示列挙
+  rules: [
+    // 食品・ドリンク 7%（実運用ではアフィリ商品が大半でtiktokFee対象外）
+    { prefix: 'YN-AFF-',       category: '食品・ドリンク',             rate: 0.07 },
+    // スマホ・デジタル機器 7%
+    { prefix: 'YN-EARPHONE-',  category: 'スマホ・デジタル機器',       rate: 0.07 },
+    // アクセサリー・ジュエリー 10%
+    { prefix: 'YN-EARRING-',   category: 'アクセサリー・ジュエリー',   rate: 0.10 },
+    // バッグ・スーツケース 12%
+    { prefix: 'YN-BAG-',       category: 'バッグ・スーツケース',       rate: 0.12 },
+    { prefix: 'YN-ECOBAG-',    category: 'バッグ・スーツケース',       rate: 0.12 },
+    // レディースファッション・インナー 12% (アパレル)
+    { prefix: 'YN-BLOUSE-',    category: 'レディースファッション・インナー', rate: 0.12 },
+    { prefix: 'YN-DRESS-',     category: 'レディースファッション・インナー', rate: 0.12 },
+    { prefix: 'YN-HOODIE-',    category: 'レディースファッション・インナー', rate: 0.12 },
+    { prefix: 'YN-SKIRT-',     category: 'レディースファッション・インナー', rate: 0.12 },
+    { prefix: 'YN-TSHIRT-',    category: 'レディースファッション・インナー', rate: 0.12 },
+    // ファッション小物 12%
+    { prefix: 'YN-ARM-',       category: 'ファッション小物', rate: 0.12 },
+    { prefix: 'YN-BROOCH-',    category: 'ファッション小物', rate: 0.12 },
+    { prefix: 'YN-CARD-',      category: 'ファッション小物', rate: 0.12 },
+    { prefix: 'YN-CLIP-',      category: 'ファッション小物', rate: 0.12 },
+    { prefix: 'YN-COIN-',      category: 'ファッション小物', rate: 0.12 },
+    { prefix: 'YN-HAIRPIN-',   category: 'ファッション小物', rate: 0.12 },
+    { prefix: 'YN-HAIRTIE-',   category: 'ファッション小物', rate: 0.12 },
+    { prefix: 'YN-MSOCKS-',    category: 'ファッション小物', rate: 0.12 },
+    { prefix: 'YN-POUCH-',     category: 'ファッション小物', rate: 0.12 },
+    { prefix: 'YN-RING-',      category: 'ファッション小物', rate: 0.12 },
+    { prefix: 'YN-SAMPLE-',    category: 'ファッション小物', rate: 0.12 },
+    { prefix: 'YN-SCARF-',     category: 'ファッション小物', rate: 0.12 },
+    { prefix: 'YN-SCRUNCHIE-', category: 'ファッション小物', rate: 0.12 },
+    { prefix: 'YN-SOCKS-',     category: 'ファッション小物', rate: 0.12 },
+  ]
+};
+const FEE_CUTOFF_DATE = new Date(FEE_CATEGORY_RULES.effectiveFrom);
+function isBroadcastAfterFeeCutoff(d) {
+  if (!d || !d.date) return false;
+  // d.date は "YYYY/M/D HH:MM" 形式。ローカルtime parseで JST 環境想定
+  const t = new Date(d.date);
+  if (isNaN(t.getTime())) return false;
+  return t.getTime() >= FEE_CUTOFF_DATE.getTime();
+}
+function inferFeeRateBySku(sku) {
+  if (!sku) return { rate: FEE_CATEGORY_RULES.defaultRate, category: FEE_CATEGORY_RULES.defaultCategory, matched: false };
+  let best = null;
+  for (const r of FEE_CATEGORY_RULES.rules) {
+    if (sku.startsWith(r.prefix)) {
+      if (!best || r.prefix.length > best.prefix.length) best = r;
+    }
+  }
+  if (best) return { rate: best.rate, category: best.category, matched: true };
+  return { rate: FEE_CATEGORY_RULES.defaultRate, category: FEE_CATEGORY_RULES.defaultCategory, matched: false };
+}
 function loadNetProfitConfig() {
   try {
     const raw = localStorage.getItem(NET_PROFIT_CONFIG_KEY);
@@ -877,9 +946,9 @@ const AFFILIATE_MASTER_KEYS = new Set([
   '割れチョコ1袋200g',
   '亀田製菓30枚セット',
   'ハード&サワーグミ5種',
-  '駄菓子つめあわせ25点'  // 特殊アフィリ: 赤字すべて自社負担。profit=-200/個(もろもろ込み)
+  '駄菓子つめあわせ25点'  // 特殊アフィリ: 赤字すべて自社負担。profit=-158/個(=売価¥490 − 仕入¥648、スプシ price/cost から自動計算)
 ]);
-// 駄菓子は『特殊アフィリ』: アフィリ扱いで手数料/送料は追加控除せず、profit=-200/個をそのまま使用
+// 駄菓子は『特殊アフィリ』: アフィリ扱いで手数料/送料は追加控除せず、profit=-158/個(=price-cost from スプシマスタ)をそのまま使用
 const SPECIAL_DISTRIBUTOR_AFFILIATE_KEYS = new Set([
   '駄菓子つめあわせ25点'
 ]);
@@ -893,6 +962,7 @@ function isSpecialDistributorAffiliateKey(masterKey) {
 // 純利益計算: 粗利(profit) − TikTok手数料 − 送料 − 梱包資材費
 // ※アフィリエイト商品はTikTok手数料・送料・梱包資材すべて対象外
 //   (発送は元セラーが行う / 粗利=GMV×5%ですでに手数料控除後の想定)
+// ※2026-05-11以降はカテゴリ別手数料(7〜12%)、SKU prefixで判定
 function computeNetProfit(d) {
   const gross = d.profit || 0;
   const sales = d.sales || 0;
@@ -903,12 +973,63 @@ function computeNetProfit(d) {
   const nonAffiliateGmv = Math.max(0, sales - affiliateGmv);
 
   const pkg = d.packageCount || 0;
-  const feeRate = (d.feeRate != null) ? d.feeRate : netProfitConfig.feeRate;
-  const tiktokFee = Math.round(nonAffiliateGmv * feeRate);
+  const afterCutoff = isBroadcastAfterFeeCutoff(d);
+
+  // 手数料計算: 旧=一律 / 新=カテゴリ別(SKU prefix判定)
+  let tiktokFee, feeRate, feeMode, feeBreakdown;
+  if (!afterCutoff) {
+    // 旧モード: d.feeRate(配信ごとの上書き) > netProfitConfig.feeRate(設定UI) > DEFAULT_FEE_RATE
+    feeMode = 'flat';
+    feeRate = (d.feeRate != null) ? d.feeRate : netProfitConfig.feeRate;
+    tiktokFee = Math.round(nonAffiliateGmv * feeRate);
+    feeBreakdown = null;
+  } else {
+    // 新モード: カテゴリ別。商品GMVから加重平均で実効レート算出、nonAffiliateGmv(=売上ベース)に適用
+    feeMode = 'category';
+    const buckets = {};  // rate(number) -> { rate, category(label), gmv }
+    let knownGmv = 0;
+    let weightedFee = 0;
+    if (Array.isArray(d.products)) {
+      d.products.forEach(p => {
+        if (p.isAffiliate) return;
+        const g = p.gmv || 0;
+        if (g <= 0) return;
+        const info = inferFeeRateBySku(p.sku);
+        knownGmv += g;
+        weightedFee += g * info.rate;
+        const key = info.rate;
+        if (!buckets[key]) buckets[key] = { rate: info.rate, category: info.category, gmv: 0 };
+        buckets[key].gmv += g;
+      });
+    }
+    // 残差(売上 − 既知商品GMV合計)はdefaultRateで課金
+    // ※マイナスならsellerSKU割引で売上 < 商品GMV合計のケース → 加重を比例縮小
+    const residual = nonAffiliateGmv - knownGmv;
+    let totalFee;
+    if (residual >= 0) {
+      totalFee = weightedFee + residual * FEE_CATEGORY_RULES.defaultRate;
+      if (residual > 0) {
+        const key = FEE_CATEGORY_RULES.defaultRate;
+        if (!buckets[key]) buckets[key] = { rate: key, category: FEE_CATEGORY_RULES.defaultCategory + '(未マッピング)', gmv: 0 };
+        buckets[key].gmv += residual;
+      }
+    } else if (knownGmv > 0) {
+      // セラー割引等で売上が商品GMV合計を下回るケース: 比例縮小
+      const scale = nonAffiliateGmv / knownGmv;
+      totalFee = weightedFee * scale;
+      Object.values(buckets).forEach(b => { b.gmv = Math.round(b.gmv * scale); });
+    } else {
+      totalFee = 0;
+    }
+    tiktokFee = Math.round(totalFee);
+    feeRate = nonAffiliateGmv > 0 ? (totalFee / nonAffiliateGmv) : FEE_CATEGORY_RULES.defaultRate;
+    feeBreakdown = Object.values(buckets).sort((a, b) => a.rate - b.rate);
+  }
+
   const shippingFee = Math.round(pkg * netProfitConfig.shippingFeePerPackage);
   const packagingCost = Math.round(pkg * netProfitConfig.packagingCostPerPackage);
   const net = gross - tiktokFee - shippingFee - packagingCost;
-  return { gross, tiktokFee, shippingFee, packagingCost, net, feeRate, packageCount: pkg, affiliateGmv, nonAffiliateGmv };
+  return { gross, tiktokFee, shippingFee, packagingCost, net, feeRate, feeMode, feeBreakdown, packageCount: pkg, affiliateGmv, nonAffiliateGmv };
 }
 const GIST_ID_STORAGE    = 'imapochi_gist_id';
 const GITHUB_PAT_STORAGE = 'imapochi_github_pat';
@@ -2025,10 +2146,12 @@ function renderProductDetailBlock(d) {
         const profitClass = (b.totalProfit || 0) >= 0 ? 'profit-pos' : 'profit-neg';
         const isFirst = i === 0;
         const badge = sourceBadge(b.masterKey);
+        const isZero = (b.qty || 0) === 0 && (b.subtotalYen || 0) === 0;
         rows.push({
           sold: b.qty || 0,
           gmv: b.subtotalYen || 0,
-          html: `<tr>
+          isZero,
+          html: `<tr class="${isZero ? 'row-zero' : ''}">
             <td class="product-name">
               <span class="sku-tag">${escapeHtml(b.masterKey)}</span>${badge} <span style="color:var(--teal);font-size:10px;margin-left:4px" title="注文CSVからの実績値">✓実績</span>
               ${isFirst ? `<span class="tik" title="${escapeHtml(p.tiktokName || '')}">${escapeHtml((p.tiktokName || '').slice(0, 50))}${(p.tiktokName || '').length > 50 ? '…' : ''}</span>` : ''}
@@ -2047,10 +2170,12 @@ function renderProductDetailBlock(d) {
       const skuTag = `<span class="sku-tag">${escapeHtml(p.masterKey)}</span>`;
       const badge = sourceBadge(p.masterKey, p.isAffiliate);
       const noteText = p.profitNote && /mix/.test(p.profitNote) ? ' <span style="color:var(--gold);font-size:10px" title="implied unit priceベースのmix推定">~推定</span>' : '';
+      const isZero = (p.sold || 0) === 0 && (p.gmv || 0) === 0;
       rows.push({
         sold: p.sold || 0,
         gmv: p.gmv || 0,
-        html: `<tr>
+        isZero,
+        html: `<tr class="${isZero ? 'row-zero' : ''}">
           <td class="product-name">
             ${skuTag}${badge}${noteText}
             <span class="tik" title="${escapeHtml(p.tiktokName || '')}">${escapeHtml((p.tiktokName || '').slice(0, 50))}${(p.tiktokName || '').length > 50 ? '…' : ''}</span>
@@ -2073,9 +2198,16 @@ function renderProductDetailBlock(d) {
     ? `<span style="color:var(--teal);font-size:11px;font-weight:600;margin-left:8px">✓実績 ${preciseCount}/${visible.length}件</span>`
     : '';
 
+  const zeroCount = rows.filter(r => r.isZero).length;
+  const soldRowCount = rows.length - zeroCount;
+  const tableId = 'pt-' + Math.random().toString(36).slice(2, 9);
+  const toggleHtml = zeroCount > 0
+    ? `<button type="button" onclick="(function(t){var b=document.getElementById('${tableId}');b.classList.toggle('show-zero');t.textContent=b.classList.contains('show-zero')?'販売0を非表示':'販売0を表示 (${zeroCount}件)';})(this)" style="margin-left:auto;padding:4px 10px;font-size:11px;border:1px solid var(--border);border-radius:6px;background:transparent;color:var(--muted);cursor:pointer">販売0を表示 (${zeroCount}件)</button>`
+    : '';
+
   return `
-    <div class="product-sub">
-      <h4>🛍 商品別明細 (${rows.length}行 / 販売数降順)${preciseBadge}</h4>
+    <div class="product-sub" id="${tableId}">
+      <h4 style="display:flex;align-items:center;gap:8px">🛍 商品別明細 (販売あり ${soldRowCount}行${zeroCount > 0 ? ` / 全${rows.length}行` : ''})${preciseBadge}${toggleHtml}</h4>
       ${warnHtml}
       <table>
         <thead>
@@ -2101,49 +2233,78 @@ function renderProductSummary(sorted) {
   const body = document.getElementById('productSummaryBody');
   if (!body) return;
 
-  // 各商品を masterKey で集計。variantBreakdown(注文CSV実績)があればvariant別に分解集計
+  // 商品グループ名を抽出: "商品名 (バリエーション)" → "商品名"
+  // バリエーション別SKUを同じ商品として集計するため
+  function extractProductGroup(masterKey) {
+    if (!masterKey) return null;
+    // 末尾の " (xxxx)" を除去してtiktokSalesNameを得る (ネストカッコ「(2足セット(黒+白))」にも対応)
+    let s = masterKey;
+    while (true) {
+      const m = s.match(/\s*\(([^()]|\([^()]*\))*\)\s*$/);
+      if (!m) break;
+      s = s.slice(0, m.index);
+    }
+    return s.trim() || masterKey;
+  }
+
+  // 各商品を productGroup(tiktokSalesName) で集計。
+  // バリエーション別SKUは1つの商品として扱う(例: ドット柄ソックス ブラック/ホワイト等は全て「ドット柄ソックス」に統合)
+  // variantBreakdown(注文CSV実績)があれば各variant数量をproductGroupに積算
   const agg = {};
+  const aggregatedBroadcastIds = {}; // 重複配信カウント回避用 (productGroup → Set<configId>)
   sorted.forEach(d => {
     if (!Array.isArray(d.products)) return;
+    const seenInStream = new Set();
     d.products.forEach(p => {
-      // variantBreakdown(注文CSVから抽出した実績)があれば各variantを個別行に
+      // variantBreakdown(注文CSVから抽出した実績)があれば各variantを同じproductGroupに積算
       if (Array.isArray(p.variantBreakdown) && p.variantBreakdown.length > 0) {
-        const totalQty = p.variantBreakdown.reduce((s, b) => s + (b.qty || 0), 0) || 1;
         p.variantBreakdown.forEach(b => {
-          const key = b.masterKey;
-          if (!agg[key]) {
-            agg[key] = {
-              key, masterKey: key, sampleName: p.tiktokName || key,
+          const group = extractProductGroup(b.masterKey);
+          if (!group) return;
+          if (!agg[group]) {
+            agg[group] = {
+              key: group, masterKey: group, sampleName: p.tiktokName || group,
               impressions: 0, sold: 0, gmv: 0, totalProfit: 0,
               broadcasts: 0, missing: false, precise: true,
-              isAffiliate: isAffiliateKey(key)
+              isAffiliate: isAffiliateKey(b.masterKey)
             };
+            aggregatedBroadcastIds[group] = new Set();
           }
-          // Impressionsはlisting単位の値しか無いので qty比率で按分
-          agg[key].impressions += Math.round((p.impressions || 0) * ((b.qty || 0) / totalQty));
-          agg[key].sold        += (b.qty || 0);
-          agg[key].gmv         += (b.subtotalYen || 0);
-          agg[key].totalProfit += (b.totalProfit || 0);
-          agg[key].broadcasts  += 1;
+          agg[group].sold        += (b.qty || 0);
+          agg[group].gmv         += (b.subtotalYen || 0);
+          agg[group].totalProfit += (b.totalProfit || 0);
         });
+        // listing単位のimpressionsは1回だけ加算(variantBreakdownの各エントリで重複加算しない)
+        const primaryGroup = extractProductGroup(p.variantBreakdown[0].masterKey);
+        if (primaryGroup && !seenInStream.has(primaryGroup)) {
+          agg[primaryGroup].impressions += p.impressions || 0;
+          agg[primaryGroup].broadcasts += 1;
+          seenInStream.add(primaryGroup);
+          aggregatedBroadcastIds[primaryGroup].add(d.id);
+        }
       } else {
-        // variantBreakdown無しは従来通り listing単位で集計
-        const key = p.masterKey || ('（未登録）' + (p.tiktokName || '').slice(0, 20));
-        if (!agg[key]) {
-          agg[key] = {
-            key, masterKey: p.masterKey,
-            sampleName: p.tiktokName || p.masterKey || '',
+        // variantBreakdown無しはlisting単位で集計。masterKeyからproductGroupを抽出
+        const group = extractProductGroup(p.masterKey) || ('（未登録）' + (p.tiktokName || '').slice(0, 20));
+        if (!agg[group]) {
+          agg[group] = {
+            key: group, masterKey: group,
+            sampleName: p.tiktokName || group,
             impressions: 0, sold: 0, gmv: 0, totalProfit: 0,
             broadcasts: 0, missing: !!p.profitMissing, precise: false,
             isAffiliate: !!p.isAffiliate || isAffiliateKey(p.masterKey)
           };
+          aggregatedBroadcastIds[group] = new Set();
         }
-        agg[key].impressions += p.impressions || 0;
-        agg[key].sold        += p.sold || 0;
-        agg[key].gmv         += p.gmv || 0;
-        agg[key].totalProfit += p.totalProfit || 0;
-        agg[key].broadcasts  += 1;
-        if (p.profitMissing) agg[key].missing = true;
+        agg[group].impressions += p.impressions || 0;
+        agg[group].sold        += p.sold || 0;
+        agg[group].gmv         += p.gmv || 0;
+        agg[group].totalProfit += p.totalProfit || 0;
+        if (!seenInStream.has(group)) {
+          agg[group].broadcasts += 1;
+          seenInStream.add(group);
+          aggregatedBroadcastIds[group].add(d.id);
+        }
+        if (p.profitMissing) agg[group].missing = true;
       }
     });
   });
@@ -2315,11 +2476,24 @@ function renderTable(sorted) {
               const affLine = n.affiliateGmv > 0
                 ? `<div class="kv"><span class="k" style="font-size:11px;color:var(--muted)">（内 アフィリエイトGMV: ¥${n.affiliateGmv.toLocaleString()} は手数料・送料対象外）</span><span class="v"></span></div>`
                 : '';
+              // 手数料の表示: 旧=一律 / 新=カテゴリ別(加重平均+内訳)
+              let feeLine;
+              if (n.feeMode === 'category') {
+                const pct = (n.feeRate * 100).toFixed(1);
+                const breakdownText = (n.feeBreakdown || [])
+                  .map(b => `${b.category} ${(b.rate*100).toFixed(0)}%×¥${b.gmv.toLocaleString()}`)
+                  .join(' / ');
+                feeLine = `
+                <div class="kv"><span class="k">−TikTok手数料 <span style="color:var(--muted);font-size:11px">(カテゴリ別・加重平均${pct}%)</span></span><span class="v" style="color:var(--accent)">−¥${n.tiktokFee.toLocaleString()}</span></div>
+                ${breakdownText ? `<div class="kv"><span class="k" style="font-size:11px;color:var(--muted);padding-left:12px">└ ${breakdownText}</span><span class="v"></span></div>` : ''}`;
+              } else {
+                feeLine = `<div class="kv"><span class="k">−TikTok手数料 (${(n.feeRate*100).toFixed(0)}% × 自社GMV ¥${n.nonAffiliateGmv.toLocaleString()})</span><span class="v" style="color:var(--accent)">−¥${n.tiktokFee.toLocaleString()}</span></div>`;
+              }
               return `
               <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border)">
                 <div class="kv"><span class="k">粗利(商品のみ)</span><span class="v" style="color:var(--gold)">¥${n.gross.toLocaleString()}</span></div>
                 ${affLine}
-                <div class="kv"><span class="k">−TikTok手数料 (${(n.feeRate*100).toFixed(0)}% × 自社GMV ¥${n.nonAffiliateGmv.toLocaleString()})</span><span class="v" style="color:var(--accent)">−¥${n.tiktokFee.toLocaleString()}</span></div>
+                ${feeLine}
                 <div class="kv"><span class="k">−送料 (${n.packageCount}梱包×¥${netProfitConfig.shippingFeePerPackage})</span><span class="v" style="color:var(--accent)">−¥${n.shippingFee.toLocaleString()}</span></div>
                 <div class="kv"><span class="k">−梱包資材 (${n.packageCount}梱包×¥${netProfitConfig.packagingCostPerPackage})</span><span class="v" style="color:var(--accent)">−¥${n.packagingCost.toLocaleString()}</span></div>
                 <div class="kv" style="margin-top:6px;padding-top:6px;border-top:2px solid var(--border)"><span class="k" style="font-weight:700">純利益</span><span class="v" style="color:${netColor};font-weight:700;font-size:14px">¥${n.net.toLocaleString()}</span></div>
