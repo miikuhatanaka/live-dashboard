@@ -346,8 +346,8 @@ td.gold-text { color: var(--gold); }
     <span>🌙 ムーンショット数値対比</span>
     <button class="btn btn-outline btn-sm" onclick="toggleMoonshot()" id="moonshotToggle" style="font-weight:600">▼ 開く</button>
   </h2>
-  <div class="sub">1配信¥1,500,000 を10%確率で達成するためのKPIマイルストーン(ぞうねこ27チャレ実績ベース)<br>
-  <span style="color:var(--gold);font-size:11px">※比較指標はぞうねこ公開値に合わせて統一: 視聴者=uniqueViewers（累計ユニーク視聴者）/ CVR=購入÷延べ視聴(totalViews) / RPV=売上÷延べ視聴</span></div>
+  <div class="sub">1配信¥1,500,000 を 2026年10月までに 1回でも達成するためのPeak追跡 (ぞうねこ27チャレ実績ベース)<br>
+  <span style="color:var(--gold);font-size:11px">※実績値=Peak(全期間最高売上配信)。比較指標: 視聴者=uniqueViewers / CVR=購入÷延べ視聴(totalViews) / RPV=売上÷延べ視聴 / AOV=売上÷注文回数</span></div>
   <div id="moonshotBody" style="display:none;margin-top:14px"></div>
 </div>
 
@@ -1846,30 +1846,47 @@ function renderMoonshot() {
   }
   const t = moonshotTargets;
 
-  // 実績を計算(全配信横断) ※ぞうねこ比較のためuniqueViewers/totalViewsベースで統一
+  // === Peak追跡型 (v3) ===
+  // 「1配信¥1.5M を 1回でも達成」 → Peak(全期間最高売上配信)を実績値として比較
   const filtered = getFilteredData();
-  const totalUnique = filtered.reduce((s,d) => s + (d.uniqueViewers||0), 0);
-  const totalViewsAll = filtered.reduce((s,d) => s + (d.totalViews||0), 0);
-  const uniqueCount = filtered.filter(d => (d.uniqueViewers||0) > 0).length;
-  const avgUniqueViewers = uniqueCount > 0 ? Math.round(totalUnique / uniqueCount) : 0;
+  const peakBroadcast = filtered.reduce(
+    (p, d) => (d.sales||0) > (p.sales||0) ? d : p,
+    { sales: 0, uniqueViewers: 0, totalViews: 0, purchases: 0, date: '—' }
+  );
+  const peakSales = peakBroadcast.sales || 0;
+  const peakViewers = peakBroadcast.uniqueViewers || 0;
+  const peakViews = peakBroadcast.totalViews || 0;
+  const peakPurchases = peakBroadcast.purchases || 0;
+  const peakAOV = peakPurchases > 0 ? Math.round(peakSales / peakPurchases) : 0;
+  const peakCVR = peakViews > 0 ? (peakPurchases / peakViews * 100) : 0;
+  const peakRPV = peakViews > 0 ? (peakSales / peakViews) : 0;
+
+  // 参考: 平均も並記
   const totalSales = filtered.reduce((s,d) => s + (d.sales||0), 0);
   const totalPurchases = filtered.reduce((s,d) => s + (d.purchases||0), 0);
   const avgSalesPerLive = filtered.length > 0 ? Math.round(totalSales / filtered.length) : 0;
-  const actualAOV = totalPurchases > 0 ? Math.round(totalSales / totalPurchases) : 0;
-  // CVR = 購入÷延べ視聴(totalViews) ※ぞうねこ公開値と同じ分母
-  const actualCVR = totalViewsAll > 0 ? (totalPurchases / totalViewsAll * 100) : 0;
-  // RPV = 売上÷延べ視聴
-  const actualRPV = totalViewsAll > 0 ? (totalSales / totalViewsAll) : 0;
+  const avgAOV = totalPurchases > 0 ? Math.round(totalSales / totalPurchases) : 0;
+  const peakDate = (peakBroadcast.date || '').split(' ')[0] || '—';
 
   const tgt = t.perLiveTargets;
 
-  // KPI対比カード配列(ぞうねこ比較のため uniqueViewers/totalViewsベース統一)
+  // KPI対比 — Peak vs Target Peak (10月¥1.5M到達)
   const kpiCompares = [
-    { label: '💰 1配信売上', actual: avgSalesPerLive, target: tgt.sales.target, benchmark: null, fmt: v => '¥' + v.toLocaleString(), note: '本丸の結果指標' },
-    { label: '💎 AOV (1注文単価)', actual: actualAOV, target: tgt.aov.target, benchmark: tgt.aov.benchmarkZouneko, fmt: v => '¥' + v.toLocaleString(), note: tgt.aov.note },
-    { label: '🎯 CVR (購入÷延べ視聴)', actual: actualCVR, target: tgt.cvrByTotalViews.target, benchmark: tgt.cvrByTotalViews.benchmarkZouneko, fmt: v => v.toFixed(2) + '%', note: tgt.cvrByTotalViews.note },
-    { label: '👥 1配信ユニーク視聴者', actual: avgUniqueViewers, target: tgt.uniqueViewers.target, benchmark: tgt.uniqueViewers.benchmarkZouneko, fmt: v => v.toLocaleString() + '人', note: tgt.uniqueViewers.note },
-    { label: '💡 RPV (売上÷延べ視聴)', actual: actualRPV, target: tgt.rpv.target, benchmark: tgt.rpv.benchmarkZouneko, fmt: v => '¥' + v.toFixed(2), note: tgt.rpv.note },
+    { label: '💰 Peak 1配信売上', actual: peakSales, target: tgt.sales.target, benchmark: null,
+      fmt: v => '¥' + v.toLocaleString(),
+      note: `Peak日: ${peakDate} (期間平均 ¥${avgSalesPerLive.toLocaleString()}/配信)` },
+    { label: '💎 Peak AOV (注文単価)', actual: peakAOV, target: tgt.aov.target, benchmark: tgt.aov.benchmarkZouneko,
+      fmt: v => '¥' + v.toLocaleString(),
+      note: tgt.aov.note + ` / 期間平均 ¥${avgAOV.toLocaleString()}` },
+    { label: '🎯 Peak CVR (購入÷延べ視聴)', actual: peakCVR, target: tgt.cvrByTotalViews.target, benchmark: tgt.cvrByTotalViews.benchmarkZouneko,
+      fmt: v => v.toFixed(2) + '%',
+      note: tgt.cvrByTotalViews.note },
+    { label: '👥 Peak 1配信視聴者(unique)', actual: peakViewers, target: tgt.uniqueViewers.target, benchmark: tgt.uniqueViewers.benchmarkZouneko,
+      fmt: v => v.toLocaleString() + '人',
+      note: tgt.uniqueViewers.note },
+    { label: '💡 Peak RPV (売上÷延べ視聴)', actual: peakRPV, target: tgt.rpv.target, benchmark: tgt.rpv.benchmarkZouneko,
+      fmt: v => '¥' + v.toFixed(2),
+      note: tgt.rpv.note },
   ];
 
   const defHtml = `
@@ -2138,17 +2155,17 @@ function renderProductDetailBlock(d) {
   const rows = [];
   visible.forEach(p => {
     if (Array.isArray(p.variantBreakdown) && p.variantBreakdown.length > 0) {
-      const totalQty = p.variantBreakdown.reduce((s, b) => s + (b.qty || 0), 0) || 1;
-      const sorted = [...p.variantBreakdown].sort((a, b) => (b.qty || 0) - (a.qty || 0));
+      const totalQty = p.variantBreakdown.reduce((s, b) => s + (b.qty ?? b.quantity ?? 0), 0) || 1;
+      const sorted = [...p.variantBreakdown].sort((a, b) => (b.qty ?? b.quantity ?? 0) - (a.qty ?? a.quantity ?? 0));
       sorted.forEach((b, i) => {
-        const impPortion = Math.round((p.impressions || 0) * ((b.qty || 0) / totalQty));
-        const profitText = '¥' + Math.round(b.totalProfit || 0).toLocaleString();
-        const profitClass = (b.totalProfit || 0) >= 0 ? 'profit-pos' : 'profit-neg';
+        const impPortion = Math.round((p.impressions || 0) * ((b.qty ?? b.quantity ?? 0) / totalQty));
+        const profitText = '¥' + Math.round(b.totalProfit ?? b.profit ?? 0).toLocaleString();
+        const profitClass = (b.totalProfit ?? b.profit ?? 0) >= 0 ? 'profit-pos' : 'profit-neg';
         const isFirst = i === 0;
         const badge = sourceBadge(b.masterKey);
-        const isZero = (b.qty || 0) === 0 && (b.subtotalYen || 0) === 0;
+        const isZero = (b.qty ?? b.quantity ?? 0) === 0 && (b.subtotalYen || 0) === 0;
         rows.push({
-          sold: b.qty || 0,
+          sold: b.qty ?? b.quantity ?? 0,
           gmv: b.subtotalYen || 0,
           isZero,
           html: `<tr class="${isZero ? 'row-zero' : ''}">
@@ -2158,7 +2175,7 @@ function renderProductDetailBlock(d) {
             </td>
             <td style="text-align:right">${impPortion.toLocaleString()}</td>
             <td style="text-align:right">${isFirst && p.ctr != null ? p.ctr.toFixed(2) + '%' : '-'}</td>
-            <td style="text-align:right;font-weight:600">${(b.qty || 0).toLocaleString()}</td>
+            <td style="text-align:right;font-weight:600">${(b.qty ?? b.quantity ?? 0).toLocaleString()}</td>
             <td style="text-align:right;color:var(--green);font-weight:600">¥${(b.subtotalYen || 0).toLocaleString()}</td>
             <td style="text-align:right" class="${profitClass}">${profitText}</td>
           </tr>`
@@ -2270,9 +2287,9 @@ function renderProductSummary(sorted) {
             };
             aggregatedBroadcastIds[group] = new Set();
           }
-          agg[group].sold        += (b.qty || 0);
+          agg[group].sold        += (b.qty ?? b.quantity ?? 0);
           agg[group].gmv         += (b.subtotalYen || 0);
-          agg[group].totalProfit += (b.totalProfit || 0);
+          agg[group].totalProfit += (b.totalProfit ?? b.profit ?? 0);
         });
         // listing単位のimpressionsは1回だけ加算(variantBreakdownの各エントリで重複加算しない)
         const primaryGroup = extractProductGroup(p.variantBreakdown[0].masterKey);
