@@ -2106,6 +2106,27 @@ function renderSummary(sorted) {
   const totalPurchases = sorted.reduce((s,d) => s + (d.purchases||0), 0);
   const totalProfit = sorted.reduce((s,d) => s + (d.profit||0), 0);
   const avgSales = sorted.length ? Math.round(totalSales / sorted.length) : 0;
+
+  // 期間buyer-base判定 — フィルター時は customerStats.monthly[m] を合算
+  const isFullPeriod = !filterFrom && !filterTo;
+  let ucBucket;
+  let bucketLabel;
+  if (isFullPeriod) {
+    ucBucket = customerStats?.totals?.uniqueCustomers || 0;
+    bucketLabel = '累計';
+  } else {
+    const months = new Set();
+    sorted.forEach(d => {
+      const [yy, mm] = (d.date||'').split(' ')[0].split('/');
+      if (yy && mm) months.add(`${yy}-${String(mm).padStart(2,'0')}`);
+    });
+    let ucAcc = 0;
+    months.forEach(mk => { ucAcc += customerStats?.monthly?.[mk]?.uniqueCustomers || 0; });
+    ucBucket = ucAcc;
+    const monthsArr = Array.from(months).sort();
+    bucketLabel = monthsArr.length === 1 ? monthsArr[0] : `期間(${monthsArr.length}月分)`;
+  }
+  const aovBucket = ucBucket > 0 ? Math.round(totalSales / ucBucket) : 0;
   const npAgg = sorted.reduce((acc, d) => {
     const n = computeNetProfit(d);
     acc.net += n.net; acc.tiktokFee += n.tiktokFee; acc.shippingFee += n.shippingFee; acc.packagingCost += n.packagingCost; acc.packageCount += n.packageCount;
@@ -2134,9 +2155,9 @@ function renderSummary(sorted) {
       <div class="card-sub">平均 ${sorted.length ? (totalFollowers/sorted.length).toFixed(1) : 0}/回</div>
     </div>
     <div class="card">
-      <div class="card-label">AOV (累計・購入者ベース)</div>
-      <div class="card-val gold">${(customerStats?.totals?.uniqueCustomers || 0) > 0 ? '¥' + Math.round(totalSales / customerStats.totals.uniqueCustomers).toLocaleString() : '—'}</div>
-      <div class="card-sub">売上¥${totalSales.toLocaleString()} ÷ 購入者${(customerStats?.totals?.uniqueCustomers || 0).toLocaleString()}人</div>
+      <div class="card-label">AOV (${bucketLabel}・購入者ベース)</div>
+      <div class="card-val gold">${aovBucket > 0 ? '¥' + aovBucket.toLocaleString() : '—'}</div>
+      <div class="card-sub">${bucketLabel}売上¥${totalSales.toLocaleString()} ÷ ${bucketLabel}購入者${ucBucket.toLocaleString()}人</div>
     </div>
     <div class="card">
       <div class="card-label">累計売上</div>
