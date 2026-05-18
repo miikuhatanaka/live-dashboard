@@ -1868,7 +1868,7 @@ function renderMoonshot() {
   const t = moonshotTargets;
 
   // === Peak追跡型 (v3) ===
-  // 「1配信¥1.5M を 1回でも達成」 → Peak(全期間最高売上配信)を実績値として比較
+  // 「1配信¥1.5M を 1回でも達成」 → Peak(期間内最高売上配信)を実績、月次マイルストーンを目標
   const filtered = getFilteredData();
   const peakBroadcast = filtered.reduce(
     (p, d) => (d.sales||0) > (p.sales||0) ? d : p,
@@ -1882,30 +1882,50 @@ function renderMoonshot() {
   const peakCVR = peakViews > 0 ? (peakPurchases / peakViews * 100) : 0;
   const peakRPV = peakViews > 0 ? (peakSales / peakViews) : 0;
 
-  // 参考: 平均も並記
+  // 参考: 期間平均
   const totalSales = filtered.reduce((s,d) => s + (d.sales||0), 0);
   const totalPurchases = filtered.reduce((s,d) => s + (d.purchases||0), 0);
   const avgSalesPerLive = filtered.length > 0 ? Math.round(totalSales / filtered.length) : 0;
   const avgAOV = totalPurchases > 0 ? Math.round(totalSales / totalPurchases) : 0;
   const peakDate = (peakBroadcast.date || '').split(' ')[0] || '—';
 
-  const tgt = t.perLiveTargets;
+  // 月次マイルストーン取得 (期間内で最も新しい月をPeakの基準月とする)
+  // 配信が最近あったほうの月を採用 (例: 5月配信中なら5月の milestone を見る)
+  const latestBroadcast = filtered.length > 0 ? filtered[0] : null; // sorted is desc by date
+  let msMonth = null;
+  if (latestBroadcast?.date) {
+    const [yy, mm] = latestBroadcast.date.split(' ')[0].split('/');
+    msMonth = yy + '-' + String(mm).padStart(2, '0');
+  }
+  const msMilestone = t.timeline?.[msMonth] || null;
 
-  // KPI対比 — Peak vs Target Peak (10月¥1.5M到達)
+  const tgt = t.perLiveTargets;
+  // 月次マイルストーンがあれば、そちらを「短期目標」として使用。最終(¥1.5M)は併記。
+  const monthlySalesTarget = msMilestone?.perLiveSales || tgt.sales.target;
+  const monthlyAovTarget   = msMilestone?.aov          || tgt.aov.target;
+  const monthlyCvrTarget   = msMilestone?.cvr          || tgt.cvrByTotalViews.target;
+  const monthLabel = msMonth ? `${msMonth} マイルストーン` : '最終目標';
+
+  // KPI対比 — Peak(実績) vs 月次マイルストーン(短期目標) / 最終¥1.5M到達(天井)
   const kpiCompares = [
-    { label: '💰 Peak 1配信売上', actual: peakSales, target: tgt.sales.target, benchmark: null,
+    { label: '💰 Peak 1配信売上', actual: peakSales, target: monthlySalesTarget, benchmark: tgt.sales.target,
+      benchmarkLabel: '最終目標 ¥1.5M',
       fmt: v => '¥' + v.toLocaleString(),
-      note: `Peak日: ${peakDate} (期間平均 ¥${avgSalesPerLive.toLocaleString()}/配信)` },
-    { label: '💎 Peak AOV (注文単価)', actual: peakAOV, target: tgt.aov.target, benchmark: tgt.aov.benchmarkZouneko,
+      note: `Peak日: ${peakDate} / ${monthLabel} (期間平均 ¥${avgSalesPerLive.toLocaleString()}/配信)` },
+    { label: '💎 Peak AOV (注文単価)', actual: peakAOV, target: monthlyAovTarget, benchmark: tgt.aov.benchmarkZouneko,
+      benchmarkLabel: 'ぞうねこ並',
       fmt: v => '¥' + v.toLocaleString(),
-      note: tgt.aov.note + ` / 期間平均 ¥${avgAOV.toLocaleString()}` },
-    { label: '🎯 Peak CVR (購入÷延べ視聴)', actual: peakCVR, target: tgt.cvrByTotalViews.target, benchmark: tgt.cvrByTotalViews.benchmarkZouneko,
+      note: `${monthLabel} / 期間平均 ¥${avgAOV.toLocaleString()} / ぞうねこ並天井 ¥${tgt.aov.target.toLocaleString()}` },
+    { label: '🎯 Peak CVR (購入÷延べ視聴)', actual: peakCVR, target: monthlyCvrTarget, benchmark: tgt.cvrByTotalViews.benchmarkZouneko,
+      benchmarkLabel: 'ぞうねこ並',
       fmt: v => v.toFixed(2) + '%',
-      note: tgt.cvrByTotalViews.note },
+      note: `${monthLabel} / ぞうねこ並天井 ${tgt.cvrByTotalViews.target.toFixed(2)}%` },
     { label: '👥 Peak 1配信視聴者(unique)', actual: peakViewers, target: tgt.uniqueViewers.target, benchmark: tgt.uniqueViewers.benchmarkZouneko,
+      benchmarkLabel: 'ぞうねこ並 (1時間)',
       fmt: v => v.toLocaleString() + '人',
       note: tgt.uniqueViewers.note },
     { label: '💡 Peak RPV (売上÷延べ視聴)', actual: peakRPV, target: tgt.rpv.target, benchmark: tgt.rpv.benchmarkZouneko,
+      benchmarkLabel: 'ぞうねこ並',
       fmt: v => '¥' + v.toFixed(2),
       note: tgt.rpv.note },
   ];
@@ -1926,7 +1946,7 @@ function renderMoonshot() {
     const color = ratio >= 100 ? 'var(--green)' : ratio >= 50 ? 'var(--gold)' : 'var(--accent)';
     const gap = k.target - k.actual;
     const multi = k.actual > 0 ? (k.target / k.actual).toFixed(1) + '倍' : '—';
-    const bmHtml = k.benchmark ? `<span style="color:var(--muted);font-size:10px">（ぞうねこ: ${k.fmt(k.benchmark)}）</span>` : '';
+    const bmHtml = k.benchmark ? `<span style="color:var(--muted);font-size:10px">（${k.benchmarkLabel || 'ぞうねこ'}: ${k.fmt(k.benchmark)}）</span>` : '';
     cardsHtml += `
       <div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:12px 14px">
         <div style="font-size:11px;color:var(--muted);font-weight:600;margin-bottom:4px">${k.label} ${bmHtml}</div>
