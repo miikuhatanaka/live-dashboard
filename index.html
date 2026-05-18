@@ -347,7 +347,7 @@ td.gold-text { color: var(--gold); }
     <button class="btn btn-outline btn-sm" onclick="toggleMoonshot()" id="moonshotToggle" style="font-weight:600">▼ 開く</button>
   </h2>
   <div class="sub">1配信¥1,500,000 を 2026年10月までに 1回でも達成するためのPeak追跡 (ぞうねこ27チャレ実績ベース)<br>
-  <span style="color:var(--gold);font-size:11px">※実績値=Peak(全期間最高売上配信)。比較指標: 視聴者=uniqueViewers / CVR=購入÷延べ視聴(totalViews) / RPV=売上÷延べ視聴 / AOV=売上÷注文回数</span></div>
+  <span style="color:var(--gold);font-size:11px">※売上/視聴者はPeak(単発max)。CVR/AOV/アイテム数は累計・購入者(unique buyer)ベース統一 — ぞうねこ27チャレと直接比較可能 (2026-05-18)</span></div>
   <div id="moonshotBody" style="display:none;margin-top:14px"></div>
 </div>
 
@@ -375,8 +375,8 @@ td.gold-text { color: var(--gold); }
         <th>ダイヤ</th>
         <th style="border-left:2px solid var(--border)" title="💎マーク = セラー側売上(SKU元価格−セラー割引)。2026/4/27〜の新算定方式。マークなし = Live Centerからのパース値(従来方式)">売上 <span style="color:var(--muted);font-size:9px;font-weight:400">(💎=新算定)</span></th>
         <th>購入数</th>
-        <th>AOV</th>
-        <th>CVR</th>
+        <th title="AOV=売上÷注文回数。per-broadcastではbuyer数取得不可のため注文ベース。累計AOV(購入者ベース)は合計行を参照">AOV (注文)</th>
+        <th title="注文率=購入数÷延べ視聴。per-broadcastではbuyer数取得不可のため注文ベース。CVR(購入者ベース)は合計行/重要指標を参照">注文率</th>
         <th>粗利</th>
         <th>純利益</th>
         <th></th>
@@ -476,7 +476,8 @@ td.gold-text { color: var(--gold); }
 
     <h4 style="font-size:13px;color:var(--accent);text-transform:uppercase;letter-spacing:.5px;margin-top:16px;margin-bottom:8px">成約系</h4>
     <div class="def-item"><strong>CVR (商品別)</strong><span>販売数 ÷ 商品インプレッション数。その商品が表示されたうち何割が実際に売れたか。<br>高いほどアイコン・価格・説明が刺さっている証。<span class="def-formula">CVR = sold / impressions × 100%</span></span></div>
-    <div class="def-item"><strong>CVR (配信全体)</strong><span>購入回数 ÷ 延べ視聴数(totalViews)。ぞうねこ公開値・経営ダッシュ・moonshot.json と同じ定義で統一。<br>ぞうねこ27チャレ実績 0.87% が現実的天井。<span class="def-formula">CVR = purchases / totalViews × 100%</span></span></div>
+    <div class="def-item"><strong>CVR (累計・購入者ベース)</strong><span>累計ユニーク購入者数 ÷ 累計延べ視聴数。ぞうねこ27チャレ公開値(0.87%)と直接比較可能な定義に統一(2026-05-18)。<br>※per-broadcast列「注文率」とは別物(あちらは注文÷視聴の注文ベース)。<span class="def-formula">CVR = uniqueCustomers / totalViews × 100%</span></span></div>
+    <div class="def-item"><strong>AOV (累計・購入者ベース)</strong><span>累計売上 ÷ 累計ユニーク購入者数。ぞうねこ並 ¥6,621/購入者 と直接比較可能。<br>※per-broadcast列「AOV(注文)」は売上÷注文回数の注文ベース。<span class="def-formula">AOV = totalSales / uniqueCustomers</span></span></div>
     <div class="def-item"><strong>CTR</strong><span>商品クリック数 ÷ 商品インプレッション数。TikTokが自動で出す値。商品詳細画面を開いた割合。</span></div>
 
     <h4 style="font-size:13px;color:var(--accent);text-transform:uppercase;letter-spacing:.5px;margin-top:16px;margin-bottom:8px">流通・売上</h4>
@@ -1593,9 +1594,6 @@ function renderKPI(sorted) {
     ? Math.round(totalActive / entriesWithActive.length)
     : 0;
 
-  // CVR = 購入÷延べ視聴(totalViews) ← ぞうねこ公開値・経営ダッシュ・moonshot.json と統一
-  const actualCVR = totalViewsAll > 0 ? (totalPurchases / totalViewsAll * 100) : 0;
-
   // customer-stats(全期間)
   const uniqueCustomers = customerStats?.totals?.uniqueCustomers || 0;
   const repeatCustomers = customerStats?.totals?.repeatCustomers || 0;
@@ -1632,8 +1630,10 @@ function renderKPI(sorted) {
   );
   const peakSales = peakBroadcast.sales || 0;
   const peakDate = (peakBroadcast.date || '').split(' ')[0];
-  // 平均AOV (注文単価)
-  const avgAOV = totalPurchases > 0 ? Math.round(totalSales / totalPurchases) : 0;
+  // CVR/AOV は累計・購入者(unique buyer)ベースに統一 (2026-05-18, ぞうねこ27チャレと直接比較可能化)
+  // 注: customer-stats は累計のみ。月次フィルター時は厳密でないが、暫定で累計値を使用
+  const actualCVR = totalViewsAll > 0 ? (uniqueCustomers / totalViewsAll * 100) : 0;
+  const avgAOV = uniqueCustomers > 0 ? Math.round(totalSales / uniqueCustomers) : 0;
 
   // ユーザー指定の順序: 累計リスト → 配信回数 → Peak売上 → AOV → リピート率 → CVR → 売上
   const items = [
@@ -1662,11 +1662,11 @@ function renderKPI(sorted) {
       color: 'purple'
     },
     {
-      label: '💎 AOV (1注文単価)',
+      label: '💎 AOV (累計・購入者ベース)',
       actual: avgAOV > 0 ? '¥' + avgAOV.toLocaleString() : '—',
       target: msTimeline?.aov ? '¥' + msTimeline.aov.toLocaleString() : '—',
       rate: msTimeline?.aov ? rateOf(avgAOV, msTimeline.aov) : 0,
-      note: msTimeline ? `月次マイルストーン (${msTimeline.phase})` : '月次計画 未設定',
+      note: `累計売上¥${totalSales.toLocaleString()}÷購入者${uniqueCustomers.toLocaleString()}人 (ぞうねこ¥6,621)`,
       color: 'gold'
     },
     {
@@ -1678,11 +1678,11 @@ function renderKPI(sorted) {
       color: 'gold'
     },
     {
-      label: '🎯 CVR (購入÷延べ視聴)',
+      label: '🎯 CVR (累計・購入者ベース)',
       actual: actualCVR.toFixed(2) + '%',
       target: msTimeline?.cvr ? msTimeline.cvr.toFixed(2) + '%' : '0.87%',
       rate: msTimeline?.cvr ? rateOf(actualCVR, msTimeline.cvr) : rateOf(actualCVR, 0.87),
-      note: `購入${totalPurchases}件/延べ視聴${totalViewsAll.toLocaleString()} (ぞうねこ並 0.87%)`,
+      note: `累計購入者${uniqueCustomers.toLocaleString()}人÷延べ視聴${totalViewsAll.toLocaleString()} (ぞうねこ並 0.87%)`,
       color: 'purple'
     },
     {
@@ -1867,23 +1867,14 @@ function renderMoonshot() {
   }
   const t = moonshotTargets;
 
-  // === Peak追跡型 (v3.1) ===
-  // 「1配信¥1.5M を 1回でも達成」 → 各指標で独立してMAX(期間内ベストスコア)を抽出
+  // === v3.2 (2026-05-18): CVR/AOV/アイテム数は累計・購入者(unique buyer)ベース統一 ===
+  // 売上/視聴者はPeak(単発max)、それ以外は累計÷uniqueCustomers
+  // per-broadcast の buyer 数が data.json に未収録のため累計でしか算出不可
   const filtered = getFilteredData();
   const okBroadcasts = filtered.filter(d => (d.totalViews||0) > 0);
 
-  // 各指標で独立してMAX
+  // Peak (単発max)指標
   const peakSalesBC = okBroadcasts.reduce((p, d) => (d.sales||0) > (p.sales||0) ? d : p, { sales: 0, date: '—' });
-  const peakAOVBC = okBroadcasts.reduce((p, d) => {
-    const a = (d.purchases||0) > 0 ? (d.sales||0)/d.purchases : 0;
-    const pa = (p.purchases||0) > 0 ? (p.sales||0)/p.purchases : 0;
-    return a > pa ? d : p;
-  }, { sales: 0, purchases: 0, date: '—' });
-  const peakCVRBC = okBroadcasts.reduce((p, d) => {
-    const c = (d.purchases||0)/(d.totalViews||1);
-    const pc = (p.purchases||0)/(p.totalViews||1);
-    return c > pc ? d : p;
-  }, { purchases: 0, totalViews: 1, date: '—' });
   const peakViewersBC = okBroadcasts.reduce((p, d) => (d.uniqueViewers||0) > (p.uniqueViewers||0) ? d : p, { uniqueViewers: 0, date: '—' });
   const peakRPVBC = okBroadcasts.reduce((p, d) => {
     const r = (d.sales||0)/(d.totalViews||1);
@@ -1893,20 +1884,22 @@ function renderMoonshot() {
 
   const peakSales = peakSalesBC.sales || 0;
   const peakSalesDate = (peakSalesBC.date || '').split(' ')[0];
-  const peakAOV = peakAOVBC.purchases > 0 ? Math.round(peakAOVBC.sales / peakAOVBC.purchases) : 0;
-  const peakAOVDate = (peakAOVBC.date || '').split(' ')[0];
-  const peakCVR = peakCVRBC.totalViews > 0 ? (peakCVRBC.purchases / peakCVRBC.totalViews * 100) : 0;
-  const peakCVRDate = (peakCVRBC.date || '').split(' ')[0];
   const peakViewers = peakViewersBC.uniqueViewers || 0;
   const peakViewersDate = (peakViewersBC.date || '').split(' ')[0];
   const peakRPV = peakRPVBC.totalViews > 0 ? (peakRPVBC.sales / peakRPVBC.totalViews) : 0;
   const peakRPVDate = (peakRPVBC.date || '').split(' ')[0];
 
-  // 参考: 期間平均
+  // 累計・購入者ベース指標
   const totalSales = filtered.reduce((s,d) => s + (d.sales||0), 0);
   const totalPurchases = filtered.reduce((s,d) => s + (d.purchases||0), 0);
+  const totalViewsAll = filtered.reduce((s,d) => s + (d.totalViews||0), 0);
+  const totalPkg = filtered.reduce((s,d) => s + (d.packageCount||0), 0);
   const avgSalesPerLive = filtered.length > 0 ? Math.round(totalSales / filtered.length) : 0;
-  const avgAOV = totalPurchases > 0 ? Math.round(totalSales / totalPurchases) : 0;
+  // 注: customer-stats は全期間累計のみ。月次フィルター時は厳密でないが暫定で累計値を使用
+  const ucMs = customerStats?.totals?.uniqueCustomers || 0;
+  const cumAOV = ucMs > 0 ? Math.round(totalSales / ucMs) : 0;
+  const cumCVR = (totalViewsAll > 0 && ucMs > 0) ? (ucMs / totalViewsAll * 100) : 0;
+  const itemsPerBuyer = ucMs > 0 ? (totalPkg / ucMs) : 0;
 
   // 月次マイルストーン取得 (期間内で最も新しい月をPeakの基準月とする)
   // 配信が最近あったほうの月を採用 (例: 5月配信中なら5月の milestone を見る)
@@ -1925,25 +1918,29 @@ function renderMoonshot() {
   const monthlyCvrTarget   = msMilestone?.cvr          || tgt.cvrByTotalViews.target;
   const monthLabel = msMonth ? `${msMonth} マイルストーン` : '最終目標';
 
-  // KPI対比 — 各指標 独立Peak(期間内ベスト) vs 月次マイルストーン / 最終¥1.5M(天井)
-  // ※各カードの実績は別々の配信から取られる場合あり(指標ごとに最高記録を抽出)
+  // KPI対比 — v3.2: 売上/視聴者はPeak(単発max)、CVR/AOV/アイテム数は累計・購入者(unique buyer)ベース
+  const itemsTarget = (tgt.itemsPerPurchase && tgt.itemsPerPurchase.benchmarkZouneko) || 9.4;
   const kpiCompares = [
     { label: '💰 Peak 1配信売上', actual: peakSales, target: monthlySalesTarget, benchmark: tgt.sales.target,
       benchmarkLabel: '最終目標 ¥1.5M',
       fmt: v => '¥' + v.toLocaleString(),
       note: `Peak売上配信: ${peakSalesDate} / ${monthLabel} (期間平均 ¥${avgSalesPerLive.toLocaleString()}/配信)` },
-    { label: '💎 Peak AOV (注文単価)', actual: peakAOV, target: monthlyAovTarget, benchmark: tgt.aov.benchmarkZouneko,
+    { label: '💎 AOV (累計・購入者ベース)', actual: cumAOV, target: monthlyAovTarget, benchmark: tgt.aov.benchmarkZouneko,
       benchmarkLabel: 'ぞうねこ並',
       fmt: v => '¥' + v.toLocaleString(),
-      note: `Peak AOV配信: ${peakAOVDate} / 期間平均 ¥${avgAOV.toLocaleString()} / 天井 ¥${tgt.aov.target.toLocaleString()}` },
-    { label: '🎯 Peak CVR (購入÷延べ視聴)', actual: peakCVR, target: monthlyCvrTarget, benchmark: tgt.cvrByTotalViews.benchmarkZouneko,
+      note: `累計売上¥${totalSales.toLocaleString()}÷購入者${ucMs.toLocaleString()}人 / ${monthLabel} / 天井 ¥${tgt.aov.target.toLocaleString()}` },
+    { label: '🎯 CVR (累計・購入者ベース)', actual: cumCVR, target: monthlyCvrTarget, benchmark: tgt.cvrByTotalViews.benchmarkZouneko,
       benchmarkLabel: 'ぞうねこ並',
       fmt: v => v.toFixed(2) + '%',
-      note: `Peak CVR配信: ${peakCVRDate} (視聴${peakCVRBC.totalViews.toLocaleString()}/注文${peakCVRBC.purchases}) / 天井 ${tgt.cvrByTotalViews.target.toFixed(2)}%` },
+      note: `累計購入者${ucMs.toLocaleString()}人÷延べ視聴${totalViewsAll.toLocaleString()} / 天井 ${tgt.cvrByTotalViews.target.toFixed(2)}%` },
     { label: '👥 Peak 1配信視聴者(unique)', actual: peakViewers, target: tgt.uniqueViewers.target, benchmark: tgt.uniqueViewers.benchmarkZouneko,
       benchmarkLabel: 'ぞうねこ並 (1時間)',
       fmt: v => v.toLocaleString() + '人',
       note: `Peak視聴者配信: ${peakViewersDate} / ${tgt.uniqueViewers.note}` },
+    { label: '📦 アイテム数/購入者 (累計)', actual: itemsPerBuyer, target: itemsTarget, benchmark: itemsTarget,
+      benchmarkLabel: 'ぞうねこ並 9.4個',
+      fmt: v => v.toFixed(2) + '個',
+      note: `累計packages${totalPkg.toLocaleString()}÷購入者${ucMs.toLocaleString()}人 / まとめ買いパック設計が本丸` },
     { label: '💡 Peak RPV (売上÷延べ視聴)', actual: peakRPV, target: tgt.rpv.target, benchmark: tgt.rpv.benchmarkZouneko,
       benchmarkLabel: 'ぞうねこ並',
       fmt: v => '¥' + v.toFixed(2),
@@ -2110,9 +2107,9 @@ function renderSummary(sorted) {
       <div class="card-sub">平均 ${sorted.length ? (totalFollowers/sorted.length).toFixed(1) : 0}/回</div>
     </div>
     <div class="card">
-      <div class="card-label">平均AOV (1注文あたり)</div>
-      <div class="card-val gold">${totalPurchases > 0 ? '¥' + Math.round(totalSales / totalPurchases).toLocaleString() : '—'}</div>
-      <div class="card-sub">売上¥${totalSales.toLocaleString()} ÷ 注文${totalPurchases.toLocaleString()}件</div>
+      <div class="card-label">AOV (累計・購入者ベース)</div>
+      <div class="card-val gold">${(customerStats?.totals?.uniqueCustomers || 0) > 0 ? '¥' + Math.round(totalSales / customerStats.totals.uniqueCustomers).toLocaleString() : '—'}</div>
+      <div class="card-sub">売上¥${totalSales.toLocaleString()} ÷ 購入者${(customerStats?.totals?.uniqueCustomers || 0).toLocaleString()}人</div>
     </div>
     <div class="card">
       <div class="card-label">累計売上</div>
@@ -2547,7 +2544,7 @@ function renderTable(sorted) {
             <div class="kv"><span class="k">売り上げ(GMV)</span><span class="v" style="color:var(--green)">¥${(d.sales||0).toLocaleString()}</span></div>
             <div class="kv"><span class="k">購入数</span><span class="v">${d.purchases||0}</span></div>
             <div class="kv"><span class="k">梱包数</span><span class="v">${d.packageCount != null ? d.packageCount + ' 個' : '<span style=\"color:var(--accent)\">未入力</span>'}</span></div>
-            <div class="kv"><span class="k">CVR (購入÷延べ視聴)</span><span class="v" style="color:var(--teal)">${(d.totalViews||0)>0?((d.purchases||0)/(d.totalViews||1)*100).toFixed(2):'0.00'}%</span></div>
+            <div class="kv"><span class="k">注文率 (購入÷延べ視聴)</span><span class="v" style="color:var(--teal)">${(d.totalViews||0)>0?((d.purchases||0)/(d.totalViews||1)*100).toFixed(2):'0.00'}%</span></div>
             ${(() => {
               const n = computeNetProfit(d);
               const netColor = n.net >= 0 ? 'var(--green)' : 'var(--accent)';
@@ -2597,8 +2594,11 @@ function renderTable(sorted) {
     const sumSales = sorted.reduce((s,d) => s + (d.sales||0), 0);
     const sumPurchases = sorted.reduce((s,d) => s + (d.purchases||0), 0);
     const sumActive = sorted.reduce((s,d) => s + (d.activeViewers||0), 0);
-    // 合計行CVR = 購入÷延べ視聴(totalViews) ← 重要指標・各行・経営ダッシュと統一
-    const totalCvr = sumViews > 0 ? (sumPurchases / sumViews * 100).toFixed(2) : '0.00';
+    // 合計行CVR/AOV = 累計・購入者(unique buyer)ベース (2026-05-18 統一)
+    // 注: customer-stats は全期間累計のみ。月次フィルター時は厳密でないが暫定で累計値を使用
+    const ucForTotal = customerStats?.totals?.uniqueCustomers || 0;
+    const totalCvr = (sumViews > 0 && ucForTotal > 0) ? (ucForTotal / sumViews * 100).toFixed(2) : '0.00';
+    const totalAov = ucForTotal > 0 ? Math.round(sumSales / ucForTotal) : 0;
     const sumProfit = sorted.reduce((s,d) => s + (d.profit||0), 0);
     const sumNet = sorted.reduce((s,d) => s + computeNetProfit(d).net, 0);
 
@@ -2615,8 +2615,8 @@ function renderTable(sorted) {
       <td class="gold-text" style="font-weight:700">💎${sumDiamonds.toLocaleString()}</td>
       <td style="color:var(--green);font-weight:700;border-left:2px solid var(--border)">¥${sumSales.toLocaleString()}</td>
       <td style="font-weight:700">${sumPurchases.toLocaleString()}</td>
-      <td style="color:var(--gold);font-weight:700">${sumPurchases > 0 ? '¥'+Math.round(sumSales/sumPurchases).toLocaleString() : '-'}</td>
-      <td style="color:var(--teal);font-weight:700">${totalCvr}%</td>
+      <td style="color:var(--gold);font-weight:700" title="AOV=累計売上÷累計購入者(unique buyer)。ぞうねこ¥6,621と直接比較可能">${totalAov > 0 ? '¥'+totalAov.toLocaleString() : '-'}</td>
+      <td style="color:var(--teal);font-weight:700" title="CVR=累計購入者÷延べ視聴。ぞうねこ並0.87%と直接比較可能">${totalCvr}%</td>
       <td style="color:var(--gold);font-weight:700">¥${sumProfit.toLocaleString()}</td>
       <td style="color:${sumNet>=0?'var(--green)':'var(--accent)'};font-weight:700">¥${sumNet.toLocaleString()}</td>
       <td></td>
