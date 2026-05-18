@@ -1622,7 +1622,20 @@ function renderKPI(sorted) {
     }
   }
 
-  // ユーザー指定の順序: 累計リスト → 配信回数 → 1配信アクティブ → リピート率 → CVR → 売上
+  // === 1配信¥1.5M Peak追跡のための重要指標 ===
+  // moonshot-targets.json の timeline[monthKey] から月次マイルストーン値を取得
+  const msTimeline = moonshotTargets?.timeline?.[monthKey] || null;
+  // Peak 1配信売上 (期間内最高売上配信)
+  const peakBroadcast = sorted.reduce(
+    (p, d) => (d.sales||0) > (p.sales||0) ? d : p,
+    { sales: 0, date: '' }
+  );
+  const peakSales = peakBroadcast.sales || 0;
+  const peakDate = (peakBroadcast.date || '').split(' ')[0];
+  // 平均AOV (注文単価)
+  const avgAOV = totalPurchases > 0 ? Math.round(totalSales / totalPurchases) : 0;
+
+  // ユーザー指定の順序: 累計リスト → 配信回数 → Peak売上 → AOV → リピート率 → CVR → 売上
   const items = [
     {
       label: '🗂 累計ユニーク顧客数(=リスト)',
@@ -1635,18 +1648,26 @@ function renderKPI(sorted) {
     {
       label: '🎙 配信回数',
       actual: actualLives + '回',
-      target: target ? target.lives + '回' : '—',
-      rate: target ? rateOf(actualLives, target.lives) : 0,
-      note: target ? `月${target.lives}回目標` : '',
+      target: target ? target.lives + '回' : '22回',
+      rate: target ? rateOf(actualLives, target.lives) : rateOf(actualLives, 22),
+      note: target ? `月${target.lives}回目標` : '月22回目標',
       color: 'teal'
     },
     {
-      label: '📺 1配信あたりアクティブユーザー',
-      actual: avgActivePerLive.toLocaleString() + '人',
-      target: target ? target.perLiveActiveUsers.toLocaleString() + '人' : '—',
-      rate: target ? rateOf(avgActivePerLive, target.perLiveActiveUsers) : 0,
-      note: target ? `月間のべ ${target.monthlyActiveUsers.toLocaleString()}人` : '',
-      color: 'teal'
+      label: '🌙 Peak 1配信売上 (¥1.5M到達)',
+      actual: '¥' + peakSales.toLocaleString(),
+      target: msTimeline?.perLiveSales ? '¥' + msTimeline.perLiveSales.toLocaleString() : '¥1,500,000',
+      rate: msTimeline?.perLiveSales ? rateOf(peakSales, msTimeline.perLiveSales) : rateOf(peakSales, 1500000),
+      note: peakDate ? `Peak日: ${peakDate}${msTimeline?.phase ? ' / ' + msTimeline.phase : ''}` : '',
+      color: 'purple'
+    },
+    {
+      label: '💎 AOV (1注文単価)',
+      actual: avgAOV > 0 ? '¥' + avgAOV.toLocaleString() : '—',
+      target: msTimeline?.aov ? '¥' + msTimeline.aov.toLocaleString() : '—',
+      rate: msTimeline?.aov ? rateOf(avgAOV, msTimeline.aov) : 0,
+      note: msTimeline ? `月次マイルストーン (${msTimeline.phase})` : '月次計画 未設定',
+      color: 'gold'
     },
     {
       label: '🔁 リピート率(ユニーク)',
@@ -1659,8 +1680,8 @@ function renderKPI(sorted) {
     {
       label: '🎯 CVR (購入÷延べ視聴)',
       actual: actualCVR.toFixed(2) + '%',
-      target: target ? (target.cvrTarget * 100).toFixed(2) + '%' : '0.87%',
-      rate: target ? rateOf(actualCVR, target.cvrTarget * 100) : rateOf(actualCVR, 0.87),
+      target: msTimeline?.cvr ? msTimeline.cvr.toFixed(2) + '%' : '0.87%',
+      rate: msTimeline?.cvr ? rateOf(actualCVR, msTimeline.cvr) : rateOf(actualCVR, 0.87),
       note: `購入${totalPurchases}件/延べ視聴${totalViewsAll.toLocaleString()} (ぞうねこ並 0.87%)`,
       color: 'purple'
     },
@@ -2536,7 +2557,8 @@ function renderTable(sorted) {
     const sumSales = sorted.reduce((s,d) => s + (d.sales||0), 0);
     const sumPurchases = sorted.reduce((s,d) => s + (d.purchases||0), 0);
     const sumActive = sorted.reduce((s,d) => s + (d.activeViewers||0), 0);
-    const totalCvr = sumActive > 0 ? (sumPurchases / sumActive * 100).toFixed(1) : '0.0';
+    // 合計行CVR = 購入÷延べ視聴(totalViews) ← 重要指標・各行・経営ダッシュと統一
+    const totalCvr = sumViews > 0 ? (sumPurchases / sumViews * 100).toFixed(2) : '0.00';
     const sumProfit = sorted.reduce((s,d) => s + (d.profit||0), 0);
     const sumNet = sorted.reduce((s,d) => s + computeNetProfit(d).net, 0);
 
