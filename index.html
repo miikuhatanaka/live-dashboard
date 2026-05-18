@@ -476,7 +476,7 @@ td.gold-text { color: var(--gold); }
 
     <h4 style="font-size:13px;color:var(--accent);text-transform:uppercase;letter-spacing:.5px;margin-top:16px;margin-bottom:8px">成約系</h4>
     <div class="def-item"><strong>CVR (商品別)</strong><span>販売数 ÷ 商品インプレッション数。その商品が表示されたうち何割が実際に売れたか。<br>高いほどアイコン・価格・説明が刺さっている証。<span class="def-formula">CVR = sold / impressions × 100%</span></span></div>
-    <div class="def-item"><strong>CVR (配信全体)</strong><span>購入数 ÷ アクティブ視聴者数。配信全体での購買転換率。<span class="def-formula">CVR = purchases / activeViewers × 100%</span></span></div>
+    <div class="def-item"><strong>CVR (配信全体)</strong><span>購入回数 ÷ 延べ視聴数(totalViews)。ぞうねこ公開値・経営ダッシュ・moonshot.json と同じ定義で統一。<br>ぞうねこ27チャレ実績 0.87% が現実的天井。<span class="def-formula">CVR = purchases / totalViews × 100%</span></span></div>
     <div class="def-item"><strong>CTR</strong><span>商品クリック数 ÷ 商品インプレッション数。TikTokが自動で出す値。商品詳細画面を開いた割合。</span></div>
 
     <h4 style="font-size:13px;color:var(--accent);text-transform:uppercase;letter-spacing:.5px;margin-top:16px;margin-bottom:8px">流通・売上</h4>
@@ -1587,14 +1587,14 @@ function renderKPI(sorted) {
   const totalActive = sorted.reduce((s,d) => s + (d.activeViewers||0), 0);
   const totalPurchases = sorted.reduce((s,d) => s + (d.purchases||0), 0);
   const totalSales = sorted.reduce((s,d) => s + (d.sales||0), 0);
+  const totalViewsAll = sorted.reduce((s,d) => s + (d.totalViews||0), 0);
   const entriesWithActive = sorted.filter(d => (d.activeViewers||0) > 0);
   const avgActivePerLive = entriesWithActive.length > 0
     ? Math.round(totalActive / entriesWithActive.length)
     : 0;
 
-  // CVR(case D: ユニーク購入者/アクティブ視聴) — ただし customer-stats は全期間なので
-  // 簡易版として配信ベースCVR(件数/アクティブ)を実績として使用
-  const actualCVR = totalActive > 0 ? (totalPurchases / totalActive * 100) : 0;
+  // CVR = 購入÷延べ視聴(totalViews) ← ぞうねこ公開値・経営ダッシュ・moonshot.json と統一
+  const actualCVR = totalViewsAll > 0 ? (totalPurchases / totalViewsAll * 100) : 0;
 
   // customer-stats(全期間)
   const uniqueCustomers = customerStats?.totals?.uniqueCustomers || 0;
@@ -1657,11 +1657,11 @@ function renderKPI(sorted) {
       color: 'gold'
     },
     {
-      label: '🎯 CVR (購入数/アクティブ)',
+      label: '🎯 CVR (購入÷延べ視聴)',
       actual: actualCVR.toFixed(2) + '%',
-      target: target ? (target.cvrTarget * 100).toFixed(1) + '%' : '3.0%',
-      rate: target ? rateOf(actualCVR, target.cvrTarget * 100) : rateOf(actualCVR, 3),
-      note: `購入${totalPurchases}件/アクティブ${totalActive.toLocaleString()}人`,
+      target: target ? (target.cvrTarget * 100).toFixed(2) + '%' : '0.87%',
+      rate: target ? rateOf(actualCVR, target.cvrTarget * 100) : rateOf(actualCVR, 0.87),
+      note: `購入${totalPurchases}件/延べ視聴${totalViewsAll.toLocaleString()} (ぞうねこ並 0.87%)`,
       color: 'purple'
     },
     {
@@ -2415,7 +2415,7 @@ function renderTable(sorted) {
   sorted.forEach((d, i) => {
     const isBest = d.totalViews === maxViews;
     const tr = document.createElement('tr');
-    const cvr = (d.activeViewers||0) > 0 ? ((d.purchases||0)/(d.activeViewers||1)*100).toFixed(1) : '0.0';
+    const cvr = (d.totalViews||0) > 0 ? ((d.purchases||0)/(d.totalViews||1)*100).toFixed(2) : '0.00';
     tr.innerHTML = `
       <td class="date">${d.date} ${isBest ? '<span style="color:var(--gold);font-size:10px">★ 最高</span>' : ''}${d.memo ? '<br><span style="color:var(--muted);font-size:10px">' + d.memo + '</span>' : ''}</td>
       <td>${d.liveTime || '-'}</td>
@@ -2486,7 +2486,7 @@ function renderTable(sorted) {
             <div class="kv"><span class="k">売り上げ(GMV)</span><span class="v" style="color:var(--green)">¥${(d.sales||0).toLocaleString()}</span></div>
             <div class="kv"><span class="k">購入数</span><span class="v">${d.purchases||0}</span></div>
             <div class="kv"><span class="k">梱包数</span><span class="v">${d.packageCount != null ? d.packageCount + ' 個' : '<span style=\"color:var(--accent)\">未入力</span>'}</span></div>
-            <div class="kv"><span class="k">CVR</span><span class="v" style="color:var(--teal)">${(d.activeViewers||0)>0?((d.purchases||0)/(d.activeViewers||1)*100).toFixed(1):'0.0'}%</span></div>
+            <div class="kv"><span class="k">CVR (購入÷延べ視聴)</span><span class="v" style="color:var(--teal)">${(d.totalViews||0)>0?((d.purchases||0)/(d.totalViews||1)*100).toFixed(2):'0.00'}%</span></div>
             ${(() => {
               const n = computeNetProfit(d);
               const netColor = n.net >= 0 ? 'var(--green)' : 'var(--accent)';
