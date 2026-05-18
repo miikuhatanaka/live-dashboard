@@ -1867,27 +1867,46 @@ function renderMoonshot() {
   }
   const t = moonshotTargets;
 
-  // === Peak追跡型 (v3) ===
-  // 「1配信¥1.5M を 1回でも達成」 → Peak(期間内最高売上配信)を実績、月次マイルストーンを目標
+  // === Peak追跡型 (v3.1) ===
+  // 「1配信¥1.5M を 1回でも達成」 → 各指標で独立してMAX(期間内ベストスコア)を抽出
   const filtered = getFilteredData();
-  const peakBroadcast = filtered.reduce(
-    (p, d) => (d.sales||0) > (p.sales||0) ? d : p,
-    { sales: 0, uniqueViewers: 0, totalViews: 0, purchases: 0, date: '—' }
-  );
-  const peakSales = peakBroadcast.sales || 0;
-  const peakViewers = peakBroadcast.uniqueViewers || 0;
-  const peakViews = peakBroadcast.totalViews || 0;
-  const peakPurchases = peakBroadcast.purchases || 0;
-  const peakAOV = peakPurchases > 0 ? Math.round(peakSales / peakPurchases) : 0;
-  const peakCVR = peakViews > 0 ? (peakPurchases / peakViews * 100) : 0;
-  const peakRPV = peakViews > 0 ? (peakSales / peakViews) : 0;
+  const okBroadcasts = filtered.filter(d => (d.totalViews||0) > 0);
+
+  // 各指標で独立してMAX
+  const peakSalesBC = okBroadcasts.reduce((p, d) => (d.sales||0) > (p.sales||0) ? d : p, { sales: 0, date: '—' });
+  const peakAOVBC = okBroadcasts.reduce((p, d) => {
+    const a = (d.purchases||0) > 0 ? (d.sales||0)/d.purchases : 0;
+    const pa = (p.purchases||0) > 0 ? (p.sales||0)/p.purchases : 0;
+    return a > pa ? d : p;
+  }, { sales: 0, purchases: 0, date: '—' });
+  const peakCVRBC = okBroadcasts.reduce((p, d) => {
+    const c = (d.purchases||0)/(d.totalViews||1);
+    const pc = (p.purchases||0)/(p.totalViews||1);
+    return c > pc ? d : p;
+  }, { purchases: 0, totalViews: 1, date: '—' });
+  const peakViewersBC = okBroadcasts.reduce((p, d) => (d.uniqueViewers||0) > (p.uniqueViewers||0) ? d : p, { uniqueViewers: 0, date: '—' });
+  const peakRPVBC = okBroadcasts.reduce((p, d) => {
+    const r = (d.sales||0)/(d.totalViews||1);
+    const pr = (p.sales||0)/(p.totalViews||1);
+    return r > pr ? d : p;
+  }, { sales: 0, totalViews: 1, date: '—' });
+
+  const peakSales = peakSalesBC.sales || 0;
+  const peakSalesDate = (peakSalesBC.date || '').split(' ')[0];
+  const peakAOV = peakAOVBC.purchases > 0 ? Math.round(peakAOVBC.sales / peakAOVBC.purchases) : 0;
+  const peakAOVDate = (peakAOVBC.date || '').split(' ')[0];
+  const peakCVR = peakCVRBC.totalViews > 0 ? (peakCVRBC.purchases / peakCVRBC.totalViews * 100) : 0;
+  const peakCVRDate = (peakCVRBC.date || '').split(' ')[0];
+  const peakViewers = peakViewersBC.uniqueViewers || 0;
+  const peakViewersDate = (peakViewersBC.date || '').split(' ')[0];
+  const peakRPV = peakRPVBC.totalViews > 0 ? (peakRPVBC.sales / peakRPVBC.totalViews) : 0;
+  const peakRPVDate = (peakRPVBC.date || '').split(' ')[0];
 
   // 参考: 期間平均
   const totalSales = filtered.reduce((s,d) => s + (d.sales||0), 0);
   const totalPurchases = filtered.reduce((s,d) => s + (d.purchases||0), 0);
   const avgSalesPerLive = filtered.length > 0 ? Math.round(totalSales / filtered.length) : 0;
   const avgAOV = totalPurchases > 0 ? Math.round(totalSales / totalPurchases) : 0;
-  const peakDate = (peakBroadcast.date || '').split(' ')[0] || '—';
 
   // 月次マイルストーン取得 (期間内で最も新しい月をPeakの基準月とする)
   // 配信が最近あったほうの月を採用 (例: 5月配信中なら5月の milestone を見る)
@@ -1906,28 +1925,29 @@ function renderMoonshot() {
   const monthlyCvrTarget   = msMilestone?.cvr          || tgt.cvrByTotalViews.target;
   const monthLabel = msMonth ? `${msMonth} マイルストーン` : '最終目標';
 
-  // KPI対比 — Peak(実績) vs 月次マイルストーン(短期目標) / 最終¥1.5M到達(天井)
+  // KPI対比 — 各指標 独立Peak(期間内ベスト) vs 月次マイルストーン / 最終¥1.5M(天井)
+  // ※各カードの実績は別々の配信から取られる場合あり(指標ごとに最高記録を抽出)
   const kpiCompares = [
     { label: '💰 Peak 1配信売上', actual: peakSales, target: monthlySalesTarget, benchmark: tgt.sales.target,
       benchmarkLabel: '最終目標 ¥1.5M',
       fmt: v => '¥' + v.toLocaleString(),
-      note: `Peak日: ${peakDate} / ${monthLabel} (期間平均 ¥${avgSalesPerLive.toLocaleString()}/配信)` },
+      note: `Peak売上配信: ${peakSalesDate} / ${monthLabel} (期間平均 ¥${avgSalesPerLive.toLocaleString()}/配信)` },
     { label: '💎 Peak AOV (注文単価)', actual: peakAOV, target: monthlyAovTarget, benchmark: tgt.aov.benchmarkZouneko,
       benchmarkLabel: 'ぞうねこ並',
       fmt: v => '¥' + v.toLocaleString(),
-      note: `${monthLabel} / 期間平均 ¥${avgAOV.toLocaleString()} / ぞうねこ並天井 ¥${tgt.aov.target.toLocaleString()}` },
+      note: `Peak AOV配信: ${peakAOVDate} / 期間平均 ¥${avgAOV.toLocaleString()} / 天井 ¥${tgt.aov.target.toLocaleString()}` },
     { label: '🎯 Peak CVR (購入÷延べ視聴)', actual: peakCVR, target: monthlyCvrTarget, benchmark: tgt.cvrByTotalViews.benchmarkZouneko,
       benchmarkLabel: 'ぞうねこ並',
       fmt: v => v.toFixed(2) + '%',
-      note: `${monthLabel} / ぞうねこ並天井 ${tgt.cvrByTotalViews.target.toFixed(2)}%` },
+      note: `Peak CVR配信: ${peakCVRDate} (視聴${peakCVRBC.totalViews.toLocaleString()}/注文${peakCVRBC.purchases}) / 天井 ${tgt.cvrByTotalViews.target.toFixed(2)}%` },
     { label: '👥 Peak 1配信視聴者(unique)', actual: peakViewers, target: tgt.uniqueViewers.target, benchmark: tgt.uniqueViewers.benchmarkZouneko,
       benchmarkLabel: 'ぞうねこ並 (1時間)',
       fmt: v => v.toLocaleString() + '人',
-      note: tgt.uniqueViewers.note },
+      note: `Peak視聴者配信: ${peakViewersDate} / ${tgt.uniqueViewers.note}` },
     { label: '💡 Peak RPV (売上÷延べ視聴)', actual: peakRPV, target: tgt.rpv.target, benchmark: tgt.rpv.benchmarkZouneko,
       benchmarkLabel: 'ぞうねこ並',
       fmt: v => '¥' + v.toFixed(2),
-      note: tgt.rpv.note },
+      note: `Peak RPV配信: ${peakRPVDate} / ${tgt.rpv.note}` },
   ];
 
   const defHtml = `
