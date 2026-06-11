@@ -2141,7 +2141,10 @@ function renderSummary(sorted) {
     bucketLabel = monthsArr.length === 1 ? monthsArr[0] : `期間(${monthsArr.length}月分)`;
   }
   const aovBucket = ucBucket > 0 ? Math.round(totalSales / ucBucket) : 0;
+  let npPending = 0;
   const npAgg = sorted.reduce((acc, d) => {
+    // 発送くんが梱包数を入力するまで純利益は未確定 → 累計から除外
+    if (d.packageCount == null) { npPending++; return acc; }
     const n = computeNetProfit(d);
     acc.net += n.net; acc.tiktokFee += n.tiktokFee; acc.shippingFee += n.shippingFee; acc.packagingCost += n.packagingCost; acc.packageCount += n.packageCount;
     return acc;
@@ -2196,7 +2199,7 @@ function renderSummary(sorted) {
     <div class="card" title="粗利からTikTok手数料・送料・梱包資材費を差し引いた金額" style="border:1px solid var(--accent)">
       <div class="card-label">累計純利益</div>
       <div class="card-val ${npAgg.net >= 0 ? 'green' : 'red'}">¥${npAgg.net.toLocaleString()}</div>
-      <div class="card-sub">手数料 −¥${npAgg.tiktokFee.toLocaleString()} / 送料 −¥${npAgg.shippingFee.toLocaleString()} / 梱包 −¥${npAgg.packagingCost.toLocaleString()}</div>
+      <div class="card-sub">手数料 −¥${npAgg.tiktokFee.toLocaleString()} / 送料 −¥${npAgg.shippingFee.toLocaleString()} / 梱包 −¥${npAgg.packagingCost.toLocaleString()}${npPending ? ` ・<span style="color:var(--accent)">未確定${npPending}配信を除く</span>` : ''}</div>
     </div>
   `;
 }
@@ -2555,7 +2558,7 @@ function renderTable(sorted) {
       <td style="color:var(--teal);font-weight:700">${cvr}%</td>
       <td style="color:var(--teal);font-weight:700" title="バスケットサイズ: 1購入者あたり何個買ったか。ぞうねこ並天井 9.4個">${ipb}</td>
       <td style="color:var(--gold);font-weight:700">${d.profit ? '¥'+d.profit.toLocaleString() : '-'}</td>
-      <td style="font-weight:700;color:${(() => { const n=computeNetProfit(d); return n.net>=0?'var(--green)':'var(--accent)'; })()}">${(() => { const n=computeNetProfit(d); return n.packageCount===0 && d.sales===0 ? '-' : '¥'+n.net.toLocaleString(); })()}</td>
+      <td style="font-weight:700;color:${(() => { if (d.packageCount == null) return 'var(--muted)'; const n=computeNetProfit(d); return n.net>=0?'var(--green)':'var(--accent)'; })()}" title="${d.packageCount == null ? '発送くんが梱包数を入力するまで純利益は未確定（送料・梱包資材費が引けないため）' : ''}">${(() => { if (d.packageCount == null) return '-'; const n=computeNetProfit(d); return '¥'+n.net.toLocaleString(); })()}</td>
       <td style="display:flex;gap:4px;align-items:center;flex-wrap:wrap">
         <button class="expand-btn" onclick="toggleDetail(${i}, this)">▼ 詳細</button>
         <button class="btn btn-outline btn-sm btn-edit-entry" onclick="openEditModal(${d.id})">✏️</button>
@@ -2634,6 +2637,17 @@ function renderTable(sorted) {
                 ${breakdownText ? `<div class="kv"><span class="k" style="font-size:11px;color:var(--muted);padding-left:12px">└ ${breakdownText}</span><span class="v"></span></div>` : ''}`;
               } else {
                 feeLine = `<div class="kv"><span class="k">−TikTok手数料 (${(n.feeRate*100).toFixed(0)}% × 自社GMV ¥${n.nonAffiliateGmv.toLocaleString()})</span><span class="v" style="color:var(--accent)">−¥${n.tiktokFee.toLocaleString()}</span></div>`;
+              }
+              if (d.packageCount == null) {
+                return `
+              <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border)">
+                <div class="kv"><span class="k">粗利(商品のみ)</span><span class="v" style="color:var(--gold)">¥${n.gross.toLocaleString()}</span></div>
+                ${affLine}
+                ${feeLine}
+                <div class="kv"><span class="k">−送料・梱包資材</span><span class="v" style="color:var(--muted)">未確定（梱包数 未入力）</span></div>
+                <div class="kv" style="margin-top:6px;padding-top:6px;border-top:2px solid var(--border)"><span class="k" style="font-weight:700">純利益</span><span class="v" style="color:var(--muted);font-weight:700;font-size:14px" title="発送くんが梱包数を入力すると確定します">−</span></div>
+              </div>
+              `;
               }
               return `
               <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border)">
