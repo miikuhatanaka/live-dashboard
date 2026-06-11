@@ -1564,9 +1564,20 @@ async function init() {
   }
 }
 
+// 非配信収益(動画アフィリ/オーガニック)の金額を保持。配信KPIには算入せず、売上/粗利/純利益/目標進捗にだけ加算する。
+let extraRev = { sales: 0, profit: 0, count: 0 };
+
 function renderAll() {
   const filtered = getFilteredData();
-  const sorted = [...filtered].sort((a,b) => parseDate(b.date) - parseDate(a.date));
+  const sortedAll = [...filtered].sort((a,b) => parseDate(b.date) - parseDate(a.date));
+  // nonBroadcast(動画アフィリ等)は配信集計から除外。金額のみ extraRev で月合計・目標に反映。
+  const sorted = sortedAll.filter(d => !d.nonBroadcast);
+  const extras = sortedAll.filter(d => d.nonBroadcast);
+  extraRev = {
+    sales:  extras.reduce((s,d) => s + (d.sales||0), 0),
+    profit: extras.reduce((s,d) => s + (d.profit||0), 0),
+    count:  extras.length
+  };
   renderCustomerStats();
   renderSummary(sorted);
   renderKPI(sorted);
@@ -1574,7 +1585,7 @@ function renderAll() {
   renderProductSummary(sorted);
   renderTable(sorted);
   renderSalesSelect();
-  const total = liveData.length;
+  const total = liveData.filter(d => !d.nonBroadcast).length;
   const shown = sorted.length;
   document.getElementById('updatedLabel').textContent =
     new Date().toLocaleDateString('ja-JP', {year:'numeric',month:'long',day:'numeric'}) +
@@ -1655,6 +1666,8 @@ function renderKPI(sorted) {
   const avgAOV = ucForRate > 0 ? Math.round(totalSales / ucForRate) : 0;
   const totalItemsAll = sorted.reduce((s,d) => s + (d.itemsSold||0), 0);
   const itemsPerBuyer = ucForRate > 0 ? (totalItemsAll / ucForRate) : 0;
+  // 売上(GMV)カード・目標進捗は配信外収益(動画アフィリ/オーガニック)を含める。AOV/CVR等の購入者ベースKPIには含めない。
+  const totalSalesWithExtra = totalSales + extraRev.sales;
 
   // ユーザー指定の順序: 累計リスト → 配信回数 → Peak売上 → AOV → リピート率 → CVR → 売上
   const items = [
@@ -1724,10 +1737,11 @@ function renderKPI(sorted) {
     },
     {
       label: '💰 売上 (GMV)',
-      actual: '¥' + totalSales.toLocaleString(),
+      actual: '¥' + totalSalesWithExtra.toLocaleString(),
       target: target ? '¥' + target.projectedSales.toLocaleString() : '—',
-      rate: target ? rateOf(totalSales, target.projectedSales) : 0,
-      note: target ? `月商目標¥${(target.projectedSales/1000).toFixed(0)}K` : '',
+      rate: target ? rateOf(totalSalesWithExtra, target.projectedSales) : 0,
+      note: (target ? `月商目標¥${(target.projectedSales/1000).toFixed(0)}K` : '')
+        + (extraRev.sales > 0 ? ` ・配信外+¥${extraRev.sales.toLocaleString()}含む` : ''),
       color: 'green'
     },
   ];
@@ -1907,7 +1921,7 @@ function renderMoonshot() {
   // === v3.2 (2026-05-18): CVR/AOV/アイテム数は累計・購入者(unique buyer)ベース統一 ===
   // 売上/視聴者はPeak(単発max)、それ以外は累計÷uniqueCustomers
   // per-broadcast の buyer 数が data.json に未収録のため累計でしか算出不可
-  const filtered = getFilteredData();
+  const filtered = getFilteredData().filter(d => !d.nonBroadcast);
   const okBroadcasts = filtered.filter(d => (d.totalViews||0) > 0);
 
   // Peak (単発max)指標
@@ -2189,8 +2203,8 @@ function renderSummary(sorted) {
     </div>
     <div class="card">
       <div class="card-label">累計売上</div>
-      <div class="card-val green">¥${totalSales.toLocaleString()}</div>
-      <div class="card-sub">${sorted.length}回合計</div>
+      <div class="card-val green">¥${(totalSales + extraRev.sales).toLocaleString()}</div>
+      <div class="card-sub">${sorted.length}回合計${extraRev.sales > 0 ? ` ・配信外+¥${extraRev.sales.toLocaleString()}` : ''}</div>
     </div>
     <div class="card">
       <div class="card-label">累計購入回数</div>
@@ -2204,13 +2218,13 @@ function renderSummary(sorted) {
     </div>
     <div class="card">
       <div class="card-label">累計粗利</div>
-      <div class="card-val gold">¥${totalProfit.toLocaleString()}</div>
-      <div class="card-sub">手数料・送料 引く前</div>
+      <div class="card-val gold">¥${(totalProfit + extraRev.profit).toLocaleString()}</div>
+      <div class="card-sub">手数料・送料 引く前${extraRev.profit > 0 ? ` ・配信外+¥${extraRev.profit.toLocaleString()}` : ''}</div>
     </div>
-    <div class="card" title="粗利からTikTok手数料・送料・梱包資材費を差し引いた金額" style="border:1px solid var(--accent)">
+    <div class="card" title="粗利からTikTok手数料・送料・梱包資材費を差し引いた金額（配信外アフィリは手数料/送料なし）" style="border:1px solid var(--accent)">
       <div class="card-label">累計純利益</div>
-      <div class="card-val ${npAgg.net >= 0 ? 'green' : 'red'}">¥${npAgg.net.toLocaleString()}</div>
-      <div class="card-sub">手数料 −¥${npAgg.tiktokFee.toLocaleString()} / 送料 −¥${npAgg.shippingFee.toLocaleString()} / 梱包 −¥${npAgg.packagingCost.toLocaleString()}${npPending ? ` ・<span style="color:var(--accent)">未確定${npPending}配信を除く</span>` : ''}</div>
+      <div class="card-val ${(npAgg.net + extraRev.profit) >= 0 ? 'green' : 'red'}">¥${(npAgg.net + extraRev.profit).toLocaleString()}</div>
+      <div class="card-sub">手数料 −¥${npAgg.tiktokFee.toLocaleString()} / 送料 −¥${npAgg.shippingFee.toLocaleString()} / 梱包 −¥${npAgg.packagingCost.toLocaleString()}${extraRev.profit > 0 ? ` ・配信外+¥${extraRev.profit.toLocaleString()}` : ''}${npPending ? ` ・<span style="color:var(--accent)">未確定${npPending}配信を除く</span>` : ''}</div>
     </div>
   `;
 }
