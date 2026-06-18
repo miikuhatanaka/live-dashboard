@@ -367,7 +367,9 @@ td.gold-text { color: var(--gold); }
       <tr>
         <th>配信日時</th>
         <th>LIVE時間</th>
+        <th title="LIVEや商品がフィード等に表示された回数。露出のボリューム。配信を見てもらう入口の総量">インプ <span style="color:var(--muted);font-size:9px;font-weight:400">(露出)</span></th>
         <th>視聴数</th>
+        <th title="入室率 = 視聴数 ÷ インプレッション。露出された人のうち何%が実際に入室したか(TikTok公式タップスルー率)。サムネ・冒頭の引きの強さの指標">入室率 <span style="color:var(--muted);font-size:9px;font-weight:400">(視聴÷インプ)</span></th>
         <th>最高同時</th>
         <th>いいね</th>
         <th>コメント</th>
@@ -400,9 +402,15 @@ td.gold-text { color: var(--gold); }
 </div>
 <div class="charts-row">
   <div class="chart-card">
+    <div class="chart-title">インプレッション量 × 入室率 推移 <span style="color:var(--muted);font-size:11px;font-weight:400">(棒=露出量 / 線=入室率%)</span></div>
+    <div class="chart-wrap"><canvas id="impressionChart"></canvas></div>
+  </div>
+  <div class="chart-card">
     <div class="chart-title">最高同時視聴者数 推移</div>
     <div class="chart-wrap"><canvas id="peakChart"></canvas></div>
   </div>
+</div>
+<div class="charts-row">
   <div class="chart-card">
     <div class="chart-title">新規フォロワー獲得数</div>
     <div class="chart-wrap"><canvas id="followerChart"></canvas></div>
@@ -2138,6 +2146,8 @@ function renderCustomerStats() {
 
 function renderSummary(sorted) {
   const totalViews = sorted.reduce((s,d) => s + (d.totalViews||0), 0);
+  const totalImpr = sorted.reduce((s,d) => s + (d.impressions||0), 0);
+  const avgTapRate = totalImpr > 0 ? (totalViews / totalImpr * 100) : 0;
   const totalFollowers = sorted.reduce((s,d) => s + (d.newFollowers||0), 0);
   const totalDiamonds = sorted.reduce((s,d) => s + (d.diamonds||0), 0);
   const totalSales = sorted.reduce((s,d) => s + (d.sales||0), 0);
@@ -2187,9 +2197,19 @@ function renderSummary(sorted) {
       <div class="card-sub">累計</div>
     </div>
     <div class="card">
+      <div class="card-label">累計インプレッション</div>
+      <div class="card-val">${totalImpr.toLocaleString()}</div>
+      <div class="card-sub">露出の総量（LIVE・商品の表示回数）</div>
+    </div>
+    <div class="card">
       <div class="card-label">累計視聴者数</div>
       <div class="card-val">${totalViews.toLocaleString()}</div>
       <div class="card-sub">${sorted.length}回合計</div>
+    </div>
+    <div class="card" title="入室率 = 累計視聴 ÷ 累計インプレッション。露出された人のうち何%が入室したか。サムネ・冒頭の引きの強さ">
+      <div class="card-label" style="color:var(--teal)">平均入室率</div>
+      <div class="card-val" style="color:var(--teal)">${avgTapRate > 0 ? avgTapRate.toFixed(1) + '%' : '—'}</div>
+      <div class="card-sub">インプ${totalImpr.toLocaleString()} → 入室${totalViews.toLocaleString()}</div>
     </div>
     <div class="card">
       <div class="card-label">累計新規フォロワー</div>
@@ -2264,6 +2284,20 @@ function renderCharts(sorted) {
       { label: 'コメント', data: displayed.map(d=>d.comments), backgroundColor: COLORS.gold+'88', borderColor: COLORS.gold, borderWidth: 2, borderRadius: 6 }
     ]
   }, { plugins: { legend: { display: true, labels: { color: '#6b6b85', font: { size: 11 } } } } });
+  makeChart('impressionChart', 'bar', {
+    labels,
+    datasets: [
+      { type: 'bar', label: 'インプレッション', yAxisID: 'y', data: displayed.map(d=>d.impressions||0), backgroundColor: COLORS.purple+'66', borderColor: COLORS.purple, borderWidth: 2, borderRadius: 6, order: 2 },
+      { type: 'line', label: '入室率(%)', yAxisID: 'y1', data: displayed.map(d=>{ const t=tapThroughRate(d); return t!=null?Number(t.toFixed(2)):null; }), borderColor: COLORS.teal, backgroundColor: COLORS.teal+'22', borderWidth: 2, tension: 0.4, pointBackgroundColor: COLORS.teal, pointRadius: 4, spanGaps: true, order: 1 }
+    ]
+  }, {
+    plugins: { legend: { display: true, labels: { color: '#6b6b85', font: { size: 11 } } } },
+    scales: {
+      x: { ticks: { color: '#6b6b85', font: { size: 11 } }, grid: { color: '#2a2a3a' } },
+      y: { position: 'left', ticks: { color: '#6b6b85', font: { size: 11 } }, grid: { color: '#2a2a3a' }, title: { display: true, text: 'インプ', color: '#6b6b85' } },
+      y1: { position: 'right', beginAtZero: true, ticks: { color: COLORS.teal, font: { size: 11 }, callback: v=>v+'%' }, grid: { drawOnChartArea: false }, title: { display: true, text: '入室率', color: COLORS.teal } }
+    }
+  });
   makeChart('peakChart', 'line', {
     labels,
     datasets: [{ label: '最高同時視聴者', data: displayed.map(d=>d.peakConcurrent), borderColor: COLORS.purple, backgroundColor: COLORS.purple+'22', borderWidth: 2, tension: 0.4, pointBackgroundColor: COLORS.purple, pointRadius: 5 }]
@@ -2544,6 +2578,14 @@ function escapeHtml(s) {
   return String(s || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
 
+// 入室率(タップスルー率) = 視聴数 ÷ インプレッション。
+// xlsxから取り込んだTikTok公式値(tapThroughRate)を優先し、無ければ totalViews/impressions で算出。
+function tapThroughRate(d) {
+  if (d.tapThroughRate != null && d.tapThroughRate !== '') return Number(d.tapThroughRate);
+  if ((d.impressions||0) > 0) return (d.totalViews||0) / d.impressions * 100;
+  return null;
+}
+
 // 商品種別バッジ: 自社 / アフィリエイト を可視化
 function sourceBadge(masterKey, isAffiliateFlag) {
   const aff = isAffiliateFlag != null ? !!isAffiliateFlag : isAffiliateKey(masterKey);
@@ -2568,10 +2610,13 @@ function renderTable(sorted) {
     const cvr = (d.totalViews||0) > 0 ? (buyers/(d.totalViews||1)*100).toFixed(2) : '0.00';
     const aov = buyers > 0 ? Math.round((d.sales||0)/buyers) : 0;
     const ipb = buyers > 0 ? (itemsSold/buyers).toFixed(1) : '-';
+    const tapRate = tapThroughRate(d);
     tr.innerHTML = `
       <td class="date">${d.date} ${isBest ? '<span style="color:var(--gold);font-size:10px">★ 最高</span>' : ''}${d.memo ? '<br><span style="color:var(--muted);font-size:10px">' + d.memo + '</span>' : ''}</td>
       <td>${d.liveTime || '-'}</td>
+      <td class="num">${d.impressions ? d.impressions.toLocaleString() : '-'}</td>
       <td class="num">${(d.totalViews||0).toLocaleString()}</td>
+      <td class="num" style="color:var(--teal);font-weight:700">${tapRate != null ? tapRate.toFixed(1)+'%' : '-'}</td>
       <td class="num">${(d.peakConcurrent||0).toLocaleString()}</td>
       <td class="highlight">${(d.likes||0).toLocaleString()}</td>
       <td>${d.comments||0}</td>
@@ -2595,11 +2640,13 @@ function renderTable(sorted) {
     const dr = document.createElement('tr');
     dr.className = 'detail-row';
     dr.id = `detail-${i}`;
-    dr.innerHTML = `<td colspan="16">
+    dr.innerHTML = `<td colspan="18">
       <div class="detail-inner">
         <div class="detail-grid">
           <div class="detail-block">
             <h4>👁 視聴</h4>
+            <div class="kv"><span class="k">インプレッション</span><span class="v">${d.impressions ? d.impressions.toLocaleString() : '-'}</span></div>
+            <div class="kv"><span class="k">入室率 (視聴÷インプ)</span><span class="v" style="color:var(--teal)">${(() => { const t = tapThroughRate(d); return t != null ? t.toFixed(1)+'%' : '-'; })()}</span></div>
             <div class="kv"><span class="k">総視聴数</span><span class="v">${(d.totalViews||0).toLocaleString()}</span></div>
             <div class="kv"><span class="k">ユニーク視聴者</span><span class="v">${(d.uniqueViewers||0).toLocaleString()}</span></div>
             <div class="kv"><span class="k">アクティブ視聴者</span><span class="v">${d.activeViewers||0}</span></div>
@@ -2726,13 +2773,17 @@ function renderTable(sorted) {
     const totalIpb = ucForTotal > 0 ? (sumItems / ucForTotal).toFixed(1) : '-';
     const sumProfit = sorted.reduce((s,d) => s + (d.profit||0), 0);
     const sumNet = sorted.reduce((s,d) => s + computeNetProfit(d).net, 0);
+    const sumImpr = sorted.reduce((s,d) => s + (d.impressions||0), 0);
+    const avgTap = sumImpr > 0 ? (sumViews / sumImpr * 100) : null;
 
     const totalRow = document.createElement('tr');
     totalRow.className = 'total-row';
     totalRow.innerHTML = `
       <td style="font-weight:700">合計 (${sorted.length}回)</td>
       <td>-</td>
+      <td class="num" style="font-weight:700">${sumImpr.toLocaleString()}</td>
       <td class="num" style="font-weight:700">${sumViews.toLocaleString()}</td>
+      <td class="num" style="color:var(--teal);font-weight:700" title="加重平均入室率 = Σ視聴 ÷ Σインプ × 100">${avgTap != null ? avgTap.toFixed(1)+'%' : '-'}</td>
       <td class="num" style="font-weight:700">⌀${avgPeak.toLocaleString()}</td>
       <td style="font-weight:700">${sumLikes.toLocaleString()}</td>
       <td style="font-weight:700">${sumComments.toLocaleString()}</td>
