@@ -1409,6 +1409,19 @@ function applyViewerModeUI() {
   }
 }
 
+// GitHub Gist API は大きいファイルの content を ~1MB手前で切り詰める(file.truncated=true)。
+// その場合は raw_url から全文を取り直す。これをしないとJSONが途中で切れて
+// "Unterminated string in JSON" でダッシュボードが壊れる。
+async function getGistFileContent(file) {
+  if (!file) return null;
+  if (file.truncated && file.raw_url) {
+    const r = await fetch(file.raw_url, { cache: 'no-store' });
+    if (!r.ok) throw new Error(`raw取得失敗(${file.filename || 'gist file'}): ${r.status}`);
+    return await r.text();
+  }
+  return file.content;
+}
+
 async function loadFromGist() {
   const { gistId, pat } = getGistConfig();
   if (!gistId) { setSyncStatus('idle'); return null; }
@@ -1427,28 +1440,28 @@ async function loadFromGist() {
     const file = gistData.files['data.json'];
     if (!file) throw new Error('Gist に data.json が見つかりません。ファイル名を確認してください。');
 
-    const parsed = JSON.parse(file.content);
+    const parsed = JSON.parse(await getGistFileContent(file));
     if (!Array.isArray(parsed)) throw new Error('data.json の形式が正しくありません。');
 
     // 顧客リピート統計(あれば)を同時ロード
     const statsFile = gistData.files['customer-stats.json'];
     if (statsFile) {
       try {
-        customerStats = JSON.parse(statsFile.content);
+        customerStats = JSON.parse(await getGistFileContent(statsFile));
       } catch (e) { console.warn('customer-stats.json parse error', e); }
     }
     // 事業計画月次目標(あれば)を同時ロード
     const planFile = gistData.files['business-plan-targets.json'];
     if (planFile) {
       try {
-        businessPlan = JSON.parse(planFile.content);
+        businessPlan = JSON.parse(await getGistFileContent(planFile));
       } catch (e) { console.warn('business-plan-targets.json parse error', e); }
     }
     // ムーンショット目標(あれば)を同時ロード
     const moonFile = gistData.files['moonshot-targets.json'];
     if (moonFile) {
       try {
-        moonshotTargets = JSON.parse(moonFile.content);
+        moonshotTargets = JSON.parse(await getGistFileContent(moonFile));
       } catch (e) { console.warn('moonshot-targets.json parse error', e); }
     }
 
