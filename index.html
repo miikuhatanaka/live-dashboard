@@ -65,9 +65,10 @@ h1 span { color: var(--accent); }
 /* Charts row */
 .charts-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px; }
 @media (max-width: 700px) { .charts-row { grid-template-columns: 1fr; } }
-.chart-card { background: var(--s1); border: 1px solid var(--border); border-radius: 12px; padding: 20px; }
+.chart-card { background: var(--s1); border: 1px solid var(--border); border-radius: 12px; padding: 20px; min-width: 0; }
 .chart-title { font-size: 13px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; margin-bottom: 16px; }
-.chart-wrap { position: relative; height: 220px; }
+.chart-wrap { position: relative; height: 220px; min-width: 0; }
+canvas { max-width: 100%; }
 
 /* Live detail table */
 .section { background: var(--s1); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; margin-bottom: 24px; }
@@ -85,6 +86,15 @@ td.num { font-weight: 700; color: var(--teal); }
 td.date { color: var(--muted); font-size: 12px; }
 td.highlight { color: var(--accent); font-weight: 700; }
 td.gold-text { color: var(--gold); }
+
+/* Wide tables: scroll horizontally on small screens instead of getting clipped by .section overflow:hidden */
+.table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.table-scroll > table { min-width: 1040px; }
+.table-scroll td, .table-scroll thead th { white-space: nowrap; }
+#productSummaryBody { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+#productSummaryBody table { min-width: 640px; }
+.scroll-hint { display: none; font-size: 11px; color: var(--muted); padding: 8px 16px 0; }
+.scroll-hint::before { content: "← 横にスワイプで全項目 →"; }
 
 /* Detail expand */
 .total-row { background: var(--s2); border-top: 2px solid var(--accent); position: sticky; bottom: 0; z-index: 2; }
@@ -187,12 +197,12 @@ td.gold-text { color: var(--gold); }
 
 .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 @media (max-width: 500px) { .form-grid { grid-template-columns: 1fr; } }
-.form-group { display: flex; flex-direction: column; gap: 6px; }
+.form-group { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
 .form-group label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; font-weight: 600; }
 .form-group input, .form-group textarea, .form-group select {
   background: var(--s2); border: 1px solid var(--border); color: var(--text);
   padding: 9px 12px; border-radius: 8px; font-size: 13px; font-family: inherit;
-  outline: none; transition: border-color .2s;
+  outline: none; transition: border-color .2s; width: 100%;
 }
 .form-group input:focus, .form-group textarea:focus { border-color: var(--teal); }
 .form-section-title { font-size: 12px; color: var(--accent); text-transform: uppercase; letter-spacing: .5px; font-weight: 700; margin: 16px 0 8px; grid-column: 1/-1; border-top: 1px solid var(--border); padding-top: 16px; }
@@ -286,6 +296,20 @@ td.gold-text { color: var(--gold); }
 .claude-paste-area { width: 100%; background: var(--s2); border: 1px solid var(--border); color: var(--text); padding: 12px; border-radius: 8px; font-size: 12px; font-family: monospace; resize: vertical; outline: none; min-height: 90px; margin-top: 8px; }
 .claude-paste-area:focus { border-color: var(--teal); }
 .import-row { display: flex; gap: 8px; align-items: center; margin-top: 10px; flex-wrap: wrap; }
+
+/* ===== Mobile (<=760px) ===== */
+@media (max-width: 760px) {
+  body { padding: 12px; }
+  header { margin-bottom: 20px; padding-bottom: 14px; }
+  .section { margin-bottom: 16px; }
+  .section-head { padding: 12px 14px; }
+  table { font-size: 12px; }
+  thead th { padding: 8px 10px; }
+  td { padding: 9px 10px; }
+  .scroll-hint { display: block; }
+  .card-val { font-size: 22px; }
+  .toast { left: 12px; right: 12px; bottom: 12px; max-width: none; }
+}
 </style>
 </head>
 <body>
@@ -365,6 +389,8 @@ td.gold-text { color: var(--gold); }
       <span class="badge">▼ をクリックで詳細展開</span>
     </div>
   </div>
+  <div class="scroll-hint"></div>
+  <div class="table-scroll">
   <table>
     <thead>
       <tr>
@@ -390,6 +416,7 @@ td.gold-text { color: var(--gold); }
     </thead>
     <tbody id="liveTableBody"></tbody>
   </table>
+  </div>
 </div>
 
 <!-- Charts -->
