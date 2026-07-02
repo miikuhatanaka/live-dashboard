@@ -882,6 +882,7 @@ const STORAGE_KEY = 'imapochi_live_data';
 const INSIGHTS_KEY = 'imapochi_insights';
 const API_KEY_STORAGE = 'imapochi_claude_key';
 const DEFAULT_GIST_ID    = '7d5425efae6b412284a5e27841592f34';  // GitHub Pagesデプロイ時にGist IDをここに埋め込む
+const GIST_OWNER         = 'miikuhatanaka';  // 公開版はこのオーナーのGist raw(gist.githubusercontent.com)から直読み(API制限回避)
 // 公開デプロイ判定: *.github.io で開かれた場合は強制ビューア専用モード（PAT読み込み禁止・編集UI非表示）
 const IS_PUBLIC_DEPLOY = (typeof location !== 'undefined' && location.protocol === 'https:' && /\.github\.io$/i.test(location.hostname));
 const NET_PROFIT_CONFIG_KEY = 'imapochi_net_profit_config';
@@ -1455,41 +1456,65 @@ async function loadFromGist() {
 
   setSyncStatus('syncing');
   try {
-    const headers = { 'Accept': 'application/vnd.github+json' };
-    if (pat) headers['Authorization'] = `Bearer ${pat}`;
+    let parsed;
+    if (IS_PUBLIC_DEPLOY) {
+      // 公開版: GitHub REST API(未認証は60回/時でレート制限に達する)ではなく、
+      // Gist の raw(gist.githubusercontent.com)から各ファイルを直読みする。rawはこの
+      // レート制限の対象外なので、トークン無しでも制限に達しない。
+      const rawBase = `https://gist.githubusercontent.com/${GIST_OWNER}/${gistId}/raw`;
+      const bust = `?t=${Date.now()}`;
+      const getRaw = async (fn, required) => {
+        const r = await fetch(`${rawBase}/${fn}${bust}`, { cache: 'no-store' });
+        if (r.status === 404) { if (required) throw new Error(`${fn} が見つかりません。`); return null; }
+        if (!r.ok) throw new Error(`Gist raw 取得失敗(${fn}): ${r.status}`);
+        return await r.text();
+      };
+      parsed = JSON.parse(await getRaw('data.json', true));
+      if (!Array.isArray(parsed)) throw new Error('data.json の形式が正しくありません。');
+      const statsTxt = await getRaw('customer-stats.json', false);
+      if (statsTxt) { try { customerStats = JSON.parse(statsTxt); } catch (e) { console.warn('customer-stats.json parse error', e); } }
+      const planTxt = await getRaw('business-plan-targets.json', false);
+      if (planTxt) { try { businessPlan = JSON.parse(planTxt); } catch (e) { console.warn('business-plan-targets.json parse error', e); } }
+      const moonTxt = await getRaw('moonshot-targets.json', false);
+      if (moonTxt) { try { moonshotTargets = JSON.parse(moonTxt); } catch (e) { console.warn('moonshot-targets.json parse error', e); } }
+    } else {
+      // ローカル/オーナー編集: API経由(PATで5000回/時・編集も可能)
+      const headers = { 'Accept': 'application/vnd.github+json' };
+      if (pat) headers['Authorization'] = `Bearer ${pat}`;
 
-    const res = await fetch(`https://api.github.com/gists/${gistId}`, { headers, cache: 'no-store' });
-    if (res.status === 404) throw new Error('Gist が見つかりません。Gist IDを確認してください。');
-    if (res.status === 403) throw new Error('GitHub APIのレート制限に達しました。GitHubトークンを設定すると解決します。');
-    if (!res.ok) throw new Error(`GitHub API エラー: ${res.status}`);
+      const res = await fetch(`https://api.github.com/gists/${gistId}`, { headers, cache: 'no-store' });
+      if (res.status === 404) throw new Error('Gist が見つかりません。Gist IDを確認してください。');
+      if (res.status === 403) throw new Error('GitHub APIのレート制限に達しました。GitHubトークンを設定すると解決します。');
+      if (!res.ok) throw new Error(`GitHub API エラー: ${res.status}`);
 
-    const gistData = await res.json();
-    const file = gistData.files['data.json'];
-    if (!file) throw new Error('Gist に data.json が見つかりません。ファイル名を確認してください。');
+      const gistData = await res.json();
+      const file = gistData.files['data.json'];
+      if (!file) throw new Error('Gist に data.json が見つかりません。ファイル名を確認してください。');
 
-    const parsed = JSON.parse(await getGistFileContent(file));
-    if (!Array.isArray(parsed)) throw new Error('data.json の形式が正しくありません。');
+      parsed = JSON.parse(await getGistFileContent(file));
+      if (!Array.isArray(parsed)) throw new Error('data.json の形式が正しくありません。');
 
-    // 顧客リピート統計(あれば)を同時ロード
-    const statsFile = gistData.files['customer-stats.json'];
-    if (statsFile) {
-      try {
-        customerStats = JSON.parse(await getGistFileContent(statsFile));
-      } catch (e) { console.warn('customer-stats.json parse error', e); }
-    }
-    // 事業計画月次目標(あれば)を同時ロード
-    const planFile = gistData.files['business-plan-targets.json'];
-    if (planFile) {
-      try {
-        businessPlan = JSON.parse(await getGistFileContent(planFile));
-      } catch (e) { console.warn('business-plan-targets.json parse error', e); }
-    }
-    // ムーンショット目標(あれば)を同時ロード
-    const moonFile = gistData.files['moonshot-targets.json'];
-    if (moonFile) {
-      try {
-        moonshotTargets = JSON.parse(await getGistFileContent(moonFile));
-      } catch (e) { console.warn('moonshot-targets.json parse error', e); }
+      // 顧客リピート統計(あれば)を同時ロード
+      const statsFile = gistData.files['customer-stats.json'];
+      if (statsFile) {
+        try {
+          customerStats = JSON.parse(await getGistFileContent(statsFile));
+        } catch (e) { console.warn('customer-stats.json parse error', e); }
+      }
+      // 事業計画月次目標(あれば)を同時ロード
+      const planFile = gistData.files['business-plan-targets.json'];
+      if (planFile) {
+        try {
+          businessPlan = JSON.parse(await getGistFileContent(planFile));
+        } catch (e) { console.warn('business-plan-targets.json parse error', e); }
+      }
+      // ムーンショット目標(あれば)を同時ロード
+      const moonFile = gistData.files['moonshot-targets.json'];
+      if (moonFile) {
+        try {
+          moonshotTargets = JSON.parse(await getGistFileContent(moonFile));
+        } catch (e) { console.warn('moonshot-targets.json parse error', e); }
+      }
     }
 
     // Gistが空（[]）の場合はローカルデータを保護する（初回セットアップ時にデータが消えるのを防ぐ）
