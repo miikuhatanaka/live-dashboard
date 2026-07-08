@@ -65,10 +65,9 @@ h1 span { color: var(--accent); }
 /* Charts row */
 .charts-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px; }
 @media (max-width: 700px) { .charts-row { grid-template-columns: 1fr; } }
-.chart-card { background: var(--s1); border: 1px solid var(--border); border-radius: 12px; padding: 20px; min-width: 0; }
+.chart-card { background: var(--s1); border: 1px solid var(--border); border-radius: 12px; padding: 20px; }
 .chart-title { font-size: 13px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; margin-bottom: 16px; }
-.chart-wrap { position: relative; height: 220px; min-width: 0; }
-canvas { max-width: 100%; }
+.chart-wrap { position: relative; height: 220px; }
 
 /* Live detail table */
 .section { background: var(--s1); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; margin-bottom: 24px; }
@@ -86,15 +85,6 @@ td.num { font-weight: 700; color: var(--teal); }
 td.date { color: var(--muted); font-size: 12px; }
 td.highlight { color: var(--accent); font-weight: 700; }
 td.gold-text { color: var(--gold); }
-
-/* Wide tables: scroll horizontally on small screens instead of getting clipped by .section overflow:hidden */
-.table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
-.table-scroll > table { min-width: 1040px; }
-.table-scroll td, .table-scroll thead th { white-space: nowrap; }
-#productSummaryBody { overflow-x: auto; -webkit-overflow-scrolling: touch; }
-#productSummaryBody table { min-width: 640px; }
-.scroll-hint { display: none; font-size: 11px; color: var(--muted); padding: 8px 16px 0; }
-.scroll-hint::before { content: "← 横にスワイプで全項目 →"; }
 
 /* Detail expand */
 .total-row { background: var(--s2); border-top: 2px solid var(--accent); position: sticky; bottom: 0; z-index: 2; }
@@ -197,12 +187,12 @@ td.gold-text { color: var(--gold); }
 
 .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 @media (max-width: 500px) { .form-grid { grid-template-columns: 1fr; } }
-.form-group { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.form-group { display: flex; flex-direction: column; gap: 6px; }
 .form-group label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; font-weight: 600; }
 .form-group input, .form-group textarea, .form-group select {
   background: var(--s2); border: 1px solid var(--border); color: var(--text);
   padding: 9px 12px; border-radius: 8px; font-size: 13px; font-family: inherit;
-  outline: none; transition: border-color .2s; width: 100%;
+  outline: none; transition: border-color .2s;
 }
 .form-group input:focus, .form-group textarea:focus { border-color: var(--teal); }
 .form-section-title { font-size: 12px; color: var(--accent); text-transform: uppercase; letter-spacing: .5px; font-weight: 700; margin: 16px 0 8px; grid-column: 1/-1; border-top: 1px solid var(--border); padding-top: 16px; }
@@ -296,20 +286,6 @@ td.gold-text { color: var(--gold); }
 .claude-paste-area { width: 100%; background: var(--s2); border: 1px solid var(--border); color: var(--text); padding: 12px; border-radius: 8px; font-size: 12px; font-family: monospace; resize: vertical; outline: none; min-height: 90px; margin-top: 8px; }
 .claude-paste-area:focus { border-color: var(--teal); }
 .import-row { display: flex; gap: 8px; align-items: center; margin-top: 10px; flex-wrap: wrap; }
-
-/* ===== Mobile (<=760px) ===== */
-@media (max-width: 760px) {
-  body { padding: 12px; }
-  header { margin-bottom: 20px; padding-bottom: 14px; }
-  .section { margin-bottom: 16px; }
-  .section-head { padding: 12px 14px; }
-  table { font-size: 12px; }
-  thead th { padding: 8px 10px; }
-  td { padding: 9px 10px; }
-  .scroll-hint { display: block; }
-  .card-val { font-size: 22px; }
-  .toast { left: 12px; right: 12px; bottom: 12px; max-width: none; }
-}
 </style>
 </head>
 <body>
@@ -389,8 +365,6 @@ td.gold-text { color: var(--gold); }
       <span class="badge">▼ をクリックで詳細展開</span>
     </div>
   </div>
-  <div class="scroll-hint"></div>
-  <div class="table-scroll">
   <table>
     <thead>
       <tr>
@@ -416,7 +390,6 @@ td.gold-text { color: var(--gold); }
     </thead>
     <tbody id="liveTableBody"></tbody>
   </table>
-  </div>
 </div>
 
 <!-- Charts -->
@@ -499,6 +472,31 @@ td.gold-text { color: var(--gold); }
   </h2>
   <div class="sub">選択期間内の全配信を横断した商品別集計。ダッシュボード更新くんが登録した商品のみ表示されます。</div>
   <div id="productSummaryBody"></div>
+</div>
+
+<!-- AOV分解（ムーンショットの本丸: AOV = 平均商品単価 × 1人あたり点数 に分解して追跡） -->
+<div class="prod-summary-card" style="border-color:var(--gold)">
+  <h2>💎 AOV分解 <span style="font-size:12px;color:var(--muted);font-weight:400">単価アップの中身トラッカー（AOV¥5,000化の進捗）</span></h2>
+  <div class="sub">AOV = 平均商品単価 × 1人あたり点数（購入者ベース）。どちらのレバーで伸びて/落ちているかを分解して見る。価格帯分布は「¥500以上帯のシェア」がAOV¥5,000化の先行指標。</div>
+  <div id="aovCards" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;margin-top:12px"></div>
+  <div class="charts-row" style="margin-top:14px">
+    <div class="chart-card">
+      <div class="chart-title">配信別 AOV推移 <span style="color:var(--muted);font-size:11px;font-weight:400">(線=AOV / 破線=目標)</span></div>
+      <div class="chart-wrap"><canvas id="aovTrendChart"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">価格帯分布 <span style="color:var(--muted);font-size:11px;font-weight:400">(販売点数シェア% / GMVシェア%)</span></div>
+      <div class="chart-wrap"><canvas id="priceBandChart"></canvas></div>
+    </div>
+  </div>
+  <div id="aovNote" style="font-size:11px;color:var(--muted);margin-top:8px;line-height:1.6"></div>
+</div>
+
+<!-- 入口商品別リピート分析（初回に何を買った人が、どれだけ戻ってくるか） -->
+<div class="prod-summary-card" style="border-color:var(--teal)">
+  <h2>🚪 入口商品別リピート分析 <span style="font-size:12px;color:var(--muted);font-weight:400">初回購入商品 → その後のLTV</span></h2>
+  <div class="sub">「初回に何を買った顧客」がその後どれだけリピートし、いくら使ったか（全期間・customer-history匿名集計）。集客装置（例: ソックス）と利益商品の役割分担をデータで検証する。</div>
+  <div id="entryCohortBody" style="margin-top:12px"></div>
 </div>
 
 <!-- 用語定義モーダル -->
@@ -981,14 +979,28 @@ let businessPlan = null;
 // ムーンショット目標(Gistから初期ロード、moonshot-targets.jsonの内容)
 let moonshotTargets = null;
 
-// アフィリエイト商品のmasterKey一覧(profit-master.jsonのcommissionRate持ち or isAffiliate:trueと同期)
-// ※マスタに変更があれば更新する
-const AFFILIATE_MASTER_KEYS = new Set([
+// アフィリエイト商品のmasterKey一覧: data.json の products[].isAffiliate(スプシ「AiFesLive SKUマスタ」仕入れ元由来)から
+// renderAll() 冒頭で自動再構築される。新アフィリ商品を追加してもこのファイルの編集は不要。
+// LEGACY セットは isAffiliate フィールドを持たない旧エントリ(2026-04-20以前)の表示用フォールバック。
+const LEGACY_AFFILIATE_MASTER_KEYS = new Set([
   '割れチョコ1袋200g',
   '亀田製菓30枚セット',
   'ハード&サワーグミ5種',
   '駄菓子つめあわせ25点'  // 特殊アフィリ: 赤字すべて自社負担。profit=-158/個(=売価¥490 − 仕入¥648、スプシ price/cost から自動計算)
 ]);
+let AFFILIATE_MASTER_KEYS = new Set(LEGACY_AFFILIATE_MASTER_KEYS);
+function rebuildAffiliateKeys() {
+  const s = new Set(LEGACY_AFFILIATE_MASTER_KEYS);
+  getAllData().forEach(d => {
+    if (!Array.isArray(d.products)) return;
+    d.products.forEach(p => {
+      if (!p.isAffiliate) return;
+      if (p.masterKey) s.add(p.masterKey);
+      (Array.isArray(p.variantBreakdown) ? p.variantBreakdown : []).forEach(b => { if (b.masterKey) s.add(b.masterKey); });
+    });
+  });
+  AFFILIATE_MASTER_KEYS = s;
+}
 // 駄菓子は『特殊アフィリ』: アフィリ扱いで手数料/送料は追加控除せず、profit=-158/個(=price-cost from スプシマスタ)をそのまま使用
 const SPECIAL_DISTRIBUTOR_AFFILIATE_KEYS = new Set([
   '駄菓子つめあわせ25点'
@@ -1291,6 +1303,15 @@ function importFromClaude() {
 // STATE
 // ============================================================
 let liveData = loadData() || JSON.parse(JSON.stringify(DEFAULT_DATA));
+// 年次アーカイブ(Gist data-YYYY.json)のエントリ。読み取り専用 — 編集・saveToGist の対象外。
+// scripts/archive-live-data-year.js で過去年分を data.json から分離した後も、全期間表示を維持するためにマージ読みする。
+const ARCHIVE_STORAGE_KEY = 'imapochi_archived_data';
+let archivedData = (() => { try { return JSON.parse(localStorage.getItem(ARCHIVE_STORAGE_KEY)) || []; } catch { return []; } })();
+function getAllData() {
+  if (!archivedData.length) return liveData;
+  const ids = new Set(liveData.map(d => d.id));
+  return archivedData.filter(d => !ids.has(d.id)).concat(liveData);
+}
 let editingId = null;
 let charts = {};
 let filterFrom = null;
@@ -1367,8 +1388,9 @@ function applyDateFilter() {
 }
 
 function getFilteredData() {
-  if (!filterFrom && !filterTo) return liveData;
-  return liveData.filter(d => {
+  const all = getAllData();
+  if (!filterFrom && !filterTo) return all;
+  return all.filter(d => {
     const dt = parseDate(d.date);
     if (!dt) return false;
     if (filterFrom && dt < filterFrom) return false;
@@ -1477,6 +1499,13 @@ async function loadFromGist() {
       if (planTxt) { try { businessPlan = JSON.parse(planTxt); } catch (e) { console.warn('business-plan-targets.json parse error', e); } }
       const moonTxt = await getRaw('moonshot-targets.json', false);
       if (moonTxt) { try { moonshotTargets = JSON.parse(moonTxt); } catch (e) { console.warn('moonshot-targets.json parse error', e); } }
+      // 年次アーカイブ(data-YYYY.json)をマージ読み。rawはファイル一覧が取れないため過去年を順にプローブ(404=無し)
+      const arch = [];
+      for (let yy = 2026; yy < new Date().getFullYear(); yy++) {
+        const archTxt = await getRaw(`data-${yy}.json`, false);
+        if (archTxt) { try { const a = JSON.parse(archTxt); if (Array.isArray(a)) arch.push(...a); } catch (e) { console.warn(`data-${yy}.json parse error`, e); } }
+      }
+      archivedData = arch;
     } else {
       // ローカル/オーナー編集: API経由(PATで5000回/時・編集も可能)
       const headers = { 'Accept': 'application/vnd.github+json' };
@@ -1515,6 +1544,16 @@ async function loadFromGist() {
           moonshotTargets = JSON.parse(await getGistFileContent(moonFile));
         } catch (e) { console.warn('moonshot-targets.json parse error', e); }
       }
+      // 年次アーカイブ(data-YYYY.json)をマージ読み
+      const arch = [];
+      for (const fn of Object.keys(gistData.files)) {
+        if (!/^data-\d{4}\.json$/.test(fn)) continue;
+        try {
+          const a = JSON.parse(await getGistFileContent(gistData.files[fn]));
+          if (Array.isArray(a)) arch.push(...a);
+        } catch (e) { console.warn(fn + ' parse error', e); }
+      }
+      archivedData = arch;
     }
 
     // Gistが空（[]）の場合はローカルデータを保護する（初回セットアップ時にデータが消えるのを防ぐ）
@@ -1524,6 +1563,7 @@ async function loadFromGist() {
     }
 
     saveDataLocal(parsed);
+    try { localStorage.setItem(ARCHIVE_STORAGE_KEY, JSON.stringify(archivedData)); } catch {}
     setSyncStatus('ok');
     return parsed;
   } catch (e) {
@@ -1644,6 +1684,7 @@ async function init() {
 let extraRev = { sales: 0, profit: 0, count: 0 };
 
 function renderAll() {
+  rebuildAffiliateKeys();  // products[].isAffiliate からアフィリ判定セットを再構築(ハードコード撤廃)
   const filtered = getFilteredData();
   const sortedAll = [...filtered].sort((a,b) => parseDate(b.date) - parseDate(a.date));
   // nonBroadcast(動画アフィリ等)は配信集計から除外。金額のみ extraRev で月合計・目標に反映。
@@ -1659,9 +1700,11 @@ function renderAll() {
   renderKPI(sorted);
   renderCharts(sorted);
   renderProductSummary(sorted);
+  renderAovBreakdown(sorted);
+  renderEntryCohorts();
   renderTable(sorted);
   renderSalesSelect();
-  const total = liveData.filter(d => !d.nonBroadcast).length;
+  const total = getAllData().filter(d => !d.nonBroadcast).length;
   const shown = sorted.length;
   document.getElementById('updatedLabel').textContent =
     new Date().toLocaleDateString('ja-JP', {year:'numeric',month:'long',day:'numeric'}) +
@@ -1821,6 +1864,27 @@ function renderKPI(sorted) {
       color: 'green'
     },
   ];
+
+  // 📈 ペースメーター(月末着地予測): 「今月」フィルター表示中のみ。経過日数ベースの単純外挿。
+  // 月初〜今日のフィルターで見ているときだけ出す(7日間/30日間など部分期間では外挿が狂うため)
+  const now = new Date();
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+  const isCurrentMonthView = monthKey === `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`
+    && filterFrom && filterFrom.getTime() === monthStart.getTime();
+  if (isCurrentMonthView && target) {
+    const elapsed = now.getDate();
+    const dim = new Date(now.getFullYear(), now.getMonth()+1, 0).getDate();
+    const projSales = elapsed > 0 ? Math.round(totalSalesWithExtra / elapsed * dim) : 0;
+    const projLives = elapsed > 0 ? Math.round(actualLives / elapsed * dim) : 0;
+    items.push({
+      label: '📈 GMV着地予測 (今のペース)',
+      actual: '¥' + projSales.toLocaleString(),
+      target: '¥' + target.projectedSales.toLocaleString(),
+      rate: rateOf(projSales, target.projectedSales),
+      note: `${elapsed}/${dim}日経過・現時点¥${totalSalesWithExtra.toLocaleString()}の単純外挿。配信ペース: 月末見込み${projLives}回${target.lives ? `/目標${target.lives}回` : ''}`,
+      color: 'green'
+    });
+  }
 
   let label = `（${monthKey} 月次目標対比）`;
   if (!target) label += ' ⚠計画なし';
@@ -2320,26 +2384,30 @@ function renderSummary(sorted) {
 // ============================================================
 // CHARTS
 // ============================================================
+const CHART_COLORS = { red: '#fe2c55', teal: '#25f4ee', gold: '#ffd700', green: '#22c55e', purple: '#a855f7' };
+
+function makeChart(id, type, data, opts={}) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  if (charts[id]) charts[id].destroy();
+  charts[id] = new Chart(el, {
+    type, data,
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: type !== 'pie' ? {
+        x: { ticks: { color: '#6b6b85', font: { size: 11 } }, grid: { color: '#2a2a3a' } },
+        y: { ticks: { color: '#6b6b85', font: { size: 11 } }, grid: { color: '#2a2a3a' } }
+      } : {},
+      ...opts
+    }
+  });
+}
+
 function renderCharts(sorted) {
   const displayed = [...sorted].reverse(); // chronological
   const labels = displayed.map(d => d.date.split(' ')[0]);
-  const COLORS = { red: '#fe2c55', teal: '#25f4ee', gold: '#ffd700', green: '#22c55e', purple: '#a855f7' };
-
-  function makeChart(id, type, data, opts={}) {
-    if (charts[id]) charts[id].destroy();
-    charts[id] = new Chart(document.getElementById(id), {
-      type, data,
-      options: {
-        responsive: true, maintainAspectRatio: false,
-        plugins: { legend: { display: false } },
-        scales: type !== 'pie' ? {
-          x: { ticks: { color: '#6b6b85', font: { size: 11 } }, grid: { color: '#2a2a3a' } },
-          y: { ticks: { color: '#6b6b85', font: { size: 11 } }, grid: { color: '#2a2a3a' } }
-        } : {},
-        ...opts
-      }
-    });
-  }
+  const COLORS = CHART_COLORS;
 
   makeChart('viewsChart', 'bar', {
     labels,
@@ -2663,6 +2731,204 @@ function sourceBadge(masterKey, isAffiliateFlag) {
 }
 
 // ============================================================
+// AOV分解 (ムーンショットの本丸: AOV = 平均商品単価 × 1人あたり点数)
+// ============================================================
+function renderAovBreakdown(sorted) {
+  const cardsEl = document.getElementById('aovCards');
+  if (!cardsEl) return;
+
+  // 期間の購入者数(renderSummaryと同じ月別合算ロジック・購入者ベース統一)
+  const isFullPeriod = !filterFrom && !filterTo;
+  let buyers = 0;
+  if (isFullPeriod) {
+    buyers = customerStats?.totals?.uniqueCustomers || 0;
+  } else {
+    const months = new Set();
+    sorted.forEach(d => {
+      const [yy, mm] = (d.date||'').split(' ')[0].split('/');
+      if (yy && mm) months.add(`${yy}-${String(mm).padStart(2,'0')}`);
+    });
+    months.forEach(mk => { buyers += customerStats?.monthly?.[mk]?.uniqueCustomers || 0; });
+  }
+  const totalSales = sorted.reduce((s,d) => s + (d.sales||0), 0);
+  const totalItems = sorted.reduce((s,d) => s + (d.itemsSold||0), 0);
+  const aov = buyers > 0 ? totalSales / buyers : 0;
+  const ipb = buyers > 0 ? totalItems / buyers : 0;
+  const unitPrice = totalItems > 0 ? totalSales / totalItems : 0;
+
+  // AOV目標: moonshot 当月マイルストーン > 最終目標¥5,000
+  const now = new Date();
+  const nowKey = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+  const targetAov = moonshotTargets?.timeline?.[nowKey]?.aov || 5000;
+  // 「AOV¥5,000に届くには」の逆算: 単価据置なら点数いくつ / 点数据置なら単価いくら
+  const needItems = unitPrice > 0 ? (targetAov / unitPrice) : 0;
+  const needPrice = ipb > 0 ? (targetAov / ipb) : 0;
+
+  // 価格帯分布: products[] から。variantBreakdown(注文CSV実績)優先、無ければ listing の unitPrice(またはimplied)
+  const bandAgg = [
+    { label: '〜¥199',       min: 0,    max: 199,      qty: 0, gmv: 0 },
+    { label: '¥200-499',     min: 200,  max: 499,      qty: 0, gmv: 0 },
+    { label: '¥500-999',     min: 500,  max: 999,      qty: 0, gmv: 0 },
+    { label: '¥1,000-1,999', min: 1000, max: 1999,     qty: 0, gmv: 0 },
+    { label: '¥2,000-4,999', min: 2000, max: 4999,     qty: 0, gmv: 0 },
+    { label: '¥5,000〜',     min: 5000, max: Infinity, qty: 0, gmv: 0 },
+  ];
+  const addToBand = (up, qty, gmv) => {
+    if (!(qty > 0) || !(up > 0)) return;
+    const b = bandAgg.find(b => up >= b.min && up <= b.max);
+    if (b) { b.qty += qty; b.gmv += gmv; }
+  };
+  sorted.forEach(d => (Array.isArray(d.products) ? d.products : []).forEach(p => {
+    if (Array.isArray(p.variantBreakdown) && p.variantBreakdown.length > 0) {
+      p.variantBreakdown.forEach(b => {
+        const q = b.qty ?? b.quantity ?? 0;
+        const up = b.unitPrice || (q > 0 ? (b.subtotalYen||0) / q : 0);
+        addToBand(up, q, b.subtotalYen || 0);
+      });
+    } else if ((p.sold||0) > 0) {
+      addToBand(p.unitPrice || (p.gmv||0) / p.sold, p.sold, p.gmv || 0);
+    }
+  }));
+  const bandQtyTotal = bandAgg.reduce((s,b) => s + b.qty, 0);
+  const bandGmvTotal = bandAgg.reduce((s,b) => s + b.gmv, 0);
+  const over500Qty = bandAgg.slice(2).reduce((s,b) => s + b.qty, 0);
+  const over500Share = bandQtyTotal > 0 ? (over500Qty / bandQtyTotal * 100) : 0;
+
+  const periodLabel = isFullPeriod ? '全期間' : '選択期間';
+  const aovRate = targetAov > 0 ? Math.min(aov / targetAov * 100, 100) : 0;
+  const aovColor = aovRate >= 100 ? 'var(--green)' : aovRate >= 50 ? 'var(--gold)' : 'var(--accent)';
+  const card = (label, val, sub, color='var(--text)') => `
+    <div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:12px 14px">
+      <div style="font-size:11px;color:var(--muted);font-weight:600;margin-bottom:4px">${label}</div>
+      <div style="font-size:20px;font-weight:700;color:${color}">${val}</div>
+      <div style="font-size:10px;color:var(--muted);margin-top:4px;line-height:1.5">${sub}</div>
+    </div>`;
+  cardsEl.innerHTML =
+    card(`💎 AOV (${periodLabel}・購入者ベース)`,
+      buyers > 0 ? '¥' + Math.round(aov).toLocaleString() : '—',
+      buyers > 0 ? `売上¥${totalSales.toLocaleString()} ÷ 購入者${buyers.toLocaleString()}人 / 目標¥${targetAov.toLocaleString()}の${aovRate.toFixed(0)}%` : 'customer-statsに期間データなし',
+      aovColor)
+    + card('🏷 平均商品単価 (売上÷点数)',
+      totalItems > 0 ? '¥' + Math.round(unitPrice).toLocaleString() : '—',
+      `点数${totalItems.toLocaleString()}個。単価据置でAOV¥${targetAov.toLocaleString()}には <strong>${needItems > 0 ? needItems.toFixed(1) : '—'}個/人</strong> 必要`)
+    + card('🧺 1人あたり点数 (items/購入者)',
+      buyers > 0 ? ipb.toFixed(1) + '個' : '—',
+      `点数据置でAOV¥${targetAov.toLocaleString()}には単価 <strong>¥${needPrice > 0 ? Math.round(needPrice).toLocaleString() : '—'}</strong> 必要 (ぞうねこ並 9.4個)`)
+    + card('📊 ¥500以上帯の点数シェア',
+      bandQtyTotal > 0 ? over500Share.toFixed(1) + '%' : '—',
+      `AOV¥5,000化の先行指標。2026/4/27分析では¥200-499帯が66%`,
+      over500Share >= 30 ? 'var(--green)' : 'var(--gold)');
+
+  // AOV推移チャート(購入者ベース per-broadcast。buyers未反映の配信はスキップ=spanGaps)
+  const chronological = [...sorted].reverse();
+  const labels = chronological.map(d => d.date.split(' ')[0]);
+  makeChart('aovTrendChart', 'line', {
+    labels,
+    datasets: [
+      { label: 'AOV (売上÷購入者)', data: chronological.map(d => (d.buyers||0) > 0 ? Math.round((d.sales||0)/d.buyers) : null),
+        borderColor: CHART_COLORS.gold, backgroundColor: CHART_COLORS.gold+'22', borderWidth: 2, tension: 0.3, pointBackgroundColor: CHART_COLORS.gold, pointRadius: 4, spanGaps: true },
+      { label: `目標 ¥${targetAov.toLocaleString()}`, data: chronological.map(() => targetAov),
+        borderColor: CHART_COLORS.purple, borderWidth: 1.5, borderDash: [6,4], pointRadius: 0, fill: false },
+    ]
+  }, { plugins: { legend: { display: true, labels: { color: '#6b6b85', font: { size: 11 } } } } });
+
+  // 価格帯分布チャート
+  makeChart('priceBandChart', 'bar', {
+    labels: bandAgg.map(b => b.label),
+    datasets: [
+      { label: '点数シェア%', data: bandAgg.map(b => bandQtyTotal > 0 ? +(b.qty / bandQtyTotal * 100).toFixed(1) : 0),
+        backgroundColor: CHART_COLORS.teal+'88', borderColor: CHART_COLORS.teal, borderWidth: 2, borderRadius: 6 },
+      { label: 'GMVシェア%', data: bandAgg.map(b => bandGmvTotal > 0 ? +(b.gmv / bandGmvTotal * 100).toFixed(1) : 0),
+        backgroundColor: CHART_COLORS.gold+'88', borderColor: CHART_COLORS.gold, borderWidth: 2, borderRadius: 6 },
+    ]
+  }, { plugins: { legend: { display: true, labels: { color: '#6b6b85', font: { size: 11 } } } } });
+
+  const noteEl = document.getElementById('aovNote');
+  if (noteEl) {
+    noteEl.innerHTML = bandQtyTotal > 0
+      ? `価格帯の内訳(点数): ${bandAgg.filter(b => b.qty > 0).map(b => `${b.label} <strong>${b.qty.toLocaleString()}個</strong>(¥${b.gmv.toLocaleString()})`).join(' / ')}`
+      : 'この期間の商品明細データがありません。';
+  }
+}
+
+// ============================================================
+// 入口商品別リピート分析 (customer-stats.json の entryCohorts を表示)
+// 集計本体は scripts/lib/customer-stats.js (配信登録時 or push-customer-stats.js で更新)
+// ============================================================
+function renderEntryCohorts() {
+  const body = document.getElementById('entryCohortBody');
+  if (!body) return;
+  const ec = customerStats?.entryCohorts;
+  if (!ec || !Array.isArray(ec.cohorts) || ec.cohorts.length === 0) {
+    body.innerHTML = '<div class="empty">入口コホートデータがまだありません。次回のダッシュボード更新(または scripts/push-customer-stats.js の実行)で生成されます。</div>';
+    return;
+  }
+  const overallRepeat = customerStats?.totals?.repeatRate || 0;
+  const shortName = s => { const t = String(s||'').replace(/【[^】]*】/g, '').trim(); return t.length > 24 ? t.slice(0, 24) + '…' : (t || s); };
+
+  let html = `<table>
+    <thead><tr>
+      <th>入口商品 (初回購入)</th>
+      <th class="num-col">人数</th>
+      <th class="num-col" title="この商品で入った顧客のうち2回以上購入した人の割合。全体リピート率(${overallRepeat.toFixed(1)}%)より高い=優秀な集客装置">リピート率</th>
+      <th class="num-col" title="この入口の顧客1人が全期間で使った合計金額の平均">平均LTV</th>
+      <th class="num-col">初回単価</th>
+      <th class="num-col" title="平均LTV ÷ 初回単価。この入口の顧客が初回の何倍まで育つか">LTV倍率</th>
+      <th title="この入口の顧客が2回目の注文で買った商品Top3">次に買うもの</th>
+    </tr></thead><tbody>`;
+  ec.cohorts.forEach(c => {
+    const rateColor = c.repeatRate >= overallRepeat ? 'var(--teal)' : 'var(--muted)';
+    const ltvX = c.avgFirstOrder > 0 ? (c.avgLtv / c.avgFirstOrder) : 0;
+    const nextText = (c.topNextProducts||[]).map(n => `${escapeHtml(shortName(n.product))}(${n.buyers})`).join('、') || '—';
+    html += `<tr>
+      <td title="${escapeHtml(c.entryProduct)}"><span class="sku-tag">${escapeHtml(shortName(c.entryProduct))}</span></td>
+      <td class="num-col" style="font-weight:700">${c.customers.toLocaleString()}</td>
+      <td class="num-col" style="color:${rateColor};font-weight:700">${c.repeatRate.toFixed(1)}% <span style="color:var(--muted);font-size:10px">(${c.repeaters}人)</span></td>
+      <td class="num-col" style="color:var(--gold);font-weight:700">¥${c.avgLtv.toLocaleString()}</td>
+      <td class="num-col">¥${c.avgFirstOrder.toLocaleString()}</td>
+      <td class="num-col" style="color:${ltvX >= 2 ? 'var(--green)' : 'var(--text)'};font-weight:600">${ltvX > 0 ? ltvX.toFixed(1) + '×' : '—'}</td>
+      <td style="font-size:11px;color:var(--muted)">${nextText}</td>
+    </tr>`;
+  });
+  html += '</tbody></table>';
+  html += `<div style="font-size:10px;color:var(--muted);margin-top:8px">全体リピート率 ${overallRepeat.toFixed(1)}% / 3人未満の入口商品は「その他」に集約 / 更新: ${escapeHtml(ec.generatedAt || '')}</div>`;
+  body.innerHTML = html;
+}
+
+// ============================================================
+// 異常値検知 (閲覧時の網): 入力時ガードをすり抜けた/後から壊れたデータに気づくためのチップ
+// ============================================================
+function anomalyFlags(d, sorted, i) {
+  const flags = [];
+  const sales = d.sales || 0;
+  const dt = parseDate(d.date);
+
+  // 1) 粗利率が異常に低い(<5%): 原価誤登録・SALE設定ミスの疑い。
+  //    アフィリ中心の配信は成果報酬5%が正常なので、アフィリGMVが売上の過半なら対象外
+  if (sales >= 1000 && d.profit != null) {
+    let affGmv = 0;
+    (Array.isArray(d.products) ? d.products : []).forEach(p => { if (p.isAffiliate) affGmv += (p.gmv||0); });
+    if (affGmv / sales < 0.5 && d.profit / sales < 0.05) {
+      flags.push(`粗利率${(d.profit / sales * 100).toFixed(1)}%`);
+    }
+  }
+  // 2) 売上ありなのに購入者数ゼロ: 発送くん/retro集計の反映漏れ (自社発送配信のみ対象。アフィリ専用は履歴に載らない)
+  if (sales > 0 && !(d.buyers > 0) && needsShipping(d)) flags.push('購入者数 未反映');
+  // 3) インプ未記録: インプ+入室率は必ず記録するルール (フィールド追加の2026-04-20以降のみ判定)
+  if (!(d.impressions > 0) && dt && dt >= new Date(2026, 3, 20)) flags.push('インプ未記録');
+  // 4) 入室率急落: 直近配信(最大5本)の中央値の半分未満 → シャドウバン・サムネ劣化の早期シグナル
+  const t = tapThroughRate(d);
+  if (t != null) {
+    const prev = sorted.slice(i+1, i+9).map(p => tapThroughRate(p)).filter(v => v != null).slice(0, 5);
+    if (prev.length >= 3) {
+      const med = [...prev].sort((a,b) => a-b)[Math.floor(prev.length / 2)];
+      if (med > 0 && t < med * 0.5) flags.push(`入室率急落 ${t.toFixed(1)}%`);
+    }
+  }
+  return flags;
+}
+
+// ============================================================
 // TABLE
 // ============================================================
 function renderTable(sorted) {
@@ -2672,6 +2938,10 @@ function renderTable(sorted) {
 
   sorted.forEach((d, i) => {
     const isBest = d.totalViews === maxViews;
+    const flags = anomalyFlags(d, sorted, i);
+    const flagsHtml = flags.length
+      ? '<br>' + flags.map(f => `<span style="display:inline-block;background:rgba(254,44,85,.12);color:var(--accent);border:1px solid var(--accent);border-radius:4px;padding:0 5px;font-size:9px;font-weight:700;margin:2px 2px 0 0" title="閲覧時の自動異常検知。データ誤り or 要注意シグナルの可能性">⚠ ${f}</span>`).join('')
+      : '';
     const tr = document.createElement('tr');
     const buyers = d.buyers || 0;
     const itemsSold = d.itemsSold || 0;
@@ -2680,7 +2950,7 @@ function renderTable(sorted) {
     const ipb = buyers > 0 ? (itemsSold/buyers).toFixed(1) : '-';
     const tapRate = tapThroughRate(d);
     tr.innerHTML = `
-      <td class="date">${d.date} ${isBest ? '<span style="color:var(--gold);font-size:10px">★ 最高</span>' : ''}${d.memo ? '<br><span style="color:var(--muted);font-size:10px">' + d.memo + '</span>' : ''}</td>
+      <td class="date">${d.date} ${isBest ? '<span style="color:var(--gold);font-size:10px">★ 最高</span>' : ''}${d.memo ? '<br><span style="color:var(--muted);font-size:10px">' + d.memo + '</span>' : ''}${flagsHtml}</td>
       <td>${d.liveTime || '-'}</td>
       <td class="num">${d.impressions ? d.impressions.toLocaleString() : '-'}</td>
       <td class="num">${(d.totalViews||0).toLocaleString()}</td>
