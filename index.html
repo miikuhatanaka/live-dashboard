@@ -2721,7 +2721,9 @@ function escapeHtml(s) {
 // 入室率(タップスルー率) = 視聴数 ÷ インプレッション。
 // xlsxから取り込んだTikTok公式値(tapThroughRate)を優先し、無ければ totalViews/impressions で算出。
 function tapThroughRate(d) {
-  if (d.tapThroughRate != null && d.tapThroughRate !== '') return Number(d.tapThroughRate);
+  // 保存値0は「インプ未取得時に入った初期値」。インプが埋まった後も0を出し続ける事故があったため、
+  // 0のときは保存値を採用せず視聴÷インプの計算値にフォールバックする。
+  if (d.tapThroughRate != null && d.tapThroughRate !== '' && Number(d.tapThroughRate) > 0) return Number(d.tapThroughRate);
   if ((d.impressions||0) > 0) return (d.totalViews||0) / d.impressions * 100;
   return null;
 }
