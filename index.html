@@ -96,6 +96,10 @@ td.gold-text { color: var(--gold); }
 .detail-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; }
 .detail-block { background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 12px 14px; }
 .detail-block h4 { font-size: 11px; color: var(--accent); text-transform: uppercase; letter-spacing: .5px; margin-bottom: 8px; font-weight: 700; }
+/* メモは一覧表では出さず(ノイズになるため)、詳細を開いた時だけ全文を表示する */
+.memo-mark { font-size: 11px; margin-left: 4px; cursor: help; opacity: .75; }
+.detail-memo { background: var(--bg); border: 1px solid var(--border); border-left: 3px solid var(--gold); border-radius: 8px; padding: 10px 14px; margin-bottom: 12px; font-size: 12px; line-height: 1.6; color: var(--muted); }
+.detail-memo-label { display: block; font-size: 11px; color: var(--gold); font-weight: 700; margin-bottom: 4px; }
 .kv { display: flex; justify-content: space-between; align-items: center; padding: 3px 0; font-size: 12px; }
 .kv .k { color: var(--muted); }
 .kv .v { font-weight: 600; }
@@ -2950,7 +2954,7 @@ function renderTable(sorted) {
     const ipb = buyers > 0 ? (itemsSold/buyers).toFixed(1) : '-';
     const tapRate = tapThroughRate(d);
     tr.innerHTML = `
-      <td class="date">${d.date} ${isBest ? '<span style="color:var(--gold);font-size:10px">★ 最高</span>' : ''}${d.memo ? '<br><span style="color:var(--muted);font-size:10px">' + d.memo + '</span>' : ''}${flagsHtml}</td>
+      <td class="date">${d.date} ${isBest ? '<span style="color:var(--gold);font-size:10px">★ 最高</span>' : ''}${d.memo ? '<span class="memo-mark" title="メモあり（▼詳細で全文表示）">📝</span>' : ''}${flagsHtml}</td>
       <td>${d.liveTime || '-'}</td>
       <td class="num">${d.impressions ? d.impressions.toLocaleString() : '-'}</td>
       <td class="num">${(d.totalViews||0).toLocaleString()}</td>
@@ -2980,6 +2984,7 @@ function renderTable(sorted) {
     dr.id = `detail-${i}`;
     dr.innerHTML = `<td colspan="18">
       <div class="detail-inner">
+        ${d.memo ? `<div class="detail-memo"><span class="detail-memo-label">📝 メモ</span>${escapeHtml(d.memo)}</div>` : ''}
         <div class="detail-grid">
           <div class="detail-block">
             <h4>👁 視聴</h4>
