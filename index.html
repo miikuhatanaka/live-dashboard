@@ -2869,35 +2869,57 @@ function renderEntryCohorts() {
     body.innerHTML = '<div class="empty">入口コホートデータがまだありません。次回のダッシュボード更新(または scripts/push-customer-stats.js の実行)で生成されます。</div>';
     return;
   }
-  const overallRepeat = customerStats?.totals?.repeatRate || 0;
   const shortName = s => { const t = String(s||'').replace(/【[^】]*】/g, '').trim(); return t.length > 24 ? t.slice(0, 24) + '…' : (t || s); };
+  const win = ec.windowDays || 30;
+  const minC = ec.minCustomers || 3;
+  // 判定可能なコホート(窓が閉じた顧客が minC 人以上)だけで基準リピート率を出す。
+  // 累計ベースの全体リピート率と混ぜると、窓ありの率が不当に低く見えるため比較対象を揃える。
+  const judged = ec.cohorts.filter(c => (c.windowCustomers||0) >= minC);
+  const baseRepeat = judged.length
+    ? judged.reduce((s,c) => s + (c.windowRepeaters||0), 0) / judged.reduce((s,c) => s + (c.windowCustomers||0), 0) * 100
+    : 0;
 
   let html = `<table>
     <thead><tr>
       <th>入口商品 (初回購入)</th>
-      <th class="num-col">人数</th>
-      <th class="num-col" title="この商品で入った顧客のうち2回以上購入した人の割合。全体リピート率(${overallRepeat.toFixed(1)}%)より高い=優秀な集客装置">リピート率</th>
-      <th class="num-col" title="この入口の顧客1人が全期間で使った合計金額の平均">平均LTV</th>
+      <th class="num-col" title="この商品を入口に入ってきた顧客の総数(観測期間を問わない)">人数</th>
+      <th class="num-col" title="初回購入からの経過日数の中央値。短いほど「まだ判定材料が少ない新しい入口」">経過日数</th>
+      <th class="num-col" title="初回から${win}日以内に2回目を買った割合。判定基準(${baseRepeat.toFixed(1)}%)より高い=優秀な集客装置">${win}日リピート率</th>
+      <th class="num-col" title="初回から${win}日以内に使った金額の平均。全コホートを同じ${win}日で切り揃えているので、登場時期の新旧に影響されない">${win}日LTV</th>
       <th class="num-col">初回単価</th>
-      <th class="num-col" title="平均LTV ÷ 初回単価。この入口の顧客が初回の何倍まで育つか">LTV倍率</th>
-      <th title="この入口の顧客が2回目の注文で買った商品Top3">次に買うもの</th>
+      <th class="num-col" title="${win}日LTV ÷ 初回単価。この入口の顧客が${win}日で初回の何倍まで育つか">${win}日LTV倍率</th>
+      <th title="この入口の顧客が2回目の注文で買った商品Top3(全期間)">次に買うもの</th>
     </tr></thead><tbody>`;
   ec.cohorts.forEach(c => {
-    const rateColor = c.repeatRate >= overallRepeat ? 'var(--teal)' : 'var(--muted)';
-    const ltvX = c.avgFirstOrder > 0 ? (c.avgLtv / c.avgFirstOrder) : 0;
+    const wc = c.windowCustomers || 0;
     const nextText = (c.topNextProducts||[]).map(n => `${escapeHtml(shortName(n.product))}(${n.buyers})`).join('、') || '—';
-    html += `<tr>
-      <td title="${escapeHtml(c.entryProduct)}"><span class="sku-tag">${escapeHtml(shortName(c.entryProduct))}</span></td>
+    const nameCell = `<td title="${escapeHtml(c.entryProduct)}"><span class="sku-tag">${escapeHtml(shortName(c.entryProduct))}</span></td>
       <td class="num-col" style="font-weight:700">${c.customers.toLocaleString()}</td>
-      <td class="num-col" style="color:${rateColor};font-weight:700">${c.repeatRate.toFixed(1)}% <span style="color:var(--muted);font-size:10px">(${c.repeaters}人)</span></td>
-      <td class="num-col" style="color:var(--gold);font-weight:700">¥${c.avgLtv.toLocaleString()}</td>
-      <td class="num-col">¥${c.avgFirstOrder.toLocaleString()}</td>
+      <td class="num-col" style="color:var(--muted)">${c.medianDaysObserved != null ? c.medianDaysObserved + '日' : '—'}</td>`;
+    if (wc < minC) {
+      // 窓が閉じた顧客が足りない = 新しい入口。1.0倍などと誤って断定せず「判定中」にする。
+      html += `<tr style="opacity:.65">${nameCell}
+        <td class="num-col" colspan="4" style="color:var(--muted);font-size:11px" title="初回から${win}日経過した顧客が${wc}人(必要${minC}人)。時間が経てば判定できます">⏳ 判定中（${win}日経過 ${wc}人）</td>
+        <td style="font-size:11px;color:var(--muted)">${nextText}</td>
+      </tr>`;
+      return;
+    }
+    const ltvX = c.windowFirstOrder > 0 ? (c.windowLtv / c.windowFirstOrder) : 0;
+    const rateColor = c.windowRepeatRate >= baseRepeat ? 'var(--teal)' : 'var(--muted)';
+    html += `<tr>${nameCell}
+      <td class="num-col" style="color:${rateColor};font-weight:700">${c.windowRepeatRate.toFixed(1)}% <span style="color:var(--muted);font-size:10px">(${c.windowRepeaters}/${wc}人)</span></td>
+      <td class="num-col" style="color:var(--gold);font-weight:700" title="全期間の累計LTVは ¥${(c.avgLtv||0).toLocaleString()}（観測期間が長い入口ほど積み上がるため比較には使わない）">¥${c.windowLtv.toLocaleString()}</td>
+      <td class="num-col">¥${c.windowFirstOrder.toLocaleString()}</td>
       <td class="num-col" style="color:${ltvX >= 2 ? 'var(--green)' : 'var(--text)'};font-weight:600">${ltvX > 0 ? ltvX.toFixed(1) + '×' : '—'}</td>
       <td style="font-size:11px;color:var(--muted)">${nextText}</td>
     </tr>`;
   });
   html += '</tbody></table>';
-  html += `<div style="font-size:10px;color:var(--muted);margin-top:8px">全体リピート率 ${overallRepeat.toFixed(1)}% / 3人未満の入口商品は「その他」に集約 / 更新: ${escapeHtml(ec.generatedAt || '')}</div>`;
+  html += `<div style="font-size:10px;color:var(--muted);margin-top:8px">
+    全コホートを「初回購入から${win}日」で切り揃えて比較（${win}日経っていない顧客は集計対象外）。
+    累計LTVで比べると古い入口ほど期間が長いぶん積み上がり、新商品が不当に低く出るため。
+    判定基準リピート率 ${baseRepeat.toFixed(1)}%（判定可能な${judged.length}コホートの加重平均） /
+    ${minC}人未満の入口商品は「その他」に集約 / 更新: ${escapeHtml(ec.generatedAt || '')}</div>`;
   body.innerHTML = html;
 }
 
