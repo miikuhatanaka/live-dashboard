@@ -1476,6 +1476,36 @@ async function getGistFileContent(file) {
   return file.content;
 }
 
+// Gist の raw(gist.githubusercontent.com)から各ファイルを直読みする読み取り専用ルート。
+// GitHub REST API の 60回/時(未認証)レート制限の対象外なので、トークン無しでも止まらない。
+// 公開版の通常ルートであり、ローカル版でもトークンが無い/切れた時のフォールバックに使う。
+async function loadViaRaw(gistId) {
+  const rawBase = `https://gist.githubusercontent.com/${GIST_OWNER}/${gistId}/raw`;
+  const bust = `?t=${Date.now()}`;
+  const getRaw = async (fn, required) => {
+    const r = await fetch(`${rawBase}/${fn}${bust}`, { cache: 'no-store' });
+    if (r.status === 404) { if (required) throw new Error(`${fn} が見つかりません。`); return null; }
+    if (!r.ok) throw new Error(`Gist raw 取得失敗(${fn}): ${r.status}`);
+    return await r.text();
+  };
+  const parsed = JSON.parse(await getRaw('data.json', true));
+  if (!Array.isArray(parsed)) throw new Error('data.json の形式が正しくありません。');
+  const statsTxt = await getRaw('customer-stats.json', false);
+  if (statsTxt) { try { customerStats = JSON.parse(statsTxt); } catch (e) { console.warn('customer-stats.json parse error', e); } }
+  const planTxt = await getRaw('business-plan-targets.json', false);
+  if (planTxt) { try { businessPlan = JSON.parse(planTxt); } catch (e) { console.warn('business-plan-targets.json parse error', e); } }
+  const moonTxt = await getRaw('moonshot-targets.json', false);
+  if (moonTxt) { try { moonshotTargets = JSON.parse(moonTxt); } catch (e) { console.warn('moonshot-targets.json parse error', e); } }
+  // 年次アーカイブ(data-YYYY.json)をマージ読み。rawはファイル一覧が取れないため過去年を順にプローブ(404=無し)
+  const arch = [];
+  for (let yy = 2026; yy < new Date().getFullYear(); yy++) {
+    const archTxt = await getRaw(`data-${yy}.json`, false);
+    if (archTxt) { try { const a = JSON.parse(archTxt); if (Array.isArray(a)) arch.push(...a); } catch (e) { console.warn(`data-${yy}.json parse error`, e); } }
+  }
+  archivedData = arch;
+  return parsed;
+}
+
 async function loadFromGist() {
   const { gistId, pat } = getGistConfig();
   if (!gistId) { setSyncStatus('idle'); return null; }
@@ -1483,41 +1513,28 @@ async function loadFromGist() {
   setSyncStatus('syncing');
   try {
     let parsed;
-    if (IS_PUBLIC_DEPLOY) {
-      // 公開版: GitHub REST API(未認証は60回/時でレート制限に達する)ではなく、
-      // Gist の raw(gist.githubusercontent.com)から各ファイルを直読みする。rawはこの
-      // レート制限の対象外なので、トークン無しでも制限に達しない。
-      const rawBase = `https://gist.githubusercontent.com/${GIST_OWNER}/${gistId}/raw`;
-      const bust = `?t=${Date.now()}`;
-      const getRaw = async (fn, required) => {
-        const r = await fetch(`${rawBase}/${fn}${bust}`, { cache: 'no-store' });
-        if (r.status === 404) { if (required) throw new Error(`${fn} が見つかりません。`); return null; }
-        if (!r.ok) throw new Error(`Gist raw 取得失敗(${fn}): ${r.status}`);
-        return await r.text();
-      };
-      parsed = JSON.parse(await getRaw('data.json', true));
-      if (!Array.isArray(parsed)) throw new Error('data.json の形式が正しくありません。');
-      const statsTxt = await getRaw('customer-stats.json', false);
-      if (statsTxt) { try { customerStats = JSON.parse(statsTxt); } catch (e) { console.warn('customer-stats.json parse error', e); } }
-      const planTxt = await getRaw('business-plan-targets.json', false);
-      if (planTxt) { try { businessPlan = JSON.parse(planTxt); } catch (e) { console.warn('business-plan-targets.json parse error', e); } }
-      const moonTxt = await getRaw('moonshot-targets.json', false);
-      if (moonTxt) { try { moonshotTargets = JSON.parse(moonTxt); } catch (e) { console.warn('moonshot-targets.json parse error', e); } }
-      // 年次アーカイブ(data-YYYY.json)をマージ読み。rawはファイル一覧が取れないため過去年を順にプローブ(404=無し)
-      const arch = [];
-      for (let yy = 2026; yy < new Date().getFullYear(); yy++) {
-        const archTxt = await getRaw(`data-${yy}.json`, false);
-        if (archTxt) { try { const a = JSON.parse(archTxt); if (Array.isArray(a)) arch.push(...a); } catch (e) { console.warn(`data-${yy}.json parse error`, e); } }
-      }
-      archivedData = arch;
+    // トークンが無い場合は最初からrawで読む(未認証APIは60回/時で必ず詰まるため)
+    if (IS_PUBLIC_DEPLOY || !pat) {
+      parsed = await loadViaRaw(gistId);
     } else {
       // ローカル/オーナー編集: API経由(PATで5000回/時・編集も可能)
-      const headers = { 'Accept': 'application/vnd.github+json' };
-      if (pat) headers['Authorization'] = `Bearer ${pat}`;
+      const headers = { 'Accept': 'application/vnd.github+json', 'Authorization': `Bearer ${pat}` };
 
       const res = await fetch(`https://api.github.com/gists/${gistId}`, { headers, cache: 'no-store' });
       if (res.status === 404) throw new Error('Gist が見つかりません。Gist IDを確認してください。');
-      if (res.status === 403) throw new Error('GitHub APIのレート制限に達しました。GitHubトークンを設定すると解決します。');
+      if (res.status === 401 || res.status === 403) {
+        // トークン切れ/失効・レート制限。閲覧だけは続けられるようrawへ退避する。
+        // (書き込みは依然としてトークンが要るので、設定し直すよう促す)
+        console.warn('GitHub API 認証エラー', res.status, '→ raw読み取りにフォールバック');
+        showToast(res.status === 401
+          ? 'GitHubトークンが無効です（期限切れの可能性）。閲覧は続けられますが、保存するには⚙️設定でトークンを入れ直してください。'
+          : 'GitHub APIのレート制限に達しました。閲覧は続けられます。保存するには⚙️設定でトークンを入れ直してください。', 'error');
+        parsed = await loadViaRaw(gistId);
+        saveDataLocal(parsed);
+        try { localStorage.setItem(ARCHIVE_STORAGE_KEY, JSON.stringify(archivedData)); } catch {}
+        setSyncStatus('error', res.status === 401 ? 'トークン無効(閲覧のみ)' : 'レート制限(閲覧のみ)');
+        return parsed;
+      }
       if (!res.ok) throw new Error(`GitHub API エラー: ${res.status}`);
 
       const gistData = await res.json();
