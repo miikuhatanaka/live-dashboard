@@ -330,6 +330,9 @@ td.gold-text { color: var(--gold); }
     <span>〜</span>
     <input type="date" id="dateTo" onchange="applyDateFilter()">
   </div>
+  <select id="accountFilter" onchange="applyAccountFilter()" title="配信の帰属アカウントで絞り込み(3アカ体制・2026-08-04〜)" style="background:var(--s2);border:1px solid var(--border);color:var(--text);padding:5px 10px;border-radius:8px;font-size:12px;font-family:inherit;outline:none;">
+    <option value="">全アカウント</option>
+  </select>
   <span class="filter-info" id="filterInfo"></span>
 </div>
 
@@ -345,6 +348,16 @@ td.gold-text { color: var(--gold); }
     </div>
   </div>
   <div class="kpi-grid" id="kpiGrid"></div>
+</div>
+
+<!-- 3Q KR1: アカウント別 同接100以上 (デフォルト表示、トグルボタンで開閉) -->
+<div class="prod-summary-card" style="border-color:var(--teal)">
+  <h2 style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap">
+    <span>🎯 3Q KR1: アカウント別 同接100以上</span>
+    <button class="btn btn-outline btn-sm" onclick="toggleAccountKR1()" id="accountKR1Toggle" style="font-weight:600">▲ 閉じる</button>
+  </h2>
+  <div class="sub">ピーク同接100以上の配信が全配信の45%以上を占めるアカウントを3つ稼働 (3Q OKR / 2026年8〜10月)</div>
+  <div id="accountKR1Body" style="margin-top:14px"></div>
 </div>
 
 <!-- ムーンショット数値対比(デフォルト非表示、トグルボタンで開閉) -->
@@ -720,6 +733,10 @@ td.gold-text { color: var(--gold); }
       <div class="form-group">
         <label>LIVE時間</label>
         <input type="text" id="f_liveTime" placeholder="例: 1時間30分" />
+      </div>
+      <div class="form-group">
+        <label>アカウント</label>
+        <input type="text" id="f_account" placeholder="いまポチch" />
       </div>
       <div class="form-group">
         <label>メモ（商品名など）</label>
@@ -1320,6 +1337,13 @@ let editingId = null;
 let charts = {};
 let filterFrom = null;
 let filterTo = null;
+// アカウントフィルタ (3アカ体制・2026-08-04〜)。null = 全アカウント
+let filterAccount = null;
+const NO_ACCOUNT_LABEL = '(未設定)';
+// account 未設定/空文字のエントリ(2026-08-04以前の旧データ・アーカイブ)は「(未設定)」に寄せる
+function accountOf(d) {
+  return (d && d.account && String(d.account).trim()) || NO_ACCOUNT_LABEL;
+}
 let isOwnerMode = false;
 let gistSyncTimer = null;
 
@@ -1393,14 +1417,38 @@ function applyDateFilter() {
 
 function getFilteredData() {
   const all = getAllData();
-  if (!filterFrom && !filterTo) return all;
+  if (!filterFrom && !filterTo && !filterAccount) return all;
   return all.filter(d => {
+    if (filterAccount && accountOf(d) !== filterAccount) return false;
+    if (!filterFrom && !filterTo) return true;
     const dt = parseDate(d.date);
     if (!dt) return false;
     if (filterFrom && dt < filterFrom) return false;
     if (filterTo   && dt > filterTo)   return false;
     return true;
   });
+}
+
+function applyAccountFilter() {
+  const el = document.getElementById('accountFilter');
+  filterAccount = (el && el.value) ? el.value : null;
+  renderAll();
+}
+
+// データ中の distinct account から選択肢を作り直す。現在の選択値は維持する。
+function rebuildAccountFilterOptions() {
+  const sel = document.getElementById('accountFilter');
+  if (!sel) return;
+  const names = Array.from(new Set(getAllData().map(accountOf))).sort((a, b) => {
+    if (a === NO_ACCOUNT_LABEL) return 1;   // 「(未設定)」は末尾
+    if (b === NO_ACCOUNT_LABEL) return -1;
+    return a.localeCompare(b, 'ja');
+  });
+  // 選択中アカウントがデータから消えた場合はフィルタ解除(空表示で固まるのを防ぐ)
+  if (filterAccount && names.indexOf(filterAccount) === -1) filterAccount = null;
+  sel.innerHTML = '<option value="">全アカウント</option>' +
+    names.map(n => `<option value="${escapeHtml(n)}">${escapeHtml(n)}</option>`).join('');
+  sel.value = filterAccount || '';
 }
 
 // ============================================================
@@ -1706,6 +1754,7 @@ let extraRev = { sales: 0, profit: 0, count: 0 };
 
 function renderAll() {
   rebuildAffiliateKeys();  // products[].isAffiliate からアフィリ判定セットを再構築(ハードコード撤廃)
+  rebuildAccountFilterOptions();  // アカウントフィルタの選択肢を再構築(選択値は維持)
   const filtered = getFilteredData();
   const sortedAll = [...filtered].sort((a,b) => parseDate(b.date) - parseDate(a.date));
   // nonBroadcast(動画アフィリ等)は配信集計から除外。金額のみ extraRev で月合計・目標に反映。
@@ -1719,6 +1768,7 @@ function renderAll() {
   renderCustomerStats();
   renderSummary(sorted);
   renderKPI(sorted);
+  renderAccountKR1(sorted);
   renderCharts(sorted);
   renderProductSummary(sorted);
   renderAovBreakdown(sorted);
@@ -2052,6 +2102,100 @@ async function handleScreenshot(event) {
 
 // ============================================================
 // SUMMARY
+// ============================================================
+// 3Q KR1: アカウント別 同接100以上 (2026-08-04〜)
+// KR1 = ピーク同接100以上の配信が全配信の45%以上を占めるアカウントを3つ稼働
+// ============================================================
+const KR1_PEAK_THRESHOLD = 100;
+const KR1_RATIO_TARGET = 0.45;
+
+function toggleAccountKR1() {
+  const body = document.getElementById('accountKR1Body');
+  const btn = document.getElementById('accountKR1Toggle');
+  if (!body || !btn) return;
+  const isOpen = body.style.display !== 'none';
+  if (isOpen) {
+    body.style.display = 'none';
+    btn.textContent = '▼ 開く';
+  } else {
+    body.style.display = 'block';
+    btn.textContent = '▲ 閉じる';
+  }
+}
+
+function renderAccountKR1(sorted) {
+  const body = document.getElementById('accountKR1Body');
+  if (!body) return;
+
+  // 配信外エントリ(動画アフィリ/オーガニック)は KR1 の分母に入れない。
+  // renderAll() 側で除外済みだが、他所から呼ばれても壊れないよう二重に弾く。
+  const broadcasts = (sorted || []).filter(d => !d.nonBroadcast && d.entryType !== 'nonBroadcast');
+
+  if (!broadcasts.length) {
+    body.innerHTML = '<div class="empty">対象期間に配信がありません</div>';
+    return;
+  }
+
+  const agg = {};
+  broadcasts.forEach(d => {
+    const name = accountOf(d);
+    if (!agg[name]) agg[name] = { name, lives: 0, hits: 0, unrecorded: 0 };
+    agg[name].lives++;
+    const peak = d.peakConcurrent || 0;
+    if (peak >= KR1_PEAK_THRESHOLD) agg[name].hits++;
+    if (!peak) agg[name].unrecorded++;   // 同接未記録(0/null)は100未満として分母に残す
+  });
+
+  const rows = Object.values(agg).sort((a, b) => {
+    const ra = a.hits / a.lives, rb = b.hits / b.lives;
+    if (rb !== ra) return rb - ra;
+    return b.lives - a.lives;
+  });
+
+  const achieved = rows.filter(r => r.hits / r.lives >= KR1_RATIO_TARGET).length;
+
+  const trs = rows.map(r => {
+    const ratio = r.hits / r.lives;
+    const ok = ratio >= KR1_RATIO_TARGET;
+    const gapPt = ((KR1_RATIO_TARGET - ratio) * 100).toFixed(1);
+    const status = ok
+      ? '<span style="color:var(--green);font-weight:700">✅ 達成</span>'
+      : `<span style="color:var(--accent);font-weight:700">45%まであと${gapPt} pt</span>`;
+    const unrec = r.unrecorded > 0
+      ? `<span style="color:var(--gold)" title="peakConcurrent が未入力(0)の配信。100未満として分母に含めています">⚠️ ${r.unrecorded}件</span>`
+      : '<span style="color:var(--muted)">—</span>';
+    return `<tr>
+      <td>${escapeHtml(r.name)}</td>
+      <td class="num-col">${r.lives}</td>
+      <td class="num-col">${r.hits}</td>
+      <td class="num-col" style="color:${ok ? 'var(--green)' : 'var(--text)'}">${(ratio * 100).toFixed(1)}%</td>
+      <td>${status}</td>
+      <td class="num-col">${unrec}</td>
+    </tr>`;
+  }).join('');
+
+  body.innerHTML = `
+    <div style="font-size:12px;color:var(--muted);margin-bottom:10px">
+      45%達成アカウント <strong style="color:${achieved >= 3 ? 'var(--green)' : 'var(--text)'};font-size:14px">${achieved}</strong> / 3
+    </div>
+    <table>
+      <thead>
+        <tr>
+          <th>アカウント</th>
+          <th class="num-col">配信数</th>
+          <th class="num-col">同接${KR1_PEAK_THRESHOLD}以上</th>
+          <th class="num-col">比率</th>
+          <th>KR1目標45% 達成状況</th>
+          <th class="num-col">同接未記録</th>
+        </tr>
+      </thead>
+      <tbody>${trs}</tbody>
+    </table>
+    <div style="font-size:11px;color:var(--muted);margin-top:10px;line-height:1.6">
+      3Qの正式判定は期間フィルタを 2026/8/1〜10/31 にして確認。同接未記録(0)は100未満として分母に含まれます。
+    </div>`;
+}
+
 // ============================================================
 // ============================================================
 // MOONSHOT COMPARISON
@@ -2948,15 +3092,9 @@ function anomalyFlags(d, sorted, i) {
   const sales = d.sales || 0;
   const dt = parseDate(d.date);
 
-  // 1) 粗利率が異常に低い(<5%): 原価誤登録・SALE設定ミスの疑い。
-  //    アフィリ中心の配信は成果報酬5%が正常なので、アフィリGMVが売上の過半なら対象外
-  if (sales >= 1000 && d.profit != null) {
-    let affGmv = 0;
-    (Array.isArray(d.products) ? d.products : []).forEach(p => { if (p.isAffiliate) affGmv += (p.gmv||0); });
-    if (affGmv / sales < 0.5 && d.profit / sales < 0.05) {
-      flags.push(`粗利率${(d.profit / sales * 100).toFixed(1)}%`);
-    }
-  }
+  // 1) 粗利率フラグは廃止 (2026-08-30 社長指示)。
+  //    お米のように意図して赤字で売る配信で毎回出るだけで、異常の合図として働かなかった。
+  //    原価の誤登録は登録時の patch-broadcast-gist.py 側チェックで止める。
   // 2) 売上ありなのに購入者数ゼロ: 発送くん/retro集計の反映漏れ (自社発送配信のみ対象。アフィリ専用は履歴に載らない)
   if (sales > 0 && !(d.buyers > 0) && needsShipping(d)) flags.push('購入者数 未反映');
   // 3) インプ未記録: インプ+入室率は必ず記録するルール (フィールド追加の2026-04-20以降のみ判定)
@@ -2976,6 +3114,13 @@ function anomalyFlags(d, sorted, i) {
 // ============================================================
 // TABLE
 // ============================================================
+// 配信の帰属アカウントを配信日時セルに併記(未設定なら何も出さない・列は増やさない)
+function accountBadgeHtml(d) {
+  const name = d && d.account && String(d.account).trim();
+  if (!name) return '';
+  return `<span title="帰属アカウント" style="display:inline-block;background:var(--s2);border:1px solid var(--border);color:var(--muted);border-radius:4px;padding:0 5px;font-size:9px;font-weight:600;margin-left:4px;vertical-align:middle">${escapeHtml(name)}</span>`;
+}
+
 function renderTable(sorted) {
   const tbody = document.getElementById('liveTableBody');
   tbody.innerHTML = '';
@@ -2995,7 +3140,7 @@ function renderTable(sorted) {
     const ipb = buyers > 0 ? (itemsSold/buyers).toFixed(1) : '-';
     const tapRate = tapThroughRate(d);
     tr.innerHTML = `
-      <td class="date">${d.date} ${isBest ? '<span style="color:var(--gold);font-size:10px">★ 最高</span>' : ''}${d.memo ? '<span class="memo-mark" title="メモあり（▼詳細で全文表示）">📝</span>' : ''}${flagsHtml}</td>
+      <td class="date">${d.date} ${isBest ? '<span style="color:var(--gold);font-size:10px">★ 最高</span>' : ''}${d.memo ? '<span class="memo-mark" title="メモあり（▼詳細で全文表示）">📝</span>' : ''}${accountBadgeHtml(d)}${flagsHtml}</td>
       <td>${d.liveTime || '-'}</td>
       <td class="num">${d.impressions ? d.impressions.toLocaleString() : '-'}</td>
       <td class="num">${(d.totalViews||0).toLocaleString()}</td>
@@ -3252,7 +3397,7 @@ function closeModal(id) {
   document.getElementById(id).classList.remove('open');
 }
 
-const FORM_FIELDS = ['date','liveTime','memo','totalViews','uniqueViewers','activeViewers',
+const FORM_FIELDS = ['date','liveTime','account','memo','totalViews','uniqueViewers','activeViewers',
   'peakConcurrent','avgWatchTime','likes','comments','shares','gifters','trafficLive',
   'trafficOther','newFollowers','followerAvgTime','followerUnique','commenters',
   'diamonds','estimatedUSD','sales','purchases','profit','packageCount'];
