@@ -938,6 +938,26 @@ const FEE_CATEGORY_RULES = {
     { prefix: 'YN-HOODIE-',    category: 'レディースファッション・インナー', rate: 0.12 },
     { prefix: 'YN-SKIRT-',     category: 'レディースファッション・インナー', rate: 0.12 },
     { prefix: 'YN-TSHIRT-',    category: 'レディースファッション・インナー', rate: 0.12 },
+    { prefix: 'YN-RICE-',      category: '食品・ドリンク',             rate: 0.07 },
+    { prefix: 'YN-FOOD-',      category: '食品・ドリンク',             rate: 0.07 },
+    // 健康(サプリ) 10% ※YN-FOOD- より長いprefixで上書き
+    { prefix: 'YN-FOOD-COLLAGEN-', category: '健康',                   rate: 0.10 },
+    { prefix: 'YN-FOOD-LUTEIN-',   category: '健康',                   rate: 0.10 },
+    // 美容・パーソナルケア 10%（美容家電のみ例外7%）
+    { prefix: 'YN-COS-',       category: '美容・パーソナルケア',       rate: 0.10 },
+    { prefix: 'YN-SERUM-',     category: '美容・パーソナルケア',       rate: 0.10 },
+    { prefix: 'YN-MASK-',      category: '美容・パーソナルケア',       rate: 0.10 },
+    { prefix: 'YN-CLEANSING-', category: '美容・パーソナルケア',       rate: 0.10 },
+    { prefix: 'YN-HANDCREAM-', category: '美容・パーソナルケア',       rate: 0.10 },
+    { prefix: 'YN-BODY-',      category: '美容・パーソナルケア',       rate: 0.10 },
+    { prefix: 'YN-TOOL-',      category: '美容・パーソナルケア',       rate: 0.10 },
+    { prefix: 'YN-SHAVER-',    category: '美容・パーソナルケア(美容家電)', rate: 0.07 },
+    // 日用雑貨・キッチン用品 9%（ティッシュ等は例外7%）
+    { prefix: 'YN-COOL-',      category: '日用雑貨',                   rate: 0.09 },
+    { prefix: 'YN-TUMBLER-',   category: 'キッチン用品',               rate: 0.09 },
+    { prefix: 'YN-TISSUE-',    category: '日用雑貨(ティッシュ)',       rate: 0.07 },
+    // スポーツ・アウトドア 10%
+    { prefix: 'YN-BOTTLE-',    category: 'スポーツ・アウトドア',       rate: 0.10 },
     // ファッション小物 12%
     { prefix: 'YN-ARM-',       category: 'ファッション小物', rate: 0.12 },
     { prefix: 'YN-BROOCH-',    category: 'ファッション小物', rate: 0.12 },
