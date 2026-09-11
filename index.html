@@ -391,10 +391,7 @@ td.gold-text { color: var(--gold); }
         <th>視聴数</th>
         <th title="入室率 = 視聴数 ÷ インプレッション。露出された人のうち何%が実際に入室したか(TikTok公式タップスルー率)。サムネ・冒頭の引きの強さの指標">入室率 <span style="color:var(--muted);font-size:9px;font-weight:400">(視聴÷インプ)</span></th>
         <th>最高同時</th>
-        <th>いいね</th>
         <th>コメント</th>
-        <th>新規フォロワー</th>
-        <th>ダイヤ</th>
         <th style="border-left:2px solid var(--border)" title="💎マーク = セラー側売上(SKU元価格−セラー割引)。2026/4/27〜の新算定方式。マークなし = Live Centerからのパース値(従来方式)">売上 <span style="color:var(--muted);font-size:9px;font-weight:400">(💎=新算定)</span></th>
         <th title="ユニーク購入者数(同一username×phoneでマージ)。1人が2回注文しても1カウント。customer-history.jsonから配信窓(start〜end+6h)でretro集計">購入者数</th>
         <th title="AOV (per-buyer) = 売上÷購入者数。ぞうねこ27チャレ並天井 ¥6,621">AOV <span style="color:var(--muted);font-size:9px;font-weight:400">(売上÷購入者)</span></th>
@@ -3166,10 +3163,7 @@ function renderTable(sorted) {
       <td class="num">${(d.totalViews||0).toLocaleString()}</td>
       <td class="num" style="color:var(--teal);font-weight:700">${tapRate != null ? tapRate.toFixed(1)+'%' : '-'}</td>
       <td class="num">${(d.peakConcurrent||0).toLocaleString()}</td>
-      <td class="highlight">${(d.likes||0).toLocaleString()}</td>
       <td>${d.comments||0}</td>
-      <td style="color:var(--green);font-weight:700">+${d.newFollowers||0}</td>
-      <td class="gold-text">💎${d.diamonds||0}</td>
       <td style="color:var(--green);font-weight:700;border-left:2px solid var(--border)">${d.sales ? '¥'+d.sales.toLocaleString() : '-'}${d.salesCalcMethod === 'sellerSide' ? ' <span title="セラー側売上(SKU元価格−セラー割引)。TikTokクーポン負担分は含む。" style="color:var(--teal);font-size:10px;font-weight:600;margin-left:2px">💎</span>' : ''}</td>
       <td style="font-weight:700" title="購入者数(buyer): customer-history.json retro 集計。1人が複数注文しても1。注文数=${d.orders||0} / 商品個数=${itemsSold}">${buyers}</td>
       <td style="color:var(--gold);font-weight:700">${aov > 0 ? '¥'+aov.toLocaleString() : '-'}</td>
@@ -3188,7 +3182,7 @@ function renderTable(sorted) {
     const dr = document.createElement('tr');
     dr.className = 'detail-row';
     dr.id = `detail-${i}`;
-    dr.innerHTML = `<td colspan="18">
+    dr.innerHTML = `<td colspan="15">
       <div class="detail-inner">
         ${d.memo ? `<div class="detail-memo"><span class="detail-memo-label">📝 メモ</span>${escapeHtml(d.memo)}</div>` : ''}
         <div class="detail-grid">
