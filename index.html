@@ -3287,10 +3287,7 @@ function renderTable(sorted) {
   if (sorted.length > 0) {
     const sumViews = sorted.reduce((s,d) => s + (d.totalViews||0), 0);
     const avgPeak = Math.round(sorted.reduce((s,d) => s + (d.peakConcurrent||0), 0) / sorted.length);
-    const sumLikes = sorted.reduce((s,d) => s + (d.likes||0), 0);
     const sumComments = sorted.reduce((s,d) => s + (d.comments||0), 0);
-    const sumFollowers = sorted.reduce((s,d) => s + (d.newFollowers||0), 0);
-    const sumDiamonds = sorted.reduce((s,d) => s + (d.diamonds||0), 0);
     const sumSales = sorted.reduce((s,d) => s + (d.sales||0), 0);
     const sumPurchases = sorted.reduce((s,d) => s + (d.purchases||0), 0);
     const sumActive = sorted.reduce((s,d) => s + (d.activeViewers||0), 0);
@@ -3328,10 +3325,7 @@ function renderTable(sorted) {
       <td class="num" style="font-weight:700">${sumViews.toLocaleString()}</td>
       <td class="num" style="color:var(--teal);font-weight:700" title="加重平均入室率 = Σ視聴 ÷ Σインプ × 100">${avgTap != null ? avgTap.toFixed(1)+'%' : '-'}</td>
       <td class="num" style="font-weight:700">⌀${avgPeak.toLocaleString()}</td>
-      <td style="font-weight:700">${sumLikes.toLocaleString()}</td>
       <td style="font-weight:700">${sumComments.toLocaleString()}</td>
-      <td style="color:var(--green);font-weight:700">+${sumFollowers.toLocaleString()}</td>
-      <td class="gold-text" style="font-weight:700">💎${sumDiamonds.toLocaleString()}</td>
       <td style="color:var(--green);font-weight:700;border-left:2px solid var(--border)">¥${sumSales.toLocaleString()}</td>
       <td style="color:var(--teal);font-weight:700" title="${isFullPeriodTotal ? '累計ユニーク購入者数 (customer-stats.totals.uniqueCustomers)。リピーターは1人。ぞうねこ27チャレ 2,075人と直接比較可能' : '期間内ユニーク購入者数 (月別合算、月跨ぎリピーターは重複)'}">${ucForTotal.toLocaleString()}</td>
       <td style="color:var(--gold);font-weight:700" title="${isFullPeriodTotal ? '累計AOV=累計売上÷累計購入者(unique buyer)。ぞうねこ並天井 ¥6,621' : '期間AOV=期間売上÷期間内ユニーク購入者'}">${totalAov > 0 ? '¥'+totalAov.toLocaleString() : '-'}</td>
