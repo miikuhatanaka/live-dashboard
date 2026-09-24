@@ -347,6 +347,9 @@ td.gold-text { color: var(--gold); }
   <select id="accountFilter" onchange="applyAccountFilter()" title="配信の帰属アカウントで絞り込み(3アカ体制・2026-08-04〜)" style="background:var(--s2);border:1px solid var(--border);color:var(--text);padding:5px 10px;border-radius:8px;font-size:12px;font-family:inherit;outline:none;">
     <option value="">全アカウント</option>
   </select>
+  <select id="performerFilter" onchange="applyPerformerFilter()" title="配信した担当者で絞り込み(2026-09-24〜)。サマリー・重要指標もこの担当者の数字に切り替わる" style="background:var(--s2);border:1px solid var(--border);color:var(--text);padding:5px 10px;border-radius:8px;font-size:12px;font-family:inherit;outline:none;">
+    <option value="">全担当</option>
+  </select>
   <span class="filter-info" id="filterInfo"></span>
 </div>
 
@@ -408,6 +411,7 @@ td.gold-text { color: var(--gold); }
       <tr>
         <th>配信日時</th>
         <th>アカウント</th>
+        <th title="配信した担当者。Googleカレンダーの枠で特定して入れている(2026-09-24〜)。空欄=未特定">担当</th>
         <th>LIVE時間</th>
         <th title="LIVEや商品がフィード等に表示された回数。露出のボリューム。配信を見てもらう入口の総量">インプ <span style="color:var(--muted);font-size:9px;font-weight:400">(露出)</span></th>
         <th>視聴数</th>
@@ -756,6 +760,10 @@ td.gold-text { color: var(--gold); }
       <div class="form-group">
         <label>アカウント</label>
         <input type="text" id="f_account" placeholder="いまポチch" />
+      </div>
+      <div class="form-group">
+        <label>担当（配信した人）</label>
+        <input type="text" id="f_performer" placeholder="社長 / 天野さん / 松本さん" />
       </div>
       <div class="form-group">
         <label>メモ（商品名など）</label>
@@ -1383,6 +1391,12 @@ const NO_ACCOUNT_LABEL = '(未設定)';
 function accountOf(d) {
   return (d && d.account && String(d.account).trim()) || NO_ACCOUNT_LABEL;
 }
+// 担当者フィルタ (2026-09-24〜)。null = 全担当。誰の配信かはGoogleカレンダーの枠で特定して入れる
+let filterPerformer = null;
+const NO_PERFORMER_LABEL = '(未特定)';
+function performerOf(d) {
+  return (d && d.performer && String(d.performer).trim()) || NO_PERFORMER_LABEL;
+}
 let isOwnerMode = false;
 let gistSyncTimer = null;
 
@@ -1456,9 +1470,10 @@ function applyDateFilter() {
 
 function getFilteredData() {
   const all = getAllData();
-  if (!filterFrom && !filterTo && !filterAccount) return all;
+  if (!filterFrom && !filterTo && !filterAccount && !filterPerformer) return all;
   return all.filter(d => {
     if (filterAccount && accountOf(d) !== filterAccount) return false;
+    if (filterPerformer && performerOf(d) !== filterPerformer) return false;
     if (!filterFrom && !filterTo) return true;
     const dt = parseDate(d.date);
     if (!dt) return false;
@@ -1472,6 +1487,27 @@ function applyAccountFilter() {
   const el = document.getElementById('accountFilter');
   filterAccount = (el && el.value) ? el.value : null;
   renderAll();
+}
+
+function applyPerformerFilter() {
+  const el = document.getElementById('performerFilter');
+  filterPerformer = (el && el.value) ? el.value : null;
+  renderAll();
+}
+
+// データ中の distinct performer から選択肢を作り直す。現在の選択値は維持する。
+function rebuildPerformerFilterOptions() {
+  const sel = document.getElementById('performerFilter');
+  if (!sel) return;
+  const names = Array.from(new Set(getAllData().map(performerOf))).sort((a, b) => {
+    if (a === NO_PERFORMER_LABEL) return 1;   // 「(未特定)」は末尾
+    if (b === NO_PERFORMER_LABEL) return -1;
+    return a.localeCompare(b, 'ja');
+  });
+  if (filterPerformer && names.indexOf(filterPerformer) === -1) filterPerformer = null;
+  sel.innerHTML = '<option value="">全担当</option>' +
+    names.map(n => `<option value="${escapeHtml(n)}">${escapeHtml(n)}</option>`).join('');
+  sel.value = filterPerformer || '';
 }
 
 // データ中の distinct account から選択肢を作り直す。現在の選択値は維持する。
@@ -1794,6 +1830,7 @@ let extraRev = { sales: 0, profit: 0, count: 0 };
 function renderAll() {
   rebuildAffiliateKeys();  // products[].isAffiliate からアフィリ判定セットを再構築(ハードコード撤廃)
   rebuildAccountFilterOptions();  // アカウントフィルタの選択肢を再構築(選択値は維持)
+  rebuildPerformerFilterOptions();  // 担当者フィルタの選択肢を再構築(選択値は維持)
   const filtered = getFilteredData();
   const sortedAll = [...filtered].sort((a,b) => parseDate(b.date) - parseDate(a.date));
   // nonBroadcast(動画アフィリ等)は配信集計から除外。金額のみ extraRev で月合計・目標に反映。
@@ -3175,6 +3212,22 @@ function accountPillHtml(d) {
   return `<span class="acct-pill" title="配信したアカウント" style="color:${c};border-color:${c};background:${c}1f">${escapeHtml(name)}</span>`;
 }
 
+// 担当者ごとの色。アカウントと同じ見た目のピルで出す(未設定は灰色)
+const PERFORMER_COLORS = { '社長': '#fe2c55', '天野さん': '#a78bfa', '松本さん': '#fb923c' };
+function performerColor(name) {
+  if (name === NO_PERFORMER_LABEL) return '#8a8a9a';
+  if (PERFORMER_COLORS[name]) return PERFORMER_COLORS[name];
+  let h = 0;
+  for (const ch of name) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+  return ACCOUNT_SPARE_COLORS[h % ACCOUNT_SPARE_COLORS.length];
+}
+function performerPillHtml(d) {
+  const name = performerOf(d);
+  if (name === NO_PERFORMER_LABEL) return '<span style="color:var(--muted);font-size:11px">-</span>';
+  const c = performerColor(name);
+  return `<span class="acct-pill" title="配信した担当者" style="color:${c};border-color:${c};background:${c}1f">${escapeHtml(name)}</span>`;
+}
+
 // アカウント切り替えボタン。件数は「期間だけで絞った配信数」(アカウント選択の影響を受けない)
 function renderAccountChips() {
   const box = document.getElementById('acctChips');
@@ -3237,7 +3290,7 @@ function renderTable(sortedIn) {
   const tbody = document.getElementById('liveTableBody');
   tbody.innerHTML = '';
   if (sorted.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="16" style="text-align:center;color:var(--muted);padding:24px">条件に合う配信がありません</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="17" style="text-align:center;color:var(--muted);padding:24px">条件に合う配信がありません</td></tr>';
     applyViewerModeUI();
     return;
   }
@@ -3259,6 +3312,7 @@ function renderTable(sortedIn) {
     tr.innerHTML = `
       <td class="date">${d.date} ${isBest ? '<span style="color:var(--gold);font-size:10px">★ 最高</span>' : ''}${d.memo ? '<span class="memo-mark" title="メモあり（▼詳細で全文表示）">📝</span>' : ''}${flagsHtml}</td>
       <td>${accountPillHtml(d)}</td>
+      <td>${performerPillHtml(d)}</td>
       <td>${d.liveTime || '-'}</td>
       <td class="num">${d.impressions ? d.impressions.toLocaleString() : '-'}</td>
       <td class="num">${(d.totalViews||0).toLocaleString()}</td>
@@ -3283,7 +3337,7 @@ function renderTable(sortedIn) {
     const dr = document.createElement('tr');
     dr.className = 'detail-row';
     dr.id = `detail-${i}`;
-    dr.innerHTML = `<td colspan="16">
+    dr.innerHTML = `<td colspan="17">
       <div class="detail-inner">
         ${d.memo ? `<div class="detail-memo"><span class="detail-memo-label">📝 メモ</span>${escapeHtml(d.memo)}</div>` : ''}
         <div class="detail-grid">
@@ -3422,6 +3476,7 @@ function renderTable(sortedIn) {
     totalRow.innerHTML = `
       <td style="font-weight:700">合計 (${sorted.length}回)</td>
       <td style="font-size:11px;color:var(--muted)">${filterAccount ? escapeHtml(filterAccount) : '全アカウント'}</td>
+      <td style="font-size:11px;color:var(--muted)">${filterPerformer ? escapeHtml(filterPerformer) : '全担当'}</td>
       <td>-</td>
       <td class="num" style="font-weight:700">${sumImpr.toLocaleString()}</td>
       <td class="num" style="font-weight:700">${sumViews.toLocaleString()}</td>
@@ -3507,7 +3562,7 @@ function closeModal(id) {
   document.getElementById(id).classList.remove('open');
 }
 
-const FORM_FIELDS = ['date','liveTime','account','memo','totalViews','uniqueViewers','activeViewers',
+const FORM_FIELDS = ['date','liveTime','account','performer','memo','totalViews','uniqueViewers','activeViewers',
   'peakConcurrent','avgWatchTime','likes','comments','shares','gifters','trafficLive',
   'trafficOther','newFollowers','followerAvgTime','followerUnique','commenters',
   'diamonds','estimatedUSD','sales','purchases','profit','packageCount'];
