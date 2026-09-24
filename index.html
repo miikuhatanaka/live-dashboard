@@ -431,10 +431,10 @@ td.gold-text { color: var(--gold); }
         <th>LIVE時間</th>
         <th title="LIVEや商品がフィード等に表示された回数。露出のボリューム。配信を見てもらう入口の総量">インプ <span style="color:var(--muted);font-size:9px;font-weight:400">(露出)</span></th>
         <th>視聴数</th>
-        <th title="入室率 = 視聴数 ÷ インプレッション。露出された人のうち何%が実際に入室したか(TikTok公式タップスルー率)。サムネ・冒頭の引きの強さの指標">入室率 <span style="color:var(--muted);font-size:9px;font-weight:400">(視聴÷インプ)</span></th>
+        <th title="入室率 = 視聴数 ÷ インプレッション。露出された人のうち何%が実際に入室したか(TikTok公式タップスルー率)。サムネ・冒頭の引きの強さの指標。緑=10%以上(良好) / 青=5〜10%(標準) / 黄=5%未満 / 赤=2%以下は露出制限を疑う(講座 第7回)">入室率 <span style="color:var(--muted);font-size:9px;font-weight:400">(良好 10%以上)</span></th>
         <th>最高同時</th>
         <th>コメント</th>
-        <th title="平均商品CTR = Σ商品クリック ÷ Σ商品インプレッション。商品が何回見られて何回タップされたか。入室率が「LIVEに入るか」なら、こちらは「商品を見に行くか」。商品インプで加重平均している">商品CTR <span style="color:var(--muted);font-size:9px;font-weight:400">(クリック÷商品インプ)</span></th>
+        <th title="平均商品CTR = Σ商品クリック ÷ Σ商品インプレッション。商品が何回見られて何回タップされたか。入室率が「LIVEに入るか」なら、こちらは「商品を見に行くか」。商品インプで加重平均している。緑=合格ライン3%以上 / 赤=未達(講座 第4回)">商品CTR <span style="color:var(--muted);font-size:9px;font-weight:400">(合格 3%以上)</span></th>
         <th style="border-left:2px solid var(--border)" title="💎マーク = セラー側売上(SKU元価格−セラー割引)。2026/4/27〜の新算定方式。マークなし = Live Centerからのパース値(従来方式)">売上 <span style="color:var(--muted);font-size:9px;font-weight:400">(💎=新算定)</span></th>
         <th title="ユニーク購入者数(同一username×phoneでマージ)。1人が2回注文しても1カウント。customer-history.jsonから配信窓(start〜end+6h)でretro集計">購入者数</th>
         <th title="AOV (per-buyer) = 売上÷購入者数。ぞうねこ27チャレ並天井 ¥6,621">AOV <span style="color:var(--muted);font-size:9px;font-weight:400">(売上÷購入者)</span></th>
@@ -3014,6 +3014,35 @@ function productCtrTotal(list) {
   return { impressions: impr, clicks, ctr: clicks / impr * 100 };
 }
 
+// 講座「TikTok Shop 第4回・第7回」の合格ライン (docs/tiktok-shop-lecture/)。
+// 数字を出すだけだと良し悪しが分からないので、基準に照らして色を変える。
+const BENCH = {
+  productCtr: { pass: 3, label: '商品クリック率の合格ライン 3%（講座 第4回）' },
+  tapThrough: { good: 10, ok: 5, bad: 2, label: '入室率 10%以上=良好 / 5〜10%=標準 / 2%以下は規制を疑う（講座 第7回）' },
+};
+function benchColorCtr(v) {
+  if (v == null) return 'var(--muted)';
+  return v >= BENCH.productCtr.pass ? 'var(--green)' : 'var(--accent)';
+}
+function benchColorTap(v) {
+  if (v == null) return 'var(--muted)';
+  if (v >= BENCH.tapThrough.good) return 'var(--green)';
+  if (v >= BENCH.tapThrough.ok) return 'var(--teal)';
+  if (v > BENCH.tapThrough.bad) return 'var(--gold)';
+  return 'var(--accent)';
+}
+function benchJudgeCtr(v) {
+  if (v == null) return '';
+  return v >= BENCH.productCtr.pass ? `合格（基準3%を ${(v - 3).toFixed(2)}pt 上回る）` : `基準3%に ${(3 - v).toFixed(2)}pt 届いていない`;
+}
+function benchJudgeTap(v) {
+  if (v == null) return '';
+  if (v >= BENCH.tapThrough.good) return '良好（10%以上）';
+  if (v >= BENCH.tapThrough.ok) return '標準（5〜10%）';
+  if (v > BENCH.tapThrough.bad) return '要改善（5%未満）';
+  return '2%以下 — 露出制限を疑う';
+}
+
 // 商品種別バッジ: 自社 / アフィリエイト を可視化
 function sourceBadge(masterKey, isAffiliateFlag) {
   const aff = isAffiliateFlag != null ? !!isAffiliateFlag : isAffiliateKey(masterKey);
@@ -3374,10 +3403,10 @@ function renderTable(sortedIn) {
       <td class="livetime">${d.liveTime || '-'}</td>
       <td class="num">${d.impressions ? d.impressions.toLocaleString() : '-'}</td>
       <td class="num">${(d.totalViews||0).toLocaleString()}</td>
-      <td class="num" style="color:var(--teal);font-weight:700">${tapRate != null ? tapRate.toFixed(1)+'%' : '-'}</td>
+      <td class="num" style="color:${benchColorTap(tapRate)};font-weight:700" title="${tapRate != null ? benchJudgeTap(tapRate) + '｜' + BENCH.tapThrough.label : ''}">${tapRate != null ? tapRate.toFixed(1)+'%' : '-'}</td>
       <td class="num">${(d.peakConcurrent||0).toLocaleString()}</td>
       <td>${d.comments||0}</td>
-      <td style="color:var(--purple);font-weight:700" title="${(() => { const r = productCtrOf(d); return r ? `商品インプ ${Math.round(r.impressions).toLocaleString()} / クリック ${Math.round(r.clicks).toLocaleString()}` : '商品ごとのインプレッションが無いため出せません'; })()}">${(() => { const r = productCtrOf(d); return r ? r.ctr.toFixed(2)+'%' : '-'; })()}</td>
+      <td style="color:${(() => { const r = productCtrOf(d); return benchColorCtr(r && r.ctr); })()};font-weight:700" title="${(() => { const r = productCtrOf(d); return r ? `商品インプ ${Math.round(r.impressions).toLocaleString()} / クリック ${Math.round(r.clicks).toLocaleString()}｜${benchJudgeCtr(r.ctr)}｜${BENCH.productCtr.label}` : '商品ごとのインプレッションが無いため出せません'; })()}">${(() => { const r = productCtrOf(d); return r ? r.ctr.toFixed(2)+'%' : '-'; })()}</td>
       <td style="color:var(--green);font-weight:700;border-left:2px solid var(--border)">${d.sales ? '¥'+d.sales.toLocaleString() : '-'}${d.salesCalcMethod === 'sellerSide' ? ' <span title="セラー側売上(SKU元価格−セラー割引)。TikTokクーポン負担分は含む。" style="color:var(--teal);font-size:10px;font-weight:600;margin-left:2px">💎</span>' : ''}</td>
       <td style="font-weight:700" title="購入者数(buyer): customer-history.json retro 集計。1人が複数注文しても1。注文数=${d.orders||0} / 商品個数=${itemsSold}">${buyers}</td>
       <td style="color:var(--gold);font-weight:700">${aov > 0 ? '¥'+aov.toLocaleString() : '-'}</td>
@@ -3544,7 +3573,7 @@ function renderTable(sortedIn) {
       <td class="num" style="color:var(--teal);font-weight:700" title="加重平均入室率 = Σ視聴 ÷ Σインプ × 100">${avgTap != null ? avgTap.toFixed(1)+'%' : '-'}</td>
       <td class="num" style="font-weight:700">⌀${avgPeak.toLocaleString()}</td>
       <td style="font-weight:700">${sumComments.toLocaleString()}</td>
-      <td style="color:var(--purple);font-weight:700" title="${(() => { const r = productCtrTotal(sorted); return r ? `期間合計: 商品インプ ${Math.round(r.impressions).toLocaleString()} / クリック ${Math.round(r.clicks).toLocaleString()}。配信ごとのCTRの単純平均ではなく、クリックとインプを足してから割った加重平均` : ''; })()}">${(() => { const r = productCtrTotal(sorted); return r ? r.ctr.toFixed(2)+'%' : '-'; })()}</td>
+      <td style="color:${(() => { const r = productCtrTotal(sorted); return benchColorCtr(r && r.ctr); })()};font-weight:700" title="${(() => { const r = productCtrTotal(sorted); return r ? `期間合計: 商品インプ ${Math.round(r.impressions).toLocaleString()} / クリック ${Math.round(r.clicks).toLocaleString()}。配信ごとのCTRの単純平均ではなく、クリックとインプを足してから割った加重平均｜${benchJudgeCtr(r.ctr)}` : ''; })()}">${(() => { const r = productCtrTotal(sorted); return r ? r.ctr.toFixed(2)+'%' : '-'; })()}</td>
       <td style="color:var(--green);font-weight:700;border-left:2px solid var(--border)">¥${sumSales.toLocaleString()}</td>
       <td style="color:var(--teal);font-weight:700" title="${isFullPeriodTotal ? '累計ユニーク購入者数 (customer-stats.totals.uniqueCustomers)。リピーターは1人。ぞうねこ27チャレ 2,075人と直接比較可能' : '期間内ユニーク購入者数 (月別合算、月跨ぎリピーターは重複)'}">${ucForTotal.toLocaleString()}</td>
       <td style="color:var(--gold);font-weight:700" title="${isFullPeriodTotal ? '累計AOV=累計売上÷累計購入者(unique buyer)。ぞうねこ並天井 ¥6,621' : '期間AOV=期間売上÷期間内ユニーク購入者'}">${totalAov > 0 ? '¥'+totalAov.toLocaleString() : '-'}</td>
