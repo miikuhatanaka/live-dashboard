@@ -76,7 +76,25 @@ h1 span { color: var(--accent); }
 .badge { font-size: 11px; background: var(--s2); border: 1px solid var(--border); padding: 4px 10px; border-radius: 20px; color: var(--muted); }
 
 /* 配信別詳細: アカウント列と絞り込みバー (2026-09-17) */
-.acct-pill { display: inline-block; border-radius: 20px; padding: 2px 10px; font-size: 11px; font-weight: 700; white-space: nowrap; border: 1px solid; }
+/* アカウント = 塗りつぶしチップ、担当者 = ●＋名前。同じ見た目のピルを2本並べると
+   どちらがどちらか分からないので、形そのものを変えて見分けられるようにする (2026-09-24) */
+.acct-pill { display: inline-block; border-radius: 6px; padding: 3px 10px; font-size: 12.5px; font-weight: 700; white-space: nowrap; letter-spacing: .2px; }
+.perf-tag { display: inline-flex; align-items: center; gap: 6px; font-size: 13.5px; font-weight: 700; color: var(--text); white-space: nowrap; }
+.perf-tag .dot { width: 9px; height: 9px; border-radius: 50%; flex: 0 0 auto; }
+.perf-tag.none { color: var(--muted); font-weight: 400; }
+
+/* 配信別詳細テーブルだけ数字を大きくする (2026-09-24 社長指示)。列が多いので横スクロールにする */
+.table-scroll { overflow-x: auto; }
+table.live-table { font-size: 15px; min-width: 1240px; }
+table.live-table thead th { font-size: 12px; }
+table.live-table td { font-variant-numeric: tabular-nums; }
+table.live-table td.num, table.live-table td[style*="font-weight:700"] { font-size: 16px; }
+/* 列が17本あるので余白を詰める。字は大きく、パディングは小さく */
+table.live-table thead th { padding: 10px 9px; }
+table.live-table td { padding: 11px 9px; }
+table.live-table td.date { font-size: 13.5px; color: var(--text); }
+/* 「2時間53分30秒」が3行に折り返して行が縦に伸びるのを止める */
+table.live-table td.livetime { white-space: nowrap; font-size: 13.5px; color: var(--muted); }
 .table-filter-bar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 12px 20px; border-bottom: 1px solid var(--border); background: var(--s1); }
 .table-filter-bar .tf-label { font-size: 11px; color: var(--muted); white-space: nowrap; }
 .acct-chips { display: flex; gap: 6px; flex-wrap: wrap; }
@@ -114,9 +132,9 @@ td.gold-text { color: var(--gold); }
 .memo-mark { font-size: 11px; margin-left: 4px; cursor: help; opacity: .75; }
 .detail-memo { background: var(--bg); border: 1px solid var(--border); border-left: 3px solid var(--gold); border-radius: 8px; padding: 10px 14px; margin-bottom: 12px; font-size: 12px; line-height: 1.6; color: var(--muted); }
 .detail-memo-label { display: block; font-size: 11px; color: var(--gold); font-weight: 700; margin-bottom: 4px; }
-.kv { display: flex; justify-content: space-between; align-items: center; padding: 3px 0; font-size: 12px; }
+.kv { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 4px 0; font-size: 12.5px; }
 .kv .k { color: var(--muted); }
-.kv .v { font-weight: 600; }
+.kv .v { font-weight: 700; font-size: 15px; font-variant-numeric: tabular-nums; }
 
 /* Traffic bar */
 .traffic-bar { display: flex; height: 6px; border-radius: 3px; overflow: hidden; margin-top: 6px; }
@@ -406,7 +424,8 @@ td.gold-text { color: var(--gold); }
     <label class="tf-check" title="この表だけに効く"><input type="checkbox" id="tableSoldOnly" onchange="rerenderTableOnly()">売上がある配信だけ</label>
     <span class="tf-count" id="tableFilterCount"></span>
   </div>
-  <table>
+  <div class="table-scroll">
+  <table class="live-table">
     <thead>
       <tr>
         <th>配信日時</th>
@@ -430,6 +449,7 @@ td.gold-text { color: var(--gold); }
     </thead>
     <tbody id="liveTableBody"></tbody>
   </table>
+  </div>
 </div>
 
 <!-- Charts -->
@@ -3206,14 +3226,23 @@ function accountColor(name) {
   for (const ch of name) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
   return ACCOUNT_SPARE_COLORS[h % ACCOUNT_SPARE_COLORS.length];
 }
+// 塗りつぶしチップの上に載せる文字色。背景の明るさで黒/白を出し分ける(薄い色に白文字＝読めない)
+function onColorText(hex) {
+  const m = /^#?([0-9a-f]{6})$/i.exec(hex);
+  if (!m) return '#0a0a0f';
+  const n = parseInt(m[1], 16);
+  const lum = (0.299 * ((n >> 16) & 255) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255)) / 255;
+  return lum > 0.6 ? '#0a0a0f' : '#ffffff';
+}
 function accountPillHtml(d) {
   const name = accountOf(d);
   const c = accountColor(name);
-  return `<span class="acct-pill" title="配信したアカウント" style="color:${c};border-color:${c};background:${c}1f">${escapeHtml(name)}</span>`;
+  return `<span class="acct-pill" title="配信したアカウント" style="background:${c};color:${onColorText(c)}">${escapeHtml(name)}</span>`;
 }
 
-// 担当者ごとの色。アカウントと同じ見た目のピルで出す(未設定は灰色)
-const PERFORMER_COLORS = { '社長': '#fe2c55', '天野さん': '#a78bfa', '松本さん': '#fb923c' };
+// 担当者は「●＋名前」。アカウントの塗りチップと形を変えて見分けられるようにする。
+// 色はアカウント色(オレンジ=通販ボックス / 紫=チクタク商店街)と当たらないものを選ぶ
+const PERFORMER_COLORS = { '社長': '#fe2c55', '天野さん': '#60a5fa', '松本さん': '#34d399' };
 function performerColor(name) {
   if (name === NO_PERFORMER_LABEL) return '#8a8a9a';
   if (PERFORMER_COLORS[name]) return PERFORMER_COLORS[name];
@@ -3223,9 +3252,9 @@ function performerColor(name) {
 }
 function performerPillHtml(d) {
   const name = performerOf(d);
-  if (name === NO_PERFORMER_LABEL) return '<span style="color:var(--muted);font-size:11px">-</span>';
+  if (name === NO_PERFORMER_LABEL) return '<span class="perf-tag none" title="担当者が未特定">-</span>';
   const c = performerColor(name);
-  return `<span class="acct-pill" title="配信した担当者" style="color:${c};border-color:${c};background:${c}1f">${escapeHtml(name)}</span>`;
+  return `<span class="perf-tag" title="配信した担当者"><span class="dot" style="background:${c}"></span>${escapeHtml(name)}</span>`;
 }
 
 // アカウント切り替えボタン。件数は「期間だけで絞った配信数」(アカウント選択の影響を受けない)
@@ -3313,7 +3342,7 @@ function renderTable(sortedIn) {
       <td class="date">${d.date} ${isBest ? '<span style="color:var(--gold);font-size:10px">★ 最高</span>' : ''}${d.memo ? '<span class="memo-mark" title="メモあり（▼詳細で全文表示）">📝</span>' : ''}${flagsHtml}</td>
       <td>${accountPillHtml(d)}</td>
       <td>${performerPillHtml(d)}</td>
-      <td>${d.liveTime || '-'}</td>
+      <td class="livetime">${d.liveTime || '-'}</td>
       <td class="num">${d.impressions ? d.impressions.toLocaleString() : '-'}</td>
       <td class="num">${(d.totalViews||0).toLocaleString()}</td>
       <td class="num" style="color:var(--teal);font-weight:700">${tapRate != null ? tapRate.toFixed(1)+'%' : '-'}</td>
