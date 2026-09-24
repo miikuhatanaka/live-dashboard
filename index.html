@@ -78,23 +78,20 @@ h1 span { color: var(--accent); }
 /* 配信別詳細: アカウント列と絞り込みバー (2026-09-17) */
 /* アカウント = 塗りつぶしチップ、担当者 = ●＋名前。同じ見た目のピルを2本並べると
    どちらがどちらか分からないので、形そのものを変えて見分けられるようにする (2026-09-24) */
-.acct-pill { display: inline-block; border-radius: 6px; padding: 3px 10px; font-size: 12.5px; font-weight: 700; white-space: nowrap; letter-spacing: .2px; }
-.perf-tag { display: inline-flex; align-items: center; gap: 6px; font-size: 13.5px; font-weight: 700; color: var(--text); white-space: nowrap; }
-.perf-tag .dot { width: 9px; height: 9px; border-radius: 50%; flex: 0 0 auto; }
+.acct-pill { display: inline-block; border-radius: 6px; padding: 3px 9px; font-size: 11.5px; font-weight: 700; white-space: nowrap; letter-spacing: .2px; }
+.perf-tag { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 700; color: var(--text); white-space: nowrap; }
+.perf-tag .dot { width: 8px; height: 8px; border-radius: 50%; flex: 0 0 auto; }
 .perf-tag.none { color: var(--muted); font-weight: 400; }
 
-/* 配信別詳細テーブルだけ数字を大きくする (2026-09-24 社長指示)。列が多いので横スクロールにする */
+/* 配信別詳細テーブルだけ数字を大きくする (2026-09-24 社長指示。大きすぎたので同日に少し戻した) */
 .table-scroll { overflow-x: auto; }
-table.live-table { font-size: 15px; min-width: 1240px; }
-table.live-table thead th { font-size: 12px; }
-table.live-table td { font-variant-numeric: tabular-nums; }
-table.live-table td.num, table.live-table td[style*="font-weight:700"] { font-size: 16px; }
-/* 列が17本あるので余白を詰める。字は大きく、パディングは小さく */
-table.live-table thead th { padding: 10px 9px; }
-table.live-table td { padding: 11px 9px; }
-table.live-table td.date { font-size: 13.5px; color: var(--text); }
+table.live-table { font-size: 14px; min-width: 1240px; }
+table.live-table thead th { font-size: 11.5px; padding: 10px 9px; }
+table.live-table td { font-variant-numeric: tabular-nums; padding: 11px 9px; }
+table.live-table td.num, table.live-table td[style*="font-weight:700"] { font-size: 15px; }
+table.live-table td.date { font-size: 12.5px; color: var(--text); }
 /* 「2時間53分30秒」が3行に折り返して行が縦に伸びるのを止める */
-table.live-table td.livetime { white-space: nowrap; font-size: 13.5px; color: var(--muted); }
+table.live-table td.livetime { white-space: nowrap; font-size: 12.5px; color: var(--muted); }
 .table-filter-bar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 12px 20px; border-bottom: 1px solid var(--border); background: var(--s1); }
 .table-filter-bar .tf-label { font-size: 11px; color: var(--muted); white-space: nowrap; }
 .acct-chips { display: flex; gap: 6px; flex-wrap: wrap; }
@@ -132,9 +129,9 @@ td.gold-text { color: var(--gold); }
 .memo-mark { font-size: 11px; margin-left: 4px; cursor: help; opacity: .75; }
 .detail-memo { background: var(--bg); border: 1px solid var(--border); border-left: 3px solid var(--gold); border-radius: 8px; padding: 10px 14px; margin-bottom: 12px; font-size: 12px; line-height: 1.6; color: var(--muted); }
 .detail-memo-label { display: block; font-size: 11px; color: var(--gold); font-weight: 700; margin-bottom: 4px; }
-.kv { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 4px 0; font-size: 12.5px; }
+.kv { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 4px 0; font-size: 12px; }
 .kv .k { color: var(--muted); }
-.kv .v { font-weight: 700; font-size: 15px; font-variant-numeric: tabular-nums; }
+.kv .v { font-weight: 700; font-size: 14px; font-variant-numeric: tabular-nums; }
 
 /* Traffic bar */
 .traffic-bar { display: flex; height: 6px; border-radius: 3px; overflow: hidden; margin-top: 6px; }
@@ -437,6 +434,7 @@ td.gold-text { color: var(--gold); }
         <th title="入室率 = 視聴数 ÷ インプレッション。露出された人のうち何%が実際に入室したか(TikTok公式タップスルー率)。サムネ・冒頭の引きの強さの指標">入室率 <span style="color:var(--muted);font-size:9px;font-weight:400">(視聴÷インプ)</span></th>
         <th>最高同時</th>
         <th>コメント</th>
+        <th title="平均商品CTR = Σ商品クリック ÷ Σ商品インプレッション。商品が何回見られて何回タップされたか。入室率が「LIVEに入るか」なら、こちらは「商品を見に行くか」。商品インプで加重平均している">商品CTR <span style="color:var(--muted);font-size:9px;font-weight:400">(クリック÷商品インプ)</span></th>
         <th style="border-left:2px solid var(--border)" title="💎マーク = セラー側売上(SKU元価格−セラー割引)。2026/4/27〜の新算定方式。マークなし = Live Centerからのパース値(従来方式)">売上 <span style="color:var(--muted);font-size:9px;font-weight:400">(💎=新算定)</span></th>
         <th title="ユニーク購入者数(同一username×phoneでマージ)。1人が2回注文しても1カウント。customer-history.jsonから配信窓(start〜end+6h)でretro集計">購入者数</th>
         <th title="AOV (per-buyer) = 売上÷購入者数。ぞうねこ27チャレ並天井 ¥6,621">AOV <span style="color:var(--muted);font-size:9px;font-weight:400">(売上÷購入者)</span></th>
@@ -2985,6 +2983,37 @@ function tapThroughRate(d) {
   return null;
 }
 
+// 平均商品CTR = Σ(商品クリック) ÷ Σ(商品インプレッション) × 100 (2026-09-24 社長要望)。
+// Live Center は商品ごとに「商品インプレッション数」と「CTR」しか出さないので、CTRからクリック数を
+// 戻してインプで加重平均する(商品数の単純平均だと、露出1件の商品が全体を動かして意味をなさない)。
+// Creator Live Performance エクスポートの公式CTRとは0.02pt以内で一致する(2026-09-03の配信で検算)。
+function productCtrOf(d) {
+  const prods = d && d.products;
+  if (!Array.isArray(prods) || !prods.length) return null;
+  let impr = 0, clicks = 0;
+  for (const p of prods) {
+    const i = Number(p.impressions) || 0;
+    if (i <= 0) continue;
+    impr += i;
+    clicks += i * (Number(p.ctr) || 0) / 100;
+  }
+  if (impr <= 0) return null;
+  return { impressions: impr, clicks, ctr: clicks / impr * 100 };
+}
+
+// 複数配信をまとめた平均商品CTR。各配信のCTRを平均せず、クリックとインプを足し合わせてから割る
+function productCtrTotal(list) {
+  let impr = 0, clicks = 0;
+  for (const d of list) {
+    const r = productCtrOf(d);
+    if (!r) continue;
+    impr += r.impressions;
+    clicks += r.clicks;
+  }
+  if (impr <= 0) return null;
+  return { impressions: impr, clicks, ctr: clicks / impr * 100 };
+}
+
 // 商品種別バッジ: 自社 / アフィリエイト を可視化
 function sourceBadge(masterKey, isAffiliateFlag) {
   const aff = isAffiliateFlag != null ? !!isAffiliateFlag : isAffiliateKey(masterKey);
@@ -3319,7 +3348,7 @@ function renderTable(sortedIn) {
   const tbody = document.getElementById('liveTableBody');
   tbody.innerHTML = '';
   if (sorted.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="17" style="text-align:center;color:var(--muted);padding:24px">条件に合う配信がありません</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="18" style="text-align:center;color:var(--muted);padding:24px">条件に合う配信がありません</td></tr>';
     applyViewerModeUI();
     return;
   }
@@ -3348,6 +3377,7 @@ function renderTable(sortedIn) {
       <td class="num" style="color:var(--teal);font-weight:700">${tapRate != null ? tapRate.toFixed(1)+'%' : '-'}</td>
       <td class="num">${(d.peakConcurrent||0).toLocaleString()}</td>
       <td>${d.comments||0}</td>
+      <td style="color:var(--purple);font-weight:700" title="${(() => { const r = productCtrOf(d); return r ? `商品インプ ${Math.round(r.impressions).toLocaleString()} / クリック ${Math.round(r.clicks).toLocaleString()}` : '商品ごとのインプレッションが無いため出せません'; })()}">${(() => { const r = productCtrOf(d); return r ? r.ctr.toFixed(2)+'%' : '-'; })()}</td>
       <td style="color:var(--green);font-weight:700;border-left:2px solid var(--border)">${d.sales ? '¥'+d.sales.toLocaleString() : '-'}${d.salesCalcMethod === 'sellerSide' ? ' <span title="セラー側売上(SKU元価格−セラー割引)。TikTokクーポン負担分は含む。" style="color:var(--teal);font-size:10px;font-weight:600;margin-left:2px">💎</span>' : ''}</td>
       <td style="font-weight:700" title="購入者数(buyer): customer-history.json retro 集計。1人が複数注文しても1。注文数=${d.orders||0} / 商品個数=${itemsSold}">${buyers}</td>
       <td style="color:var(--gold);font-weight:700">${aov > 0 ? '¥'+aov.toLocaleString() : '-'}</td>
@@ -3366,7 +3396,7 @@ function renderTable(sortedIn) {
     const dr = document.createElement('tr');
     dr.className = 'detail-row';
     dr.id = `detail-${i}`;
-    dr.innerHTML = `<td colspan="17">
+    dr.innerHTML = `<td colspan="18">
       <div class="detail-inner">
         ${d.memo ? `<div class="detail-memo"><span class="detail-memo-label">📝 メモ</span>${escapeHtml(d.memo)}</div>` : ''}
         <div class="detail-grid">
@@ -3375,6 +3405,8 @@ function renderTable(sortedIn) {
             <div class="kv"><span class="k">インプレッション</span><span class="v">${d.impressions ? d.impressions.toLocaleString() : '-'}</span></div>
             <div class="kv"><span class="k">入室率 (視聴÷インプ)</span><span class="v" style="color:var(--teal)">${(() => { const t = tapThroughRate(d); return t != null ? t.toFixed(1)+'%' : '-'; })()}</span></div>
             <div class="kv"><span class="k">総視聴数</span><span class="v">${(d.totalViews||0).toLocaleString()}</span></div>
+            <div class="kv"><span class="k" title="Σ商品クリック ÷ Σ商品インプレッション">商品CTR (クリック÷商品インプ)</span><span class="v" style="color:var(--purple)">${(() => { const r = productCtrOf(d); return r ? r.ctr.toFixed(2)+'%' : '-'; })()}</span></div>
+            <div class="kv"><span class="k">商品インプレッション</span><span class="v">${(() => { const r = productCtrOf(d); return r ? Math.round(r.impressions).toLocaleString() : '-'; })()}</span></div>
             <div class="kv"><span class="k">ユニーク視聴者</span><span class="v">${(d.uniqueViewers||0).toLocaleString()}</span></div>
             <div class="kv"><span class="k">アクティブ視聴者</span><span class="v">${d.activeViewers||0}</span></div>
             <div class="kv"><span class="k">最高同時視聴者</span><span class="v" style="color:var(--teal)">${d.peakConcurrent||0}</span></div>
@@ -3512,6 +3544,7 @@ function renderTable(sortedIn) {
       <td class="num" style="color:var(--teal);font-weight:700" title="加重平均入室率 = Σ視聴 ÷ Σインプ × 100">${avgTap != null ? avgTap.toFixed(1)+'%' : '-'}</td>
       <td class="num" style="font-weight:700">⌀${avgPeak.toLocaleString()}</td>
       <td style="font-weight:700">${sumComments.toLocaleString()}</td>
+      <td style="color:var(--purple);font-weight:700" title="${(() => { const r = productCtrTotal(sorted); return r ? `期間合計: 商品インプ ${Math.round(r.impressions).toLocaleString()} / クリック ${Math.round(r.clicks).toLocaleString()}。配信ごとのCTRの単純平均ではなく、クリックとインプを足してから割った加重平均` : ''; })()}">${(() => { const r = productCtrTotal(sorted); return r ? r.ctr.toFixed(2)+'%' : '-'; })()}</td>
       <td style="color:var(--green);font-weight:700;border-left:2px solid var(--border)">¥${sumSales.toLocaleString()}</td>
       <td style="color:var(--teal);font-weight:700" title="${isFullPeriodTotal ? '累計ユニーク購入者数 (customer-stats.totals.uniqueCustomers)。リピーターは1人。ぞうねこ27チャレ 2,075人と直接比較可能' : '期間内ユニーク購入者数 (月別合算、月跨ぎリピーターは重複)'}">${ucForTotal.toLocaleString()}</td>
       <td style="color:var(--gold);font-weight:700" title="${isFullPeriodTotal ? '累計AOV=累計売上÷累計購入者(unique buyer)。ぞうねこ並天井 ¥6,621' : '期間AOV=期間売上÷期間内ユニーク購入者'}">${totalAov > 0 ? '¥'+totalAov.toLocaleString() : '-'}</td>
