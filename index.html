@@ -419,6 +419,7 @@ td.gold-text { color: var(--gold); }
         <th title="平均商品CTR = Σ商品クリック ÷ Σ商品インプレッション。商品が何回見られて何回タップされたか。入室率が「LIVEに入るか」なら、こちらは「商品を見に行くか」。商品インプで加重平均している。緑=合格ライン3%以上 / 赤=未達(講座 第4回)">商品CTR <span style="color:var(--muted);font-size:9px;font-weight:400">(合格 3%以上)</span></th>
         <th title="カート追加率 = Σカート追加 ÷ Σ商品クリック(タップ比)。商品を見に行った人のうち何%がカートに入れたか。5%を超えたら広告を検討してよい(講座 第4回)。緑=5%以上 / 赤=未達">カート追加率 <span style="color:var(--muted);font-size:9px;font-weight:400">(合格 5%以上)</span></th>
         <th style="border-left:2px solid var(--border)" title="💎マーク = セラー側売上(SKU元価格−セラー割引)。2026/4/27〜の新算定方式。マークなし = Live Centerからのパース値(従来方式)">売上 <span style="color:var(--muted);font-size:9px;font-weight:400">(💎=新算定)</span></th>
+        <th title="視聴GPM = 売上 ÷ 視聴数 × 1,000。視聴1,000回あたりの売上。競合の米配信は ¥9,000〜¥12,000(2026-10-05 社長共有)。¥9,000以上で緑。TikTok画面の「表示GPM」は1,000インプレッションあたりで別物(セルにカーソルを当てると出る)">GPM <span style="color:var(--muted);font-size:9px;font-weight:400">(競合 ¥9千〜1.2万)</span></th>
         <th title="ユニーク購入者数(同一username×phoneでマージ)。1人が2回注文しても1カウント。customer-history.jsonから配信窓(start〜end+6h)でretro集計">購入者数</th>
         <th title="AOV (per-buyer) = 売上÷購入者数。ぞうねこ27チャレ並天井 ¥6,621">AOV <span style="color:var(--muted);font-size:9px;font-weight:400">(売上÷購入者)</span></th>
         <th title="転換率 / CVR (購入者ベース) = 購入者数÷延べ視聴。講座の合格ライン=視聴100人で1人(1%)で強い(第4回)。ぞうねこ27チャレ並天井 0.87%。母数の定義が講座と揃わないため合否の色は付けていない">転換率 <span style="color:var(--muted);font-size:9px;font-weight:400">(購入者÷視聴)</span></th>
@@ -2908,6 +2909,18 @@ function tapThroughRate(d) {
   return null;
 }
 
+// 視聴GPM = 売上 ÷ 視聴数 × 1,000 (2026-10-05 社長要望)。競合の米配信で ¥9,000〜¥12,000。
+// TikTokの「表示GPM」(displayedGPM)は1,000インプレッションあたりで、競合比較の数字とは分母が違う
+function viewGpm(d) {
+  if (!((d.totalViews||0) > 0) || !d.sales) return null;
+  return d.sales / d.totalViews * 1000;
+}
+function gpmTotal(list) {
+  let sales = 0, views = 0;
+  for (const d of list) { if ((d.totalViews||0) > 0) { sales += d.sales||0; views += d.totalViews; } }
+  return views > 0 ? sales / views * 1000 : null;
+}
+
 // 平均商品CTR = Σ(商品クリック) ÷ Σ(商品インプレッション) × 100 (2026-09-24 社長要望)。
 // Live Center は商品ごとに「商品インプレッション数」と「CTR」しか出さないので、CTRからクリック数を
 // 戻してインプで加重平均する(商品数の単純平均だと、露出1件の商品が全体を動かして意味をなさない)。
@@ -2954,6 +2967,7 @@ const BENCH = {
   // TikTok公式の注文率で見ても競合の強い配信(¥10M)が0.42%。1%で赤緑に塗ると全配信が赤になって
   // 判断材料にならないため、基準は注記だけにする(2026-09-24)
   cvr: { pass: 1, label: '講座の目安「視聴100人で1人(1%)で強い」(第4回)。ただし母数の定義が講座と揃わず、競合の強い配信(TikTok公式の注文率)でも0.42%。直接の合否判定には使えないので色は付けていない' },
+  gpm: { pass: 9000, label: '視聴GPMの目安 = 競合の米配信 ¥9,000〜¥12,000（2026-10-05 社長共有）。¥9,000以上で緑' },
   tapThrough: { good: 10, ok: 5, bad: 2, label: '入室率 10%以上=良好 / 5〜10%=標準 / 2%以下は規制を疑う（講座 第7回）' },
 };
 function benchColorCtr(v) {
@@ -3322,7 +3336,7 @@ function renderTable(sortedIn) {
   const tbody = document.getElementById('liveTableBody');
   tbody.innerHTML = '';
   if (sorted.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="19" style="text-align:center;color:var(--muted);padding:24px">条件に合う配信がありません</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="20" style="text-align:center;color:var(--muted);padding:24px">条件に合う配信がありません</td></tr>';
     applyViewerModeUI();
     return;
   }
@@ -3354,6 +3368,7 @@ function renderTable(sortedIn) {
       <td style="color:${(() => { const r = productCtrOf(d); return benchColorCtr(r && r.ctr); })()};font-weight:700" title="${(() => { const r = productCtrOf(d); return r ? `商品インプ ${Math.round(r.impressions).toLocaleString()} / クリック ${Math.round(r.clicks).toLocaleString()}｜${benchJudgeCtr(r.ctr)}｜${BENCH.productCtr.label}` : '商品ごとのインプレッションが無いため出せません'; })()}">${(() => { const r = productCtrOf(d); return r ? r.ctr.toFixed(2)+'%' : '-'; })()}</td>
       <td style="color:${(() => { const r = productCtrOf(d); return benchColorPass(r && r.cartRate, BENCH.cartRate.pass); })()};font-weight:700" title="${(() => { const r = productCtrOf(d); return r && r.cartRate != null ? `カート追加 ${r.cart} / クリック ${Math.round(r.clicks).toLocaleString()}｜${benchJudgePass(r.cartRate, BENCH.cartRate.pass)}｜${BENCH.cartRate.label}` : 'カート追加のデータがありません'; })()}">${(() => { const r = productCtrOf(d); return r && r.cartRate != null ? r.cartRate.toFixed(1)+'%' : '-'; })()}</td>
       <td style="color:var(--green);font-weight:700;border-left:2px solid var(--border)">${d.sales ? '¥'+d.sales.toLocaleString() : '-'}${d.salesCalcMethod === 'sellerSide' ? ' <span title="セラー側売上(SKU元価格−セラー割引)。TikTokクーポン負担分は含む。" style="color:var(--teal);font-size:10px;font-weight:600;margin-left:2px">💎</span>' : ''}</td>
+      <td class="num" style="color:${(() => { const g = viewGpm(d); return g != null && g >= BENCH.gpm.pass ? 'var(--green)' : 'inherit'; })()};font-weight:700" title="${(() => { const g = viewGpm(d); return (g != null ? `売上 ¥${(d.sales||0).toLocaleString()} ÷ 視聴 ${(d.totalViews||0).toLocaleString()} × 1,000｜` : '') + `表示GPM(1,000インプあたり・TikTok画面の値) ${d.displayedGPM ? '¥'+Number(d.displayedGPM).toLocaleString() : '-'}｜${BENCH.gpm.label}`; })()}">${(() => { const g = viewGpm(d); return g != null ? '¥'+Math.round(g).toLocaleString() : '-'; })()}</td>
       <td style="font-weight:700" title="購入者数(buyer): customer-history.json retro 集計。1人が複数注文しても1。注文数=${d.orders||0} / 商品個数=${itemsSold}">${buyers}</td>
       <td style="color:var(--gold);font-weight:700">${aov > 0 ? '¥'+aov.toLocaleString() : '-'}</td>
       <td style="color:var(--teal);font-weight:700" title="${BENCH.cvr.label}">${cvr}%</td>
@@ -3371,7 +3386,7 @@ function renderTable(sortedIn) {
     const dr = document.createElement('tr');
     dr.className = 'detail-row';
     dr.id = `detail-${i}`;
-    dr.innerHTML = `<td colspan="19">
+    dr.innerHTML = `<td colspan="20">
       <div class="detail-inner">
         ${d.memo ? `<div class="detail-memo"><span class="detail-memo-label">📝 メモ</span>${escapeHtml(d.memo)}</div>` : ''}
         <div class="detail-grid">
@@ -3379,6 +3394,8 @@ function renderTable(sortedIn) {
             <h4>👁 視聴</h4>
             <div class="kv"><span class="k">インプレッション</span><span class="v">${d.impressions ? d.impressions.toLocaleString() : '-'}</span></div>
             <div class="kv"><span class="k">入室率 (視聴÷インプ)</span><span class="v" style="color:var(--teal)">${(() => { const t = tapThroughRate(d); return t != null ? t.toFixed(1)+'%' : '-'; })()}</span></div>
+            <div class="kv"><span class="k" title="売上 ÷ 視聴数 × 1,000。競合の米配信 ¥9,000〜¥12,000">視聴GPM (売上÷視聴×1,000)</span><span class="v" style="color:var(--green)">${(() => { const g = viewGpm(d); return g != null ? '¥'+Math.round(g).toLocaleString() : '-'; })()}</span></div>
+            <div class="kv"><span class="k" title="TikTok画面の値。1,000インプレッションあたりの売上">表示GPM (1,000インプあたり)</span><span class="v">${d.displayedGPM ? '¥'+Number(d.displayedGPM).toLocaleString() : '-'}</span></div>
             <div class="kv"><span class="k">総視聴数</span><span class="v">${(d.totalViews||0).toLocaleString()}</span></div>
             <div class="kv"><span class="k" title="Σ商品クリック ÷ Σ商品インプレッション">商品CTR (クリック÷商品インプ)</span><span class="v" style="color:var(--purple)">${(() => { const r = productCtrOf(d); return r ? r.ctr.toFixed(2)+'%' : '-'; })()}</span></div>
             <div class="kv"><span class="k">商品インプレッション</span><span class="v">${(() => { const r = productCtrOf(d); return r ? Math.round(r.impressions).toLocaleString() : '-'; })()}</span></div>
@@ -3522,6 +3539,7 @@ function renderTable(sortedIn) {
       <td style="color:${(() => { const r = productCtrTotal(sorted); return benchColorCtr(r && r.ctr); })()};font-weight:700" title="${(() => { const r = productCtrTotal(sorted); return r ? `期間合計: 商品インプ ${Math.round(r.impressions).toLocaleString()} / クリック ${Math.round(r.clicks).toLocaleString()}。配信ごとのCTRの単純平均ではなく、クリックとインプを足してから割った加重平均｜${benchJudgeCtr(r.ctr)}` : ''; })()}">${(() => { const r = productCtrTotal(sorted); return r ? r.ctr.toFixed(2)+'%' : '-'; })()}</td>
       <td style="color:${(() => { const r = productCtrTotal(sorted); return benchColorPass(r && r.cartRate, BENCH.cartRate.pass); })()};font-weight:700" title="${(() => { const r = productCtrTotal(sorted); return r && r.cartRate != null ? `期間合計: カート追加 ${r.cart} / クリック ${Math.round(r.clicks).toLocaleString()}｜${benchJudgePass(r.cartRate, BENCH.cartRate.pass)}` : ''; })()}">${(() => { const r = productCtrTotal(sorted); return r && r.cartRate != null ? r.cartRate.toFixed(1)+'%' : '-'; })()}</td>
       <td style="color:var(--green);font-weight:700;border-left:2px solid var(--border)">¥${sumSales.toLocaleString()}</td>
+      <td class="num" style="font-weight:700" title="期間の視聴GPM = Σ売上 ÷ Σ視聴 × 1,000（配信ごとの単純平均ではない）">${(() => { const g = gpmTotal(sorted); return g != null ? '¥'+Math.round(g).toLocaleString() : '-'; })()}</td>
       <td style="color:var(--teal);font-weight:700" title="${isFullPeriodTotal ? '累計ユニーク購入者数 (customer-stats.totals.uniqueCustomers)。リピーターは1人。ぞうねこ27チャレ 2,075人と直接比較可能' : '期間内ユニーク購入者数 (月別合算、月跨ぎリピーターは重複)'}">${ucForTotal.toLocaleString()}</td>
       <td style="color:var(--gold);font-weight:700" title="${isFullPeriodTotal ? '累計AOV=累計売上÷累計購入者(unique buyer)。ぞうねこ並天井 ¥6,621' : '期間AOV=期間売上÷期間内ユニーク購入者'}">${totalAov > 0 ? '¥'+totalAov.toLocaleString() : '-'}</td>
       <td style="color:var(--teal);font-weight:700" title="${isFullPeriodTotal ? '累計CVR=累計購入者÷延べ視聴。ぞうねこ並天井 0.87%' : '期間CVR=期間内ユニーク購入者÷期間延べ視聴'}">${totalCvr}%</td>
