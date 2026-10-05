@@ -1863,13 +1863,21 @@ function renderAll() {
 // ============================================================
 // KPI
 // ============================================================
+// 社長が決めた月次目標(3Q OKR)。事業計画(businessPlan)より優先する
+const MONTHLY_OKR_OVERRIDES = {
+  '2026-10': { projectedSales: 2000000, lives: 40, salesNote: '10月の必達(10/2 社長決定)' },
+};
+
 function renderKPI(sorted) {
   // 当月または選択月のKEY (YYYY-MM) を決定
   const refDate = filterTo || new Date();
   const y = refDate.getFullYear();
   const m = String(refDate.getMonth() + 1).padStart(2, '0');
   const monthKey = `${y}-${m}`;
-  const target = businessPlan && businessPlan.monthlyTargets && businessPlan.monthlyTargets[monthKey];
+  const planTarget = businessPlan && businessPlan.monthlyTargets && businessPlan.monthlyTargets[monthKey];
+  // 月次目標(OKR)が事業計画と違う月は、ここで売上・配信回数だけ上書きする。事業計画の正本スプシは引き直さない
+  const okr = MONTHLY_OKR_OVERRIDES[monthKey];
+  const target = planTarget || okr ? { ...(planTarget || {}), ...(okr || {}) } : null;
 
   // 実績算出
   const actualLives = sorted.length;
@@ -1934,6 +1942,9 @@ function renderKPI(sorted) {
   const itemsPerBuyer = ucForRate > 0 ? (totalItemsAll / ucForRate) : 0;
   // 売上(GMV)カード・目標進捗は配信外収益(動画アフィリ/オーガニック)を含める。AOV/CVR等の購入者ベースKPIには含めない。
   const totalSalesWithExtra = totalSales + extraRev.sales;
+  // 今の1個あたり単価のまま売上目標に届く個数(全期間表示では目標月が決まらないので出さない)
+  const neededItems = (!isFullPeriod && target && totalItemsAll > 0 && totalSales > 0)
+    ? Math.ceil(target.projectedSales / (totalSales / totalItemsAll)) : 0;
 
   // ユーザー指定の順序: 累計リスト → 配信回数 → Peak売上 → AOV → リピート率 → CVR → 売上
   const items = [
@@ -1956,20 +1967,19 @@ function renderKPI(sorted) {
       color: 'teal'
     },
     {
-      label: '🌙 Peak 1配信売上 (¥1.5M到達)',
+      label: '🌙 最高 1配信売上',
       actual: '¥' + peakSales.toLocaleString(),
-      target: msTimeline?.perLiveSales ? '¥' + msTimeline.perLiveSales.toLocaleString() : '¥1,500,000',
-      rate: msTimeline?.perLiveSales ? rateOf(peakSales, msTimeline.perLiveSales) : rateOf(peakSales, 1500000),
-      note: peakDate ? `Peak日: ${peakDate}${msTimeline?.phase ? ' / ' + msTimeline.phase : ''}` : '',
+      noTarget: true,
+      note: peakDate ? `${peakDate} の配信（ムーンショットの¥1.5Mは月次目標ではないので達成率は出さない）` : '',
       color: 'purple'
     },
     {
       label: isFullPeriod ? '💎 AOV (累計・購入者ベース)' : '💎 AOV (期間・購入者ベース)',
       actual: avgAOV > 0 ? '¥' + avgAOV.toLocaleString() : '—',
-      target: msTimeline?.aov ? '¥' + msTimeline.aov.toLocaleString() : '—',
-      rate: msTimeline?.aov ? rateOf(avgAOV, msTimeline.aov) : 0,
+      noTarget: true,
       note: ucForRate > 0
-        ? `${isFullPeriod ? '累計' : monthKey}売上¥${totalSales.toLocaleString()}÷${isFullPeriod ? '累計' : monthKey}購入者${ucForRate.toLocaleString()}人 (ぞうねこ¥6,621)`
+        ? `${isFullPeriod ? '累計' : monthKey}売上¥${totalSales.toLocaleString()}÷${isFullPeriod ? '累計' : monthKey}購入者${ucForRate.toLocaleString()}人`
+          + (target && avgAOV > 0 ? `。この単価なら売上目標に購入者${Math.ceil(target.projectedSales / avgAOV).toLocaleString()}人` : '')
         : 'customer-stats.monthlyにデータなし。全期間表示で再確認を',
       color: 'gold'
     },
@@ -1984,21 +1994,22 @@ function renderKPI(sorted) {
     {
       label: isFullPeriod ? '🎯 CVR (累計・購入者ベース)' : '🎯 CVR (期間・購入者ベース)',
       actual: actualCVR.toFixed(2) + '%',
-      target: msTimeline?.cvr ? msTimeline.cvr.toFixed(2) + '%' : '0.87%',
-      rate: msTimeline?.cvr ? rateOf(actualCVR, msTimeline.cvr) : rateOf(actualCVR, 0.87),
+      noTarget: true,
       note: ucForRate > 0
-        ? `${isFullPeriod ? '累計' : monthKey}購入者${ucForRate.toLocaleString()}人÷延べ視聴${totalViewsAll.toLocaleString()} (ぞうねこ並 0.87%)`
+        ? `${isFullPeriod ? '累計' : monthKey}購入者${ucForRate.toLocaleString()}人÷延べ視聴${totalViewsAll.toLocaleString()}`
         : 'customer-stats.monthlyにデータなし。全期間表示で再確認を',
       color: 'purple'
     },
     {
-      label: isFullPeriod ? '🧺 バスケット (items/購入者)' : '🧺 バスケット (期間)',
-      actual: ucForRate > 0 ? itemsPerBuyer.toFixed(1) + '個' : '—',
-      target: '9.4個',
-      rate: ucForRate > 0 ? rateOf(itemsPerBuyer, 9.4) : 0,
-      note: ucForRate > 0
-        ? `${isFullPeriod ? '累計' : monthKey}items ${totalItemsAll.toLocaleString()}÷購入者${ucForRate.toLocaleString()}人 (ぞうねこ並 9.4個)`
-        : 'customer-stats.monthlyにデータなし。全期間表示で再確認を',
+      // 売上 = 1個あたりの単価 × 購入個数。AOVを上げるか個数を上げるかのどちらかで目標に届く(2026-10-05 社長)
+      label: isFullPeriod ? '🧺 購入個数 (累計)' : '🧺 購入個数 (期間)',
+      actual: totalItemsAll.toLocaleString() + '個',
+      target: neededItems ? neededItems.toLocaleString() + '個' : '—',
+      rate: neededItems ? rateOf(totalItemsAll, neededItems) : 0,
+      noTarget: !neededItems,
+      note: totalItemsAll > 0
+        ? `1個あたり¥${Math.round(totalSales / totalItemsAll).toLocaleString()}・1人${ucForRate > 0 ? itemsPerBuyer.toFixed(1) : '—'}個。目標は「この単価のまま売上目標に届く個数」`
+        : '販売点数のデータなし',
       color: 'teal'
     },
     {
@@ -2006,7 +2017,7 @@ function renderKPI(sorted) {
       actual: '¥' + totalSalesWithExtra.toLocaleString(),
       target: target ? '¥' + target.projectedSales.toLocaleString() : '—',
       rate: target ? rateOf(totalSalesWithExtra, target.projectedSales) : 0,
-      note: (target ? `月商目標¥${(target.projectedSales/1000).toFixed(0)}K` : '')
+      note: (target ? (target.salesNote ? `${target.salesNote}・¥${target.projectedSales.toLocaleString()}` : `月商目標¥${(target.projectedSales/1000).toFixed(0)}K`) : '')
         + (extraRev.sales > 0 ? ` ・配信外+¥${extraRev.sales.toLocaleString()}含む` : ''),
       color: 'green'
     },
