@@ -187,21 +187,6 @@ td.gold-text { color: var(--gold); }
 .def-item code { background: var(--s2); padding: 1px 6px; border-radius: 4px; color: var(--gold); font-size: 11px; font-family: 'Space Grotesk', monospace; }
 .def-formula { display: block; margin-top: 6px; padding: 6px 10px; background: var(--s2); border-left: 2px solid var(--teal); border-radius: 4px; font-size: 12px; font-family: 'Space Grotesk', monospace; color: var(--teal); }
 
-/* 顧客リピート統計カード */
-.cust-stats { background: linear-gradient(135deg, var(--s1) 0%, #1a1a28 100%); border: 1px solid var(--teal); border-radius: 12px; padding: 18px 20px; margin-bottom: 20px; }
-.cust-stats-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; flex-wrap: wrap; gap: 8px; }
-.cust-stats-header h2 { font-size: 15px; font-weight: 700; color: var(--teal); }
-.cust-stats-header .meta { font-size: 11px; color: var(--muted); }
-.cust-stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; }
-.cust-card { background: var(--bg); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; }
-.cust-card-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .6px; font-weight: 600; margin-bottom: 6px; }
-.cust-card-val { font-size: 24px; font-weight: 700; letter-spacing: -0.5px; }
-.cust-card-val.teal { color: var(--teal); }
-.cust-card-val.green { color: var(--green); }
-.cust-card-val.gold { color: var(--gold); }
-.cust-card-val.purple { color: var(--purple); }
-.cust-card-sub { font-size: 11px; color: var(--muted); margin-top: 4px; line-height: 1.5; }
-
 /* Insight boxes */
 .insights { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; margin-bottom: 24px; }
 .insight { background: var(--s1); border: 1px solid var(--border); border-left: 3px solid var(--teal); border-radius: 8px; padding: 14px 16px; font-size: 13px; line-height: 1.6; }
@@ -403,9 +388,6 @@ td.gold-text { color: var(--gold); }
   <div id="moonshotBody" style="display:none;margin-top:14px"></div>
 </div>
 
-<!-- 顧客リピート分析（全期間・CSV実績ベース。自社商品のみで集計） -->
-<div id="customerStatsArea"></div>
-
 <!-- Detail table -->
 <div class="section">
   <div class="section-head">
@@ -596,7 +578,6 @@ td.gold-text { color: var(--gold); }
     <div class="def-item"><strong>variant mix (加重mix計算)</strong><span>1個バラ売り価格とセット価格の両方が存在するSKU(ソックス/メタルヘアゴム/マルチポーチ/リボン小物入れ/各シュシュ)で、<strong>implied unit price = GMV÷販売数</strong>から変種の比率を推定して加重平均で粗利を見積もる方式。<br>例: ソックス 7個 ¥2,211 → 単価¥315.86 → 1足¥100(4.2個) + 5足セット¥490(2.8個) と推定。</span></div>
     <div class="def-item"><strong>未登録 (profitMissing)</strong><span>粗利マスタに紐付かない商品。アフィリエイトや他社商品など、粗利計算対象外。各配信の商品明細では非表示、上の商品別サマリーでは⚠マーク付きで表示。</span></div>
     <div class="def-item"><strong>商品種別バッジ <span class="src-badge own">🏪 自社</span> / <span class="src-badge affiliate">🔗 アフィリ</span></strong><span><strong>自社</strong>: 自分で仕入れ・梱包・発送する商品。粗利から TikTok販売手数料・送料・梱包資材費が引かれる。<br><strong>アフィリ(アフィリエイト)</strong>: 他社商品の販売促進を代行し成果報酬を受け取る商品。元セラーが発送するため、販売手数料・送料・梱包資材は自社負担ゼロ。<br>現在のアフィリ商品:<ul style="margin:4px 0 0 16px;padding:0;font-size:12px"><li>割れチョコ / 亀田製菓30枚セット / ハード&サワーグミ5種 — 成果報酬5%</li><li><em>駄菓子つめあわせ25点 — 特殊アフィリ(赤字は全て自社負担、-¥158/個 = 売価¥490 − 仕入¥648)</em></li></ul></span></div>
-    <div class="def-item"><strong>顧客リピート分析（※自社のみ）</strong><span>リピート率・新規購入単価・リピート購入単価はすべて<em>自社商品のみ</em>で集計。<br>アフィリエイト商品(駄菓子・亀田・割れチョコ・グミ)は元セラーが発送するため、自社のTikTok Shop注文CSVに含まれない。そのため自然に自社商品のみの統計になる。</span></div>
 
     <div class="modal-actions">
       <button class="btn btn-outline" onclick="closeModal('defModal')">閉じる</button>
@@ -1860,7 +1841,6 @@ function renderAll() {
     profit: extras.reduce((s,d) => s + (d.profit||0), 0),
     count:  extras.length
   };
-  renderCustomerStats();
   renderSummary(sorted);
   renderKPI(sorted);
   renderAccountKR1(sorted);
@@ -2478,62 +2458,6 @@ function renderMoonshot() {
   strategyHtml += '</div>';
 
   body.innerHTML = defHtml + cardsHtml + timelineHtml + strategyHtml;
-}
-
-function renderCustomerStats() {
-  const area = document.getElementById('customerStatsArea');
-  if (!area) return;
-  if (!customerStats || !customerStats.totals) {
-    area.innerHTML = '';
-    return;
-  }
-  const t = customerStats.totals;
-  const src = customerStats.sourceCsv || '';
-  const range = customerStats.dateRange || {};
-  const rangeText = range.earliest && range.latest ? `${range.earliest} 〜 ${range.latest}` : '';
-  const updated = customerStats.lastUpdated || '';
-  const aovDiff = t.newAvgPrice - t.repeatAvgPrice;
-  const aovDiffText = aovDiff > 0
-    ? `<span style="color:var(--muted)">新規が¥${aovDiff.toLocaleString()}高い</span>`
-    : aovDiff < 0
-      ? `<span style="color:var(--green)">リピートが¥${Math.abs(aovDiff).toLocaleString()}高い</span>`
-      : '同額';
-
-  area.innerHTML = `
-    <div class="cust-stats">
-      <div class="cust-stats-header">
-        <h2>👥 顧客リピート分析（全期間実績・<span style="color:var(--accent)">※自社のみ</span>）</h2>
-        <span class="meta">期間: ${rangeText} / 更新: ${updated} / ソース: ${escapeHtml(src)}</span>
-      </div>
-      <div class="cust-stats-grid">
-        <div class="cust-card" title="2回以上購入した顧客 ÷ ユニーク顧客数">
-          <div class="cust-card-label">🔁 リピート率</div>
-          <div class="cust-card-val teal">${t.repeatRate.toFixed(1)}%</div>
-          <div class="cust-card-sub">リピーター ${t.repeatCustomers}人 / ユニーク顧客 ${t.uniqueCustomers}人</div>
-        </div>
-        <div class="cust-card" title="ユニーク顧客数: 全期間で重複を除いた購入者数">
-          <div class="cust-card-label">🧑 ユニーク顧客数</div>
-          <div class="cust-card-val">${t.uniqueCustomers.toLocaleString()}</div>
-          <div class="cust-card-sub">総注文数 ${t.totalOrders}件</div>
-        </div>
-        <div class="cust-card" title="リピートした人も含めて、初回購入の平均単価">
-          <div class="cust-card-label">💸 新規購入単価</div>
-          <div class="cust-card-val green">¥${t.newAvgPrice.toLocaleString()}</div>
-          <div class="cust-card-sub">${t.newOrderCount}件 / 合計¥${t.newSalesTotal.toLocaleString()}</div>
-        </div>
-        <div class="cust-card" title="2回目以降の注文の平均単価">
-          <div class="cust-card-label">🔄 リピート購入単価</div>
-          <div class="cust-card-val purple">¥${t.repeatAvgPrice.toLocaleString()}</div>
-          <div class="cust-card-sub">${t.repeatOrderCount}件 / 合計¥${t.repeatSalesTotal.toLocaleString()}</div>
-        </div>
-        <div class="cust-card" title="新規購入単価 − リピート購入単価">
-          <div class="cust-card-label">📊 単価比較</div>
-          <div class="cust-card-val gold" style="font-size:16px;line-height:1.5">${aovDiffText}</div>
-          <div class="cust-card-sub">リピート顧客は既に好みが決まってる可能性</div>
-        </div>
-      </div>
-    </div>
-  `;
 }
 
 function renderSummary(sorted) {
