@@ -1815,7 +1815,9 @@ async function init() {
 }
 
 // 非配信収益(動画アフィリ/オーガニック)の金額を保持。配信KPIには算入せず、売上/粗利/純利益/目標進捗にだけ加算する。
-let extraRev = { sales: 0, profit: 0, count: 0 };
+// net = 純利益に足す額。動画アフィリは成果報酬=粗利=純利益なので profit をそのまま使う。
+// オーガニック(entryType:'organic')は手数料・送料を引いた netProfit を別に持つ(2026-10-08)。
+let extraRev = { sales: 0, profit: 0, net: 0, count: 0 };
 
 function renderAll() {
   rebuildAffiliateKeys();  // products[].isAffiliate からアフィリ判定セットを再構築(ハードコード撤廃)
@@ -1829,6 +1831,7 @@ function renderAll() {
   extraRev = {
     sales:  extras.reduce((s,d) => s + (d.sales||0), 0),
     profit: extras.reduce((s,d) => s + (d.profit||0), 0),
+    net:    extras.reduce((s,d) => s + (d.netProfit != null ? d.netProfit : (d.profit||0)), 0),
     count:  extras.length
   };
   renderSummary(sorted);
@@ -2371,8 +2374,8 @@ function renderSummary(sorted) {
     </div>
     <div class="card" title="粗利からTikTok手数料・送料・梱包資材費を差し引いた金額（配信外アフィリは手数料/送料なし）" style="border:1px solid var(--accent)">
       <div class="card-label">累計純利益</div>
-      <div class="card-val ${(npAgg.net + extraRev.profit) >= 0 ? 'green' : 'red'}">¥${(npAgg.net + extraRev.profit).toLocaleString()}</div>
-      <div class="card-sub">手数料 −¥${npAgg.tiktokFee.toLocaleString()} / 送料 −¥${npAgg.shippingFee.toLocaleString()} / 梱包 −¥${npAgg.packagingCost.toLocaleString()}${extraRev.profit > 0 ? ` ・配信外+¥${extraRev.profit.toLocaleString()}` : ''}${npPending ? ` ・<span style="color:var(--accent)">未確定${npPending}配信を除く</span>` : ''}</div>
+      <div class="card-val ${(npAgg.net + extraRev.net) >= 0 ? 'green' : 'red'}">¥${Math.round(npAgg.net + extraRev.net).toLocaleString()}</div>
+      <div class="card-sub">手数料 −¥${npAgg.tiktokFee.toLocaleString()} / 送料 −¥${npAgg.shippingFee.toLocaleString()} / 梱包 −¥${npAgg.packagingCost.toLocaleString()}${extraRev.net !== 0 ? ` ・配信外+¥${Math.round(extraRev.net).toLocaleString()}` : ''}${npPending ? ` ・<span style="color:var(--accent)">未確定${npPending}配信を除く</span>` : ''}</div>
     </div>
   `;
 }
