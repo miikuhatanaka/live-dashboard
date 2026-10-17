@@ -1123,19 +1123,18 @@ function computeNetProfit(d) {
         buckets[key].gmv += g;
       });
     }
-    // 残差(売上 − 既知商品GMV合計)はdefaultRateで課金
-    // ※マイナスならsellerSKU割引で売上 < 商品GMV合計のケース → 加重を比例縮小
+    // 売上(nonAffiliateGmv)と商品GMV合計(knownGmv)の差は、売れた商品の構成比のまま按分する
+    // ※発送くんが書く sellerSide 売上はTikTok負担クーポン前の金額なので、Live Center の商品GMV合計より大きくなる。
+    //   この差を defaultRate(12%・ファッション小物)で課金すると食品配信の手数料が過大になっていた(2026-10-17 id155で発覚)
+    // ※マイナスならセラー割引で売上 < 商品GMV合計 → 同じく比例縮小
     const residual = nonAffiliateGmv - knownGmv;
     let totalFee;
-    if (residual >= 0) {
-      totalFee = weightedFee + residual * FEE_CATEGORY_RULES.defaultRate;
-      if (residual > 0) {
-        const key = FEE_CATEGORY_RULES.defaultRate;
-        if (!buckets[key]) buckets[key] = { rate: key, category: FEE_CATEGORY_RULES.defaultCategory + '(未マッピング)', gmv: 0 };
-        buckets[key].gmv += residual;
-      }
+    if (knownGmv <= 0 && residual > 0) {
+      // 商品GMVが1件も無い(商品一覧なし等)ときだけ defaultRate で課金
+      totalFee = residual * FEE_CATEGORY_RULES.defaultRate;
+      const key = FEE_CATEGORY_RULES.defaultRate;
+      buckets[key] = { rate: key, category: FEE_CATEGORY_RULES.defaultCategory + '(未マッピング)', gmv: residual };
     } else if (knownGmv > 0) {
-      // セラー割引等で売上が商品GMV合計を下回るケース: 比例縮小
       const scale = nonAffiliateGmv / knownGmv;
       totalFee = weightedFee * scale;
       Object.values(buckets).forEach(b => { b.gmv = Math.round(b.gmv * scale); });
