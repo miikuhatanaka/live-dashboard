@@ -85,10 +85,14 @@ h1 span { color: var(--accent); }
 
 /* 配信別詳細テーブルだけ数字を大きくする (2026-09-24 社長指示。大きすぎたので同日に少し戻した) */
 .table-scroll { overflow-x: auto; }
-table.live-table { font-size: 14px; min-width: 1240px; }
-table.live-table thead th { font-size: 11.5px; padding: 10px 9px; }
-table.live-table td { font-variant-numeric: tabular-nums; padding: 11px 9px; }
-table.live-table td.num, table.live-table td[style*="font-weight:700"] { font-size: 15px; }
+table.live-table { font-size: 13px; }
+table.live-table thead th { font-size: 11px; padding: 8px 6px; white-space: nowrap; }
+table.live-table td { font-variant-numeric: tabular-nums; padding: 9px 6px; white-space: nowrap; }
+table.live-table td.date { white-space: normal; min-width: 92px; }
+/* アカウント・担当は長い名前（チクタク商店街 / 天野さん・瀬尾さん）だけ2行に折り返して列幅を抑える */
+table.live-table td:nth-child(2), table.live-table td:nth-child(3) { white-space: normal; max-width: 84px; }
+table.live-table td:nth-child(2) .acct-pill, table.live-table td:nth-child(3) .perf-tag { white-space: normal; }
+table.live-table td.num, table.live-table td[style*="font-weight:700"] { font-size: 13.5px; }
 table.live-table td.date { font-size: 12.5px; color: var(--text); }
 /* 「2時間53分30秒」が3行に折り返して行が縦に伸びるのを止める */
 table.live-table td.livetime { white-space: nowrap; font-size: 12.5px; color: var(--muted); }
@@ -399,20 +403,20 @@ td.gold-text { color: var(--gold); }
         <th>配信日時</th>
         <th>アカウント</th>
         <th title="配信した担当者。Googleカレンダーの枠で特定して入れている(2026-09-24〜)。空欄=未特定">担当</th>
-        <th>LIVE時間</th>
-        <th title="LIVEや商品がフィード等に表示された回数。露出のボリューム。配信を見てもらう入口の総量">インプ <span style="color:var(--muted);font-size:9px;font-weight:400">(露出)</span></th>
-        <th>視聴数</th>
-        <th title="入室率 = 視聴数 ÷ インプレッション。露出された人のうち何%が実際に入室したか(TikTok公式タップスルー率)。サムネ・冒頭の引きの強さの指標。緑=10%以上(良好) / 青=5〜10%(標準) / 黄=5%未満 / 赤=2%以下は露出制限を疑う(講座 第7回)">入室率 <span style="color:var(--muted);font-size:9px;font-weight:400">(良好 10%以上)</span></th>
-        <th>最高同時</th>
+        <th title="LIVE時間（時:分）">時間</th>
+        <th title="LIVEや商品がフィード等に表示された回数。露出のボリューム。配信を見てもらう入口の総量">インプ</th>
+        <th>視聴</th>
+        <th title="入室率 = 視聴数 ÷ インプレッション。露出された人のうち何%が実際に入室したか(TikTok公式タップスルー率)。サムネ・冒頭の引きの強さの指標。緑=10%以上(良好) / 青=5〜10%(標準) / 黄=5%未満 / 赤=2%以下は露出制限を疑う(講座 第7回)">入室率</th>
+        <th title="最高同時視聴者数">同接</th>
         <th>コメント</th>
-        <th title="平均商品CTR = Σ商品クリック ÷ Σ商品インプレッション。商品が何回見られて何回タップされたか。入室率が「LIVEに入るか」なら、こちらは「商品を見に行くか」。商品インプで加重平均している。緑=合格ライン3%以上 / 赤=未達(講座 第4回)">商品CTR <span style="color:var(--muted);font-size:9px;font-weight:400">(合格 3%以上)</span></th>
-        <th title="カート追加率 = Σカート追加 ÷ Σ商品クリック(タップ比)。商品を見に行った人のうち何%がカートに入れたか。5%を超えたら広告を検討してよい(講座 第4回)。緑=5%以上 / 赤=未達">カート追加率 <span style="color:var(--muted);font-size:9px;font-weight:400">(合格 5%以上)</span></th>
-        <th style="border-left:2px solid var(--border)" title="💎マーク = セラー側売上(SKU元価格−セラー割引)。2026/4/27〜の新算定方式。マークなし = Live Centerからのパース値(従来方式)">売上 <span style="color:var(--muted);font-size:9px;font-weight:400">(💎=新算定)</span></th>
-        <th title="視聴GPM = 売上 ÷ 視聴数 × 1,000。視聴1,000回あたりの売上。競合の米配信は ¥9,000〜¥12,000(2026-10-05 社長共有)。¥9,000以上で緑。TikTok画面の「表示GPM」は1,000インプレッションあたりで別物(セルにカーソルを当てると出る)">GPM <span style="color:var(--muted);font-size:9px;font-weight:400">(競合 ¥9千〜1.2万)</span></th>
-        <th title="ユニーク購入者数(同一username×phoneでマージ)。1人が2回注文しても1カウント。customer-history.jsonから配信窓(start〜end+6h)でretro集計">購入者数</th>
-        <th title="AOV (per-buyer) = 売上÷購入者数。ぞうねこ27チャレ並天井 ¥6,621">AOV <span style="color:var(--muted);font-size:9px;font-weight:400">(売上÷購入者)</span></th>
-        <th title="転換率 / CVR (購入者ベース) = 購入者数÷延べ視聴。講座の合格ライン=視聴100人で1人(1%)で強い(第4回)。ぞうねこ27チャレ並天井 0.87%。母数の定義が講座と揃わないため合否の色は付けていない">転換率 <span style="color:var(--muted);font-size:9px;font-weight:400">(購入者÷視聴)</span></th>
-        <th title="items per buyer = 販売点数÷購入者数。バスケットサイズ。ぞうねこ27チャレ並天井 9.4個">items/人</th>
+        <th title="平均商品CTR = Σ商品クリック ÷ Σ商品インプレッション。商品が何回見られて何回タップされたか。入室率が「LIVEに入るか」なら、こちらは「商品を見に行くか」。商品インプで加重平均している。緑=合格ライン3%以上 / 赤=未達(講座 第4回)">CTR</th>
+        <th title="カート追加率 = Σカート追加 ÷ Σ商品クリック(タップ比)。商品を見に行った人のうち何%がカートに入れたか。5%を超えたら広告を検討してよい(講座 第4回)。緑=5%以上 / 赤=未達">カート率</th>
+        <th style="border-left:2px solid var(--border)" title="💎マーク = セラー側売上(SKU元価格−セラー割引)。2026/4/27〜の新算定方式。マークなし = Live Centerからのパース値(従来方式)">売上</th>
+        <th title="視聴GPM = 売上 ÷ 視聴数 × 1,000。視聴1,000回あたりの売上。競合の米配信は ¥9,000〜¥12,000(2026-10-05 社長共有)。¥9,000以上で緑。TikTok画面の「表示GPM」は1,000インプレッションあたりで別物(セルにカーソルを当てると出る)">GPM</th>
+        <th title="ユニーク購入者数(同一username×phoneでマージ)。1人が2回注文しても1カウント。customer-history.jsonから配信窓(start〜end+6h)でretro集計">購入者</th>
+        <th title="AOV = 売上÷購入者数">AOV</th>
+        <th title="転換率 / CVR (購入者ベース) = 購入者数÷延べ視聴。講座の合格ライン=視聴100人で1人(1%)で強い(第4回)。母数の定義が講座と揃わないため合否の色は付けていない">転換率</th>
+        <th title="1人あたり点数 = 販売点数÷購入者数">点数/人</th>
         <th>粗利</th>
         <th>純利益</th>
         <th></th>
@@ -1084,6 +1088,13 @@ function isNetProfitPending(d) {
 // ※アフィリエイト商品はTikTok手数料・送料・梱包資材すべて対象外
 //   (発送は元セラーが行う / 粗利=GMV×5%ですでに手数料控除後の想定)
 // ※2026-05-11以降はカテゴリ別手数料(7〜12%)、SKU prefixで判定
+// LIVE時間を表の幅に収まる「時:分」にする（例: 2時間32分35秒 → 2:32）。全文はセルのツールチップ
+function shortLiveTime(t) {
+  if (!t) return '-';
+  const h = (t.match(/(\d+)時間/) || [0, 0])[1], m = (t.match(/(\d+)分/) || [0, 0])[1];
+  if (!/時間|分/.test(t)) return t;
+  return `${h}:${String(m).padStart(2, '0')}`;
+}
 function computeNetProfit(d) {
   const gross = d.profit || 0;
   const sales = d.sales || 0;
@@ -3172,7 +3183,7 @@ function renderTable(sortedIn) {
       <td class="date">${d.date} ${isBest ? '<span style="color:var(--gold);font-size:10px">★ 最高</span>' : ''}${d.memo ? '<span class="memo-mark" title="メモあり（▼詳細で全文表示）">📝</span>' : ''}${flagsHtml}</td>
       <td>${accountPillHtml(d)}</td>
       <td>${performerPillHtml(d)}</td>
-      <td class="livetime">${d.liveTime || '-'}</td>
+      <td class="livetime" title="${d.liveTime || ''}">${shortLiveTime(d.liveTime)}</td>
       <td class="num">${d.impressions ? d.impressions.toLocaleString() : '-'}</td>
       <td class="num">${(d.totalViews||0).toLocaleString()}</td>
       <td class="num" style="color:${benchColorTap(tapRate)};font-weight:700" title="${tapRate != null ? benchJudgeTap(tapRate) + '｜' + BENCH.tapThrough.label : ''}">${tapRate != null ? tapRate.toFixed(1)+'%' : '-'}</td>
@@ -3185,7 +3196,7 @@ function renderTable(sortedIn) {
       <td style="font-weight:700" title="購入者数(buyer): customer-history.json retro 集計。1人が複数注文しても1。注文数=${d.orders||0} / 商品個数=${itemsSold}">${buyers}</td>
       <td style="color:var(--gold);font-weight:700">${aov > 0 ? '¥'+aov.toLocaleString() : '-'}</td>
       <td style="color:var(--teal);font-weight:700" title="${BENCH.cvr.label}">${cvr}%</td>
-      <td style="color:var(--teal);font-weight:700" title="バスケットサイズ: 1購入者あたり何個買ったか。ぞうねこ並天井 9.4個">${ipb}</td>
+      <td style="color:var(--teal);font-weight:700" title="1購入者あたり何個買ったか">${ipb}</td>
       <td style="color:var(--gold);font-weight:700">${d.profit ? '¥'+d.profit.toLocaleString() : '-'}</td>
       <td style="font-weight:700;color:${(() => { if (isNetProfitPending(d)) return 'var(--muted)'; const n=computeNetProfit(d); return n.net>=0?'var(--green)':'var(--accent)'; })()}" title="${isNetProfitPending(d) ? '発送くんが梱包数を入力するまで純利益は未確定（送料・梱包資材費が引けないため）' : ''}">${(() => { if (isNetProfitPending(d)) return '-'; const n=computeNetProfit(d); return '¥'+n.net.toLocaleString(); })()}</td>
       <td style="display:flex;gap:4px;align-items:center;flex-wrap:wrap">
@@ -3353,10 +3364,10 @@ function renderTable(sortedIn) {
       <td style="color:${(() => { const r = productCtrTotal(sorted); return benchColorPass(r && r.cartRate, BENCH.cartRate.pass); })()};font-weight:700" title="${(() => { const r = productCtrTotal(sorted); return r && r.cartRate != null ? `期間合計: カート追加 ${r.cart} / クリック ${Math.round(r.clicks).toLocaleString()}｜${benchJudgePass(r.cartRate, BENCH.cartRate.pass)}` : ''; })()}">${(() => { const r = productCtrTotal(sorted); return r && r.cartRate != null ? r.cartRate.toFixed(1)+'%' : '-'; })()}</td>
       <td style="color:var(--green);font-weight:700;border-left:2px solid var(--border)">¥${sumSales.toLocaleString()}</td>
       <td class="num" style="font-weight:700" title="期間の視聴GPM = Σ売上 ÷ Σ視聴 × 1,000（配信ごとの単純平均ではない）">${(() => { const g = gpmTotal(sorted); return g != null ? '¥'+Math.round(g).toLocaleString() : '-'; })()}</td>
-      <td style="color:var(--teal);font-weight:700" title="${isFullPeriodTotal ? '累計ユニーク購入者数 (customer-stats.totals.uniqueCustomers)。リピーターは1人。ぞうねこ27チャレ 2,075人と直接比較可能' : '期間内ユニーク購入者数 (月別合算、月跨ぎリピーターは重複)'}">${ucForTotal.toLocaleString()}</td>
-      <td style="color:var(--gold);font-weight:700" title="${isFullPeriodTotal ? '累計AOV=累計売上÷累計購入者(unique buyer)。ぞうねこ並天井 ¥6,621' : '期間AOV=期間売上÷期間内ユニーク購入者'}">${totalAov > 0 ? '¥'+totalAov.toLocaleString() : '-'}</td>
-      <td style="color:var(--teal);font-weight:700" title="${isFullPeriodTotal ? '累計CVR=累計購入者÷延べ視聴。ぞうねこ並天井 0.87%' : '期間CVR=期間内ユニーク購入者÷期間延べ視聴'}">${totalCvr}%</td>
-      <td style="color:var(--teal);font-weight:700" title="${isFullPeriodTotal ? '累計バスケットサイズ=Σitems÷累計購入者。ぞうねこ並天井 9.4個' : '期間バスケットサイズ=期間items÷期間購入者'}">${totalIpb}</td>
+      <td style="color:var(--teal);font-weight:700" title="${isFullPeriodTotal ? '累計ユニーク購入者数 (customer-stats.totals.uniqueCustomers)。リピーターは1人' : '期間内ユニーク購入者数 (月別合算、月跨ぎリピーターは重複)'}">${ucForTotal.toLocaleString()}</td>
+      <td style="color:var(--gold);font-weight:700" title="${isFullPeriodTotal ? '累計AOV=累計売上÷累計購入者(unique buyer)' : '期間AOV=期間売上÷期間内ユニーク購入者'}">${totalAov > 0 ? '¥'+totalAov.toLocaleString() : '-'}</td>
+      <td style="color:var(--teal);font-weight:700" title="${isFullPeriodTotal ? '累計CVR=累計購入者÷延べ視聴' : '期間CVR=期間内ユニーク購入者÷期間延べ視聴'}">${totalCvr}%</td>
+      <td style="color:var(--teal);font-weight:700" title="${isFullPeriodTotal ? '累計バスケットサイズ=Σitems÷累計購入者' : '期間バスケットサイズ=期間items÷期間購入者'}">${totalIpb}</td>
       <td style="color:var(--gold);font-weight:700">¥${sumProfit.toLocaleString()}</td>
       <td style="color:${sumNet>=0?'var(--green)':'var(--accent)'};font-weight:700">¥${sumNet.toLocaleString()}</td>
       <td></td>
