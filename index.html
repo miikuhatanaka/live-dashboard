@@ -181,6 +181,9 @@ td.gold-text { color: var(--gold); }
 .prod-summary-card .profit-pos { color: var(--gold); }
 .prod-summary-card .profit-neg { color: var(--accent); }
 .prod-summary-card .empty { color: var(--muted); padding: 20px; text-align: center; font-size: 13px; }
+/* 商品名はTikTokのキーワード入りタイトルで長い。2行で切って全文はツールチップに出す(2026-10-19) */
+.prod-summary-card .prod-name { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; max-width: 420px; white-space: normal; line-height: 1.5; vertical-align: middle; }
+.prod-summary-card tbody td:nth-child(2) { white-space: nowrap; }
 
 /* 定義モーダル用 */
 .def-item { display: block; padding: 10px 0; border-bottom: 1px solid var(--border); font-size: 13px; line-height: 1.6; }
@@ -2596,6 +2599,15 @@ function renderProductSummary(sorted) {
   // variantBreakdown(注文CSV実績)があれば各variant数量をproductGroupに積算
   const agg = {};
   const aggregatedBroadcastIds = {}; // 重複配信カウント回避用 (productGroup → Set<configId>)
+  // 同じ商品ページは TikTok商品ID でまとめる。販売名を変えると masterKey が変わり、
+  // 1商品が2行に割れていた(2026-10-16 ゆめぴりかに精米を足してタイトル変更 → 10/19 発覚)。
+  // 表示名は一番新しい配信の名前を使う。
+  const keyOf = (p, name) => p.tiktokId ? ('id:' + p.tiktokId) : name;
+  const dateOf = d => new Date(String(d.date || '')).getTime() || 0;  // "2026/10/19 6:15" 形式をそのまま読む
+  const touchName = (key, name, d) => {
+    const t = dateOf(d);
+    if (name && t >= (agg[key]._t || 0)) { agg[key].masterKey = name; agg[key]._t = t; }
+  };
   sorted.forEach(d => {
     if (!Array.isArray(d.products)) return;
     const seenInStream = new Set();
@@ -2603,24 +2615,27 @@ function renderProductSummary(sorted) {
       // variantBreakdown(注文CSVから抽出した実績)があれば各variantを同じproductGroupに積算
       if (Array.isArray(p.variantBreakdown) && p.variantBreakdown.length > 0) {
         p.variantBreakdown.forEach(b => {
-          const group = extractProductGroup(b.masterKey);
-          if (!group) return;
+          const name = extractProductGroup(b.masterKey);
+          if (!name) return;
+          const group = keyOf(p, name);
           if (!agg[group]) {
             agg[group] = {
-              key: group, masterKey: group, sampleName: p.tiktokName || group,
+              key: group, masterKey: name, sampleName: p.tiktokName || name, _t: 0,
               impressions: 0, sold: 0, gmv: 0, totalProfit: 0,
               broadcasts: 0, missing: false, precise: true,
               isAffiliate: isAffiliateKey(b.masterKey)
             };
             aggregatedBroadcastIds[group] = new Set();
           }
+          touchName(group, name, d);
           agg[group].sold        += (b.qty ?? b.quantity ?? 0);
           agg[group].gmv         += (b.subtotalYen || 0);
           agg[group].totalProfit += (b.totalProfit ?? b.profit ?? 0);
         });
         // listing単位のimpressionsは1回だけ加算(variantBreakdownの各エントリで重複加算しない)
-        const primaryGroup = extractProductGroup(p.variantBreakdown[0].masterKey);
-        if (primaryGroup && !seenInStream.has(primaryGroup)) {
+        const primaryName = extractProductGroup(p.variantBreakdown[0].masterKey);
+        const primaryGroup = primaryName ? keyOf(p, primaryName) : null;
+        if (primaryGroup && agg[primaryGroup] && !seenInStream.has(primaryGroup)) {
           agg[primaryGroup].impressions += p.impressions || 0;
           agg[primaryGroup].broadcasts += 1;
           seenInStream.add(primaryGroup);
@@ -2628,17 +2643,20 @@ function renderProductSummary(sorted) {
         }
       } else {
         // variantBreakdown無しはlisting単位で集計。masterKeyからproductGroupを抽出
-        const group = extractProductGroup(p.masterKey) || ('（未登録）' + (p.tiktokName || '').slice(0, 20));
+        const regName = extractProductGroup(p.masterKey);
+        const name = regName || ('（未登録）' + (p.tiktokName || '').slice(0, 20));
+        const group = regName ? keyOf(p, regName) : name;
         if (!agg[group]) {
           agg[group] = {
-            key: group, masterKey: group,
-            sampleName: p.tiktokName || group,
+            key: group, masterKey: name, _t: 0,
+            sampleName: p.tiktokName || name,
             impressions: 0, sold: 0, gmv: 0, totalProfit: 0,
             broadcasts: 0, missing: !!p.profitMissing, precise: false,
             isAffiliate: !!p.isAffiliate || isAffiliateKey(p.masterKey)
           };
           aggregatedBroadcastIds[group] = new Set();
         }
+        if (regName) touchName(group, regName, d);
         agg[group].impressions += p.impressions || 0;
         agg[group].sold        += p.sold || 0;
         agg[group].gmv         += p.gmv || 0;
@@ -2685,7 +2703,7 @@ function renderProductSummary(sorted) {
     const profitClass = r.totalProfit >= 0 ? 'profit-pos' : 'profit-neg';
     const preciseMark = r.precise ? ' <span style="color:var(--teal);font-size:10px" title="注文CSVからの実績値">✓</span>' : '';
     const nameHtml = r.masterKey
-      ? `<span class="sku-tag">${escapeHtml(r.masterKey)}</span>${preciseMark}`
+      ? `<span class="sku-tag prod-name" title="${escapeHtml(r.masterKey)}">${escapeHtml(r.masterKey)}</span>${preciseMark}`
       : `<span class="sku-tag missing">⚠ 未登録</span> <span style="color:var(--muted);font-size:11px">${escapeHtml(r.sampleName.slice(0, 40))}...</span>`;
     const badgeHtml = r.masterKey ? sourceBadge(r.masterKey, r.isAffiliate) : '<span style="color:var(--muted);font-size:11px">—</span>';
     const cvr = r.impressions > 0 ? (r.sold / r.impressions * 100) : null;
