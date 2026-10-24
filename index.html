@@ -3294,6 +3294,10 @@ function renderTable(sortedIn) {
     const avgPeak = Math.round(sorted.reduce((s,d) => s + (d.peakConcurrent||0), 0) / sorted.length);
     const sumComments = sorted.reduce((s,d) => s + (d.comments||0), 0);
     const sumSales = sorted.reduce((s,d) => s + (d.sales||0), 0);
+    // 実GMV・売上の列(2026-10-23に2列へ分けた)に合わせて合計も2つ出す
+    const sumLiveGmv = sorted.reduce((s,d) => s + (liveGmvOf(d) || 0), 0);
+    const sumSeller = sorted.reduce((s,d) => s + (sellerSalesOf(d) || 0), 0);
+    const sellerPending = sorted.filter(d => sellerSalesOf(d) == null && (liveGmvOf(d) || 0) > 0).length;
     const sumPurchases = sorted.reduce((s,d) => s + (d.purchases||0), 0);
     const sumActive = sorted.reduce((s,d) => s + (d.activeViewers||0), 0);
     // 合計行CVR/AOV = 購入者(unique buyer)ベース。フィルター時は customerStats.monthly[m]、全期間は totals
@@ -3335,7 +3339,8 @@ function renderTable(sortedIn) {
       <td style="font-weight:700">${sumComments.toLocaleString()}</td>
       <td style="color:${(() => { const r = productCtrTotal(sorted); return benchColorCtr(r && r.ctr); })()};font-weight:700" title="${(() => { const r = productCtrTotal(sorted); return r ? `期間合計: 商品インプ ${Math.round(r.impressions).toLocaleString()} / クリック ${Math.round(r.clicks).toLocaleString()}。配信ごとのCTRの単純平均ではなく、クリックとインプを足してから割った加重平均｜${benchJudgeCtr(r.ctr)}` : ''; })()}">${(() => { const r = productCtrTotal(sorted); return r ? r.ctr.toFixed(2)+'%' : '-'; })()}</td>
       <td style="color:${(() => { const r = productCtrTotal(sorted); return benchColorPass(r && r.cartRate, BENCH.cartRate.pass); })()};font-weight:700" title="${(() => { const r = productCtrTotal(sorted); return r && r.cartRate != null ? `期間合計: カート追加 ${r.cart} / クリック ${Math.round(r.clicks).toLocaleString()}｜${benchJudgePass(r.cartRate, BENCH.cartRate.pass)}` : ''; })()}">${(() => { const r = productCtrTotal(sorted); return r && r.cartRate != null ? r.cartRate.toFixed(1)+'%' : '-'; })()}</td>
-      <td style="color:var(--green);font-weight:700;border-left:2px solid var(--border)">¥${sumSales.toLocaleString()}</td>
+      <td class="num" style="font-weight:700;border-left:2px solid var(--border)" title="実GMV(Live Center)の合計">¥${sumLiveGmv.toLocaleString()}</td>
+      <td style="color:var(--green);font-weight:700" title="うちに入る額(発送処理済みの配信)の合計${sellerPending ? `。未確定${sellerPending}配信は含まない` : ''}">¥${sumSeller.toLocaleString()}${sellerPending ? `<div style="color:var(--muted);font-weight:400;font-size:10px">未確定${sellerPending}回を除く</div>` : ''}</td>
       <td class="num" style="font-weight:700" title="期間の視聴GPM = Σ売上 ÷ Σ視聴 × 1,000（配信ごとの単純平均ではない）">${(() => { const g = gpmTotal(sorted); return g != null ? '¥'+Math.round(g).toLocaleString() : '-'; })()}</td>
       <td style="color:var(--teal);font-weight:700" title="${isFullPeriodTotal ? '累計ユニーク購入者数 (customer-stats.totals.uniqueCustomers)。リピーターは1人' : '期間内ユニーク購入者数 (月別合算、月跨ぎリピーターは重複)'}">${ucForTotal.toLocaleString()}</td>
       <td style="color:var(--gold);font-weight:700" title="${isFullPeriodTotal ? '累計AOV=累計売上÷累計購入者(unique buyer)' : '期間AOV=期間売上÷期間内ユニーク購入者'}">${totalAov > 0 ? '¥'+totalAov.toLocaleString() : '-'}</td>
