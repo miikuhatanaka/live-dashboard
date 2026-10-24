@@ -159,6 +159,10 @@ td.gold-text { color: var(--gold); }
 .product-warn strong { color: var(--accent); }
 .product-name { max-width: 340px; line-height: 1.4; }
 .product-name .tik { color: var(--muted); font-size: 11px; display: block; margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.product-sub .product-name { width: 46%; max-width: 420px; }
+.product-sub .product-name .sku-tag { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; white-space: normal; line-height: 1.5; max-width: 420px; }
+.product-sub .product-name .tik { max-width: 420px; }
+.product-sub td:not(.product-name), .product-sub th { white-space: nowrap; }
 .sku-tag { display: inline-block; background: var(--s2); border: 1px solid var(--border); color: var(--teal); padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; }
 .sku-tag.missing { border-color: var(--accent); color: var(--accent); background: #2a1015; }
 
@@ -334,7 +338,7 @@ td.gold-text { color: var(--gold); }
 <!-- Viewer Mode Banner -->
 <div id="viewerBanner" style="display:none;align-items:center;gap:10px;background:var(--s1);border:1px solid var(--border);border-left:3px solid var(--teal);border-radius:10px;padding:12px 18px;margin-bottom:16px;font-size:13px;">
   <span style="font-size:16px">👁</span>
-  <span style="color:var(--muted)"><strong style="color:var(--text)">閲覧専用モード</strong> — データの追加・編集はオーナーのみ可能です。下の「🌐 クラウド同期設定」でGitHubトークンを入力するとオーナーモードになります。</span>
+  <span style="color:var(--muted)"><strong style="color:var(--text)">閲覧専用モード</strong> — データの追加・編集はオーナーのみ可能です。</span>
 </div>
 
 <!-- Date Filter Bar -->
@@ -513,29 +517,20 @@ td.gold-text { color: var(--gold); }
   <div id="productSummaryBody"></div>
 </div>
 
-<!-- AOV分解（ムーンショットの本丸: AOV = 平均商品単価 × 1人あたり点数 に分解して追跡） -->
-<div class="prod-summary-card" style="border-color:var(--gold)">
-  <h2>💎 AOV分解 <span style="font-size:12px;color:var(--muted);font-weight:400">単価アップの中身トラッカー（AOV¥5,000化の進捗）</span></h2>
-  <div class="sub">AOV = 平均商品単価 × 1人あたり点数（購入者ベース）。どちらのレバーで伸びて/落ちているかを分解して見る。価格帯分布は「¥500以上帯のシェア」がAOV¥5,000化の先行指標。</div>
-  <div id="aovCards" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;margin-top:12px"></div>
-  <div class="charts-row" style="margin-top:14px">
-    <div class="chart-card">
-      <div class="chart-title">配信別 AOV推移 <span style="color:var(--muted);font-size:11px;font-weight:400">(線=AOV / 破線=目標)</span></div>
-      <div class="chart-wrap"><canvas id="aovTrendChart"></canvas></div>
-    </div>
-    <div class="chart-card">
-      <div class="chart-title">価格帯分布 <span style="color:var(--muted);font-size:11px;font-weight:400">(販売点数シェア% / GMVシェア%)</span></div>
-      <div class="chart-wrap"><canvas id="priceBandChart"></canvas></div>
-    </div>
-  </div>
-  <div id="aovNote" style="font-size:11px;color:var(--muted);margin-top:8px;line-height:1.6"></div>
+<!-- AOV分解は 2026-10-24 社長指示で削除 -->
+
+<!-- 入口商品別リピート分析（お米だけ・2026-10-24 社長指示） -->
+<div class="prod-summary-card" style="border-color:var(--teal)">
+  <h2>🚪 入口商品別リピート分析（お米） <span style="font-size:12px;color:var(--muted);font-weight:400">初回に買ったお米 → その後のリピート</span></h2>
+  <div class="sub">初回にどのお米を買った人が、その後どれだけリピートし、いくら使ったか（全期間・customer-history匿名集計）。お米以外の入口商品は表示していません。</div>
+  <div id="entryCohortBody" style="margin-top:12px"></div>
 </div>
 
-<!-- 入口商品別リピート分析（初回に何を買った人が、どれだけ戻ってくるか） -->
-<div class="prod-summary-card" style="border-color:var(--teal)">
-  <h2>🚪 入口商品別リピート分析 <span style="font-size:12px;color:var(--muted);font-weight:400">初回購入商品 → その後のLTV</span></h2>
-  <div class="sub">「初回に何を買った顧客」がその後どれだけリピートし、いくら使ったか（全期間・customer-history匿名集計）。集客装置（例: ソックス）と利益商品の役割分担をデータで検証する。</div>
-  <div id="entryCohortBody" style="margin-top:12px"></div>
+<!-- 配信外で売れた商品（商品ページ経由のオーガニック注文＋動画アフィリ・2026-10-24 社長指示） -->
+<div class="prod-summary-card" style="border-color:var(--purple)">
+  <h2>🛒 配信外で売れた商品 <span style="font-size:12px;color:var(--muted);font-weight:400">選択期間内・配信の時間外に売れたもの</span></h2>
+  <div class="sub">配信の時間外に商品ページから入った注文（オーガニック）と動画アフィリの成果。配信回数・AOV・CVRには入れず、売上・粗利の合計にだけ足しています。</div>
+  <div id="offBroadcastBody" style="margin-top:12px"></div>
 </div>
 
 <!-- 用語定義モーダル -->
@@ -587,7 +582,7 @@ td.gold-text { color: var(--gold); }
 <div id="insightsArea" class="insights"></div>
 
 <!-- ダッシュボード更新くん 案内バナー -->
-<div class="claude-import-box" style="border-color: var(--gold);">
+<div class="claude-import-box" style="border-color: var(--gold);display:none">
   <h3 style="color: var(--gold);">🤖 ダッシュボード更新くん（推奨）</h3>
   <p class="sub">
     配信後の更新は、<strong style="color:var(--gold)">Claude Codeで <code>/dashboard-updater</code></strong> を実行するか、
@@ -601,7 +596,7 @@ td.gold-text { color: var(--gold); }
 </div>
 
 <!-- Claude-in-Chrome Import Flow（旧フロー・フォールバック用） -->
-<details style="margin-bottom:24px">
+<details style="margin-bottom:24px;display:none">
 <summary style="cursor:pointer;color:var(--muted);font-size:12px;padding:8px">▶ 旧フロー（Claude in Chrome 経由のJSONインポート）※更新くんが使えないときのみ</summary>
 <div class="claude-import-box" id="claudeImportBox">
   <h3>🤖 Claude in Chrome で自動取り込み</h3>
@@ -664,7 +659,7 @@ td.gold-text { color: var(--gold); }
 </div>
 
 <!-- Cloud Sync Settings -->
-<div class="api-section" id="gistSection">
+<div class="api-section" id="gistSection" style="display:none">
   <h3>🌐 クラウド同期設定</h3>
   <p style="font-size:12px;color:var(--muted);margin-bottom:14px;line-height:1.7">
     GitHub GistにデータをURLするとダッシュボードをウェブ公開でき、他の人が閲覧できるようになります。<br>
@@ -1569,7 +1564,8 @@ function applyViewerModeUI() {
   });
   // 公開デプロイ時はクラウド同期設定UI自体を隠す（PAT入力欄は機能しないので混乱防止）
   const gistSection = document.getElementById('gistSection');
-  if (gistSection) gistSection.style.display = IS_PUBLIC_DEPLOY ? 'none' : '';
+  // 2026-10-24 社長指示で常に隠す(トークンはブラウザに保存済み。差し替えは開発者ツールで)
+  if (gistSection) gistSection.style.display = 'none';
   // セールスセクションはオーナーのみ
   document.querySelectorAll('.sales-section').forEach(el => {
     el.style.display = hide ? 'none' : '';
@@ -1853,8 +1849,8 @@ function renderAll() {
   renderAccountKR1(sorted);
   renderCharts(sorted);
   renderProductSummary(sorted);
-  renderAovBreakdown(sorted);
   renderEntryCohorts();
+  renderOffBroadcastProducts(extras);
   renderTable(sorted);
   renderSalesSelect();
   const total = getAllData().filter(d => !d.nonBroadcast).length;
@@ -2867,127 +2863,6 @@ function sourceBadge(masterKey, isAffiliateFlag) {
 }
 
 // ============================================================
-// AOV分解 (ムーンショットの本丸: AOV = 平均商品単価 × 1人あたり点数)
-// ============================================================
-function renderAovBreakdown(sorted) {
-  const cardsEl = document.getElementById('aovCards');
-  if (!cardsEl) return;
-
-  // 期間の購入者数(renderSummaryと同じ月別合算ロジック・購入者ベース統一)
-  const isFullPeriod = !filterFrom && !filterTo;
-  let buyers = 0;
-  if (isFullPeriod) {
-    buyers = customerStats?.totals?.uniqueCustomers || 0;
-  } else {
-    const months = new Set();
-    sorted.forEach(d => {
-      const [yy, mm] = (d.date||'').split(' ')[0].split('/');
-      if (yy && mm) months.add(`${yy}-${String(mm).padStart(2,'0')}`);
-    });
-    months.forEach(mk => { buyers += customerStats?.monthly?.[mk]?.uniqueCustomers || 0; });
-  }
-  const totalSales = sorted.reduce((s,d) => s + (d.sales||0), 0);
-  const totalItems = sorted.reduce((s,d) => s + (d.itemsSold||0), 0);
-  const aov = buyers > 0 ? totalSales / buyers : 0;
-  const ipb = buyers > 0 ? totalItems / buyers : 0;
-  const unitPrice = totalItems > 0 ? totalSales / totalItems : 0;
-
-  // AOV目標: moonshot 当月マイルストーン > 最終目標¥5,000
-  const now = new Date();
-  const nowKey = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
-  const targetAov = moonshotTargets?.timeline?.[nowKey]?.aov || 5000;
-  // 「AOV¥5,000に届くには」の逆算: 単価据置なら点数いくつ / 点数据置なら単価いくら
-  const needItems = unitPrice > 0 ? (targetAov / unitPrice) : 0;
-  const needPrice = ipb > 0 ? (targetAov / ipb) : 0;
-
-  // 価格帯分布: products[] から。variantBreakdown(注文CSV実績)優先、無ければ listing の unitPrice(またはimplied)
-  const bandAgg = [
-    { label: '〜¥199',       min: 0,    max: 199,      qty: 0, gmv: 0 },
-    { label: '¥200-499',     min: 200,  max: 499,      qty: 0, gmv: 0 },
-    { label: '¥500-999',     min: 500,  max: 999,      qty: 0, gmv: 0 },
-    { label: '¥1,000-1,999', min: 1000, max: 1999,     qty: 0, gmv: 0 },
-    { label: '¥2,000-4,999', min: 2000, max: 4999,     qty: 0, gmv: 0 },
-    { label: '¥5,000〜',     min: 5000, max: Infinity, qty: 0, gmv: 0 },
-  ];
-  const addToBand = (up, qty, gmv) => {
-    if (!(qty > 0) || !(up > 0)) return;
-    const b = bandAgg.find(b => up >= b.min && up <= b.max);
-    if (b) { b.qty += qty; b.gmv += gmv; }
-  };
-  sorted.forEach(d => (Array.isArray(d.products) ? d.products : []).forEach(p => {
-    if (Array.isArray(p.variantBreakdown) && p.variantBreakdown.length > 0) {
-      p.variantBreakdown.forEach(b => {
-        const q = b.qty ?? b.quantity ?? 0;
-        const up = b.unitPrice || (q > 0 ? (b.subtotalYen||0) / q : 0);
-        addToBand(up, q, b.subtotalYen || 0);
-      });
-    } else if ((p.sold||0) > 0) {
-      addToBand(p.unitPrice || (p.gmv||0) / p.sold, p.sold, p.gmv || 0);
-    }
-  }));
-  const bandQtyTotal = bandAgg.reduce((s,b) => s + b.qty, 0);
-  const bandGmvTotal = bandAgg.reduce((s,b) => s + b.gmv, 0);
-  const over500Qty = bandAgg.slice(2).reduce((s,b) => s + b.qty, 0);
-  const over500Share = bandQtyTotal > 0 ? (over500Qty / bandQtyTotal * 100) : 0;
-
-  const periodLabel = isFullPeriod ? '全期間' : '選択期間';
-  const aovRate = targetAov > 0 ? Math.min(aov / targetAov * 100, 100) : 0;
-  const aovColor = aovRate >= 100 ? 'var(--green)' : aovRate >= 50 ? 'var(--gold)' : 'var(--accent)';
-  const card = (label, val, sub, color='var(--text)') => `
-    <div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:12px 14px">
-      <div style="font-size:11px;color:var(--muted);font-weight:600;margin-bottom:4px">${label}</div>
-      <div style="font-size:20px;font-weight:700;color:${color}">${val}</div>
-      <div style="font-size:10px;color:var(--muted);margin-top:4px;line-height:1.5">${sub}</div>
-    </div>`;
-  cardsEl.innerHTML =
-    card(`💎 AOV (${periodLabel}・購入者ベース)`,
-      buyers > 0 ? '¥' + Math.round(aov).toLocaleString() : '—',
-      buyers > 0 ? `売上¥${totalSales.toLocaleString()} ÷ 購入者${buyers.toLocaleString()}人 / 目標¥${targetAov.toLocaleString()}の${aovRate.toFixed(0)}%` : 'customer-statsに期間データなし',
-      aovColor)
-    + card('🏷 平均商品単価 (売上÷点数)',
-      totalItems > 0 ? '¥' + Math.round(unitPrice).toLocaleString() : '—',
-      `点数${totalItems.toLocaleString()}個。単価据置でAOV¥${targetAov.toLocaleString()}には <strong>${needItems > 0 ? needItems.toFixed(1) : '—'}個/人</strong> 必要`)
-    + card('🧺 1人あたり点数 (items/購入者)',
-      buyers > 0 ? ipb.toFixed(1) + '個' : '—',
-      `点数据置でAOV¥${targetAov.toLocaleString()}には単価 <strong>¥${needPrice > 0 ? Math.round(needPrice).toLocaleString() : '—'}</strong> 必要 (ぞうねこ並 9.4個)`)
-    + card('📊 ¥500以上帯の点数シェア',
-      bandQtyTotal > 0 ? over500Share.toFixed(1) + '%' : '—',
-      `AOV¥5,000化の先行指標。2026/4/27分析では¥200-499帯が66%`,
-      over500Share >= 30 ? 'var(--green)' : 'var(--gold)');
-
-  // AOV推移チャート(購入者ベース per-broadcast。buyers未反映の配信はスキップ=spanGaps)
-  const chronological = [...sorted].reverse();
-  const labels = chronological.map(d => d.date.split(' ')[0]);
-  makeChart('aovTrendChart', 'line', {
-    labels,
-    datasets: [
-      { label: 'AOV (売上÷購入者)', data: chronological.map(d => (d.buyers||0) > 0 ? Math.round((d.sales||0)/d.buyers) : null),
-        borderColor: CHART_COLORS.gold, backgroundColor: CHART_COLORS.gold+'22', borderWidth: 2, tension: 0.3, pointBackgroundColor: CHART_COLORS.gold, pointRadius: 4, spanGaps: true },
-      { label: `目標 ¥${targetAov.toLocaleString()}`, data: chronological.map(() => targetAov),
-        borderColor: CHART_COLORS.purple, borderWidth: 1.5, borderDash: [6,4], pointRadius: 0, fill: false },
-    ]
-  }, { plugins: { legend: { display: true, labels: { color: '#6b6b85', font: { size: 11 } } } } });
-
-  // 価格帯分布チャート
-  makeChart('priceBandChart', 'bar', {
-    labels: bandAgg.map(b => b.label),
-    datasets: [
-      { label: '点数シェア%', data: bandAgg.map(b => bandQtyTotal > 0 ? +(b.qty / bandQtyTotal * 100).toFixed(1) : 0),
-        backgroundColor: CHART_COLORS.teal+'88', borderColor: CHART_COLORS.teal, borderWidth: 2, borderRadius: 6 },
-      { label: 'GMVシェア%', data: bandAgg.map(b => bandGmvTotal > 0 ? +(b.gmv / bandGmvTotal * 100).toFixed(1) : 0),
-        backgroundColor: CHART_COLORS.gold+'88', borderColor: CHART_COLORS.gold, borderWidth: 2, borderRadius: 6 },
-    ]
-  }, { plugins: { legend: { display: true, labels: { color: '#6b6b85', font: { size: 11 } } } } });
-
-  const noteEl = document.getElementById('aovNote');
-  if (noteEl) {
-    noteEl.innerHTML = bandQtyTotal > 0
-      ? `価格帯の内訳(点数): ${bandAgg.filter(b => b.qty > 0).map(b => `${b.label} <strong>${b.qty.toLocaleString()}個</strong>(¥${b.gmv.toLocaleString()})`).join(' / ')}`
-      : 'この期間の商品明細データがありません。';
-  }
-}
-
-// ============================================================
 // 入口商品別リピート分析 (customer-stats.json の entryCohorts を表示)
 // 集計本体は scripts/lib/customer-stats.js (配信登録時 or push-customer-stats.js で更新)
 // ============================================================
@@ -3002,9 +2877,16 @@ function renderEntryCohorts() {
   const shortName = s => { const t = String(s||'').replace(/【[^】]*】/g, '').trim(); return t.length > 24 ? t.slice(0, 24) + '…' : (t || s); };
   const win = ec.windowDays || 30;
   const minC = ec.minCustomers || 3;
+  // お米の入口だけ出す(2026-10-24 社長指示)。「その他(各3人未満)」の集約行も外す。
+  const RICE_RE = /米|ゆめぴりか|ななつぼし|コシヒカリ|こしひかり|あきたこまち|まっしぐら|一匠章|匠の一粒|YN-RICE/;
+  const cohorts = ec.cohorts.filter(c => RICE_RE.test(c.entryProduct || '') && !/^その他\(/.test(c.entryProduct || ''));
+  if (cohorts.length === 0) {
+    body.innerHTML = '<div class="empty">お米を入口にした顧客のデータがまだありません。</div>';
+    return;
+  }
   // 判定可能なコホート(窓が閉じた顧客が minC 人以上)だけで基準リピート率を出す。
   // 累計ベースの全体リピート率と混ぜると、窓ありの率が不当に低く見えるため比較対象を揃える。
-  const judged = ec.cohorts.filter(c => (c.windowCustomers||0) >= minC);
+  const judged = cohorts.filter(c => (c.windowCustomers||0) >= minC);
   const baseRepeat = judged.length
     ? judged.reduce((s,c) => s + (c.windowRepeaters||0), 0) / judged.reduce((s,c) => s + (c.windowCustomers||0), 0) * 100
     : 0;
@@ -3020,7 +2902,7 @@ function renderEntryCohorts() {
       <th class="num-col" title="${win}日LTV ÷ 初回単価。この入口の顧客が${win}日で初回の何倍まで育つか">${win}日LTV倍率</th>
       <th title="この入口の顧客が2回目の注文で買った商品Top3(全期間)">次に買うもの</th>
     </tr></thead><tbody>`;
-  ec.cohorts.forEach(c => {
+  cohorts.forEach(c => {
     const wc = c.windowCustomers || 0;
     const nextText = (c.topNextProducts||[]).map(n => `${escapeHtml(shortName(n.product))}(${n.buyers})`).join('、') || '—';
     const nameCell = `<td title="${escapeHtml(c.entryProduct)}"><span class="sku-tag">${escapeHtml(shortName(c.entryProduct))}</span></td>
@@ -3048,9 +2930,66 @@ function renderEntryCohorts() {
   html += `<div style="font-size:10px;color:var(--muted);margin-top:8px">
     全コホートを「初回購入から${win}日」で切り揃えて比較（${win}日経っていない顧客は集計対象外）。
     累計LTVで比べると古い入口ほど期間が長いぶん積み上がり、新商品が不当に低く出るため。
-    判定基準リピート率 ${baseRepeat.toFixed(1)}%（判定可能な${judged.length}コホートの加重平均） /
-    ${minC}人未満の入口商品は「その他」に集約 / 更新: ${escapeHtml(ec.generatedAt || '')}</div>`;
+    判定基準リピート率 ${baseRepeat.toFixed(1)}%（お米で判定可能な${judged.length}コホートの加重平均） /
+    ${minC}人未満の入口商品は表示していません / 更新: ${escapeHtml(ec.generatedAt || '')}</div>`;
   body.innerHTML = html;
+}
+
+// ============================================================
+// 配信外で売れた商品 (nonBroadcast エントリの products を期間内で横断集計)
+// オーガニック = scripts/sync-organic-to-gist.py が商品別内訳を入れる / 動画アフィリ = products が無ければ memo を商品名にする
+// ============================================================
+function renderOffBroadcastProducts(extras) {
+  const body = document.getElementById('offBroadcastBody');
+  if (!body) return;
+  const TYPE_LABEL = { organic: '商品ページ', 'video-affiliate': '動画アフィリ' };
+  const agg = {};
+  const add = (type, name, sold, gmv, profit) => {
+    const key = type + '|' + name;
+    if (!agg[key]) agg[key] = { type, name, sold: 0, gmv: 0, profit: 0 };
+    agg[key].sold += sold || 0;
+    agg[key].gmv += gmv || 0;
+    agg[key].profit += profit || 0;
+  };
+  (extras || []).forEach(d => {
+    const type = d.entryType || 'organic';
+    const prods = Array.isArray(d.products) ? d.products.filter(p => (p.sold || 0) > 0 || (p.gmv || 0) > 0) : [];
+    if (prods.length > 0) {
+      prods.forEach(p => add(type, p.masterKey || p.tiktokName || '(名前なし)', p.sold, p.gmv, p.totalProfit));
+    } else if ((d.sales || 0) > 0) {
+      // 内訳の無い集約エントリは1行で出す(販売数は不明)
+      const name = String(d.memo || '').replace(/\s*\d{4}-\d{2}\s*月合計$/, '') || '(内訳なし)';
+      add(type, name, 0, d.sales, d.profit);
+    }
+  });
+  const rows = Object.values(agg).sort((a, b) => b.gmv - a.gmv || b.sold - a.sold);
+  if (rows.length === 0) {
+    body.innerHTML = '<div class="empty">この期間に配信外で売れた商品はありません。</div>';
+    return;
+  }
+  const total = rows.reduce((s, r) => ({ sold: s.sold + r.sold, gmv: s.gmv + r.gmv, profit: s.profit + r.profit }), { sold: 0, gmv: 0, profit: 0 });
+  body.innerHTML = `<div class="table-scroll"><table style="width:auto;min-width:640px">
+    <thead><tr>
+      <th>経路</th>
+      <th>商品</th>
+      <th class="num-col">販売数</th>
+      <th class="num-col">売上</th>
+      <th class="num-col">粗利</th>
+    </tr></thead>
+    <tbody>${rows.map(r => `<tr>
+      <td style="white-space:nowrap;color:var(--muted);font-size:11px">${escapeHtml(TYPE_LABEL[r.type] || r.type)}</td>
+      <td><span class="sku-tag prod-name" title="${escapeHtml(r.name)}">${escapeHtml(r.name)}</span></td>
+      <td class="num-col" style="font-weight:600">${r.sold > 0 ? r.sold.toLocaleString() : '—'}</td>
+      <td class="num-col" style="color:var(--green);font-weight:600">¥${Math.round(r.gmv).toLocaleString()}</td>
+      <td class="num-col ${r.profit >= 0 ? 'profit-pos' : 'profit-neg'}">¥${Math.round(r.profit).toLocaleString()}</td>
+    </tr>`).join('')}
+    <tr style="border-top:2px solid var(--border);font-weight:700">
+      <td colspan="2">合計（${rows.length}商品）</td>
+      <td class="num-col">${total.sold.toLocaleString()}</td>
+      <td class="num-col" style="color:var(--green)">¥${Math.round(total.gmv).toLocaleString()}</td>
+      <td class="num-col">¥${Math.round(total.profit).toLocaleString()}</td>
+    </tr></tbody>
+  </table></div>`;
 }
 
 // ============================================================
