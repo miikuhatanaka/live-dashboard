@@ -426,7 +426,7 @@ td.gold-text { color: var(--gold); }
         <th title="転換率 / CVR (購入者ベース) = 購入者数÷延べ視聴。講座の合格ライン=視聴100人で1人(1%)で強い(第4回)。母数の定義が講座と揃わないため合否の色は付けていない">転換率</th>
         <th title="1人あたり点数 = 販売点数÷購入者数">点数/人</th>
         <th>粗利</th>
-        <th>純利益</th>
+        <th>限界利益</th>
         <th></th>
       </tr>
     </thead>
@@ -463,13 +463,13 @@ td.gold-text { color: var(--gold); }
   </div>
 </div>
 
-<!-- 純利益計算の設定 -->
+<!-- 限界利益計算の設定 -->
 <div class="prod-summary-card" style="border-color:var(--gold)">
   <h2 style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap">
-    ⚙ 純利益計算の設定
+    ⚙ 限界利益計算の設定
     <button class="btn btn-outline btn-sm" onclick="toggleNetProfitConfig()" id="npCfgToggle">▼ 開く</button>
   </h2>
-  <div class="sub">純利益 = 粗利 − TikTok手数料 − 送料 − 梱包資材費</div>
+  <div class="sub">限界利益 = 粗利 − TikTok手数料 − 送料 − 梱包代（売れた分だけ増える費用を全部引いた残り。演者報酬・広告費などは引かない）</div>
   <div id="npCfgPanel" style="display:none;margin-top:12px;padding:14px;background:var(--s2);border-radius:8px;border:1px solid var(--border)">
     <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(220px, 1fr));gap:12px">
       <div>
@@ -556,8 +556,8 @@ td.gold-text { color: var(--gold); }
     <div class="def-item"><strong>販売数 (sold)</strong><span>注文の件数。TikTokはlisting(商品ID)単位で出すため、1個/セットなどの変種内訳は直接取れない。<br>本ダッシュボードでは<strong>implied unit price(GMV÷販売数)から比率を推定する加重mix計算</strong>で粗利を見積もる。</span></div>
 
     <h4 style="font-size:13px;color:var(--accent);text-transform:uppercase;letter-spacing:.5px;margin-top:16px;margin-bottom:8px">利益</h4>
-    <div class="def-item"><strong>粗利 (profit)</strong><span>売価 − 原価（仕入+梱包資材）。送料・TikTok手数料は含まない。<br>アフィリエイト商品は <code>GMV × 成果報酬率</code> で計算される。</span></div>
-    <div class="def-item"><strong>純利益 (netProfit)</strong><span>粗利から <strong>TikTok販売手数料</strong>(自社商品GMV×料率)、<strong>送料</strong>(梱包数×¥185)、<strong>梱包資材費</strong>(梱包数×¥5)を差し引いた値。<br>販売手数料は<em>2026-04-20時点は一律7%</em>（2026/5/11からカテゴリ別7〜12%へ改定予定）。<br><em>アフィリエイト商品は「販売手数料・送料・梱包資材」すべて対象外</em>（元セラーが発送を担当・販売手数料は成果報酬5%ですでに控除済み扱い）。<span class="def-formula">純利益 = 粗利 − 自社商品GMV×販売手数料率 − 梱包数×(送料+梱包資材)</span></span></div>
+    <div class="def-item"><strong>粗利 (profit)</strong><span>売上 − 仕入原価。会計の「売上総利益」にあたる。TikTok手数料・送料・梱包代はここでは引かない（下の限界利益で引く）。<br>アフィリエイト商品は <code>GMV × 成果報酬率</code>（当社の取り分）を粗利とする。駄菓子つめあわせだけは売価 − 仕入原価で計算。</span></div>
+    <div class="def-item"><strong>限界利益 (netProfit)</strong><span>売上から、売れた分だけ増える費用（仕入原価・TikTok販売手数料・送料・梱包代）を全部引いた残り。演者の報酬・スタジオ代・広告費・人件費などは引いていないので、会社の最終的な利益（純利益）ではない。<br><strong>TikTok販売手数料</strong> = 自社商品GMV × カテゴリ別の料率（2026/5/11〜。それ以前は一律7%）、<strong>送料</strong> = 梱包数 × ¥185、<strong>梱包代</strong> = 梱包数 × ¥20。<br><em>アフィリエイト商品は手数料・送料・梱包代すべて対象外</em>（元セラーが発送し、成果報酬がそのまま当社の取り分）。<span class="def-formula">限界利益 = 粗利 − 自社商品GMV × 販売手数料率 − 梱包数 × (送料 + 梱包代)</span></span></div>
     <div class="def-item"><strong>unitProfit / totalProfit</strong><span><code>unitProfit</code>は1個あたりの粗利、<code>totalProfit</code>はその配信での合計粗利。variant mix対象商品では加重平均。</span></div>
 
     <h4 style="font-size:13px;color:var(--accent);text-transform:uppercase;letter-spacing:.5px;margin-top:16px;margin-bottom:8px">視聴・エンゲージメント</h4>
@@ -570,7 +570,7 @@ td.gold-text { color: var(--gold); }
     <div class="def-item"><strong>masterKey</strong><span>粗利マスタでのSKU識別キー。例:<code>ソックス1足</code>, <code>ソックス5足セット</code>, <code>シルクシュシュ1個</code>。</span></div>
     <div class="def-item"><strong>variant mix (加重mix計算)</strong><span>1個バラ売り価格とセット価格の両方が存在するSKU(ソックス/メタルヘアゴム/マルチポーチ/リボン小物入れ/各シュシュ)で、<strong>implied unit price = GMV÷販売数</strong>から変種の比率を推定して加重平均で粗利を見積もる方式。<br>例: ソックス 7個 ¥2,211 → 単価¥315.86 → 1足¥100(4.2個) + 5足セット¥490(2.8個) と推定。</span></div>
     <div class="def-item"><strong>未登録 (profitMissing)</strong><span>粗利マスタに紐付かない商品。アフィリエイトや他社商品など、粗利計算対象外。各配信の商品明細では非表示、上の商品別サマリーでは⚠マーク付きで表示。</span></div>
-    <div class="def-item"><strong>商品種別バッジ <span class="src-badge own">🏪 自社</span> / <span class="src-badge affiliate">🔗 アフィリ</span></strong><span><strong>自社</strong>: 自分で仕入れ・梱包・発送する商品。粗利から TikTok販売手数料・送料・梱包資材費が引かれる。<br><strong>アフィリ(アフィリエイト)</strong>: 他社商品の販売促進を代行し成果報酬を受け取る商品。元セラーが発送するため、販売手数料・送料・梱包資材は自社負担ゼロ。<br>現在のアフィリ商品:<ul style="margin:4px 0 0 16px;padding:0;font-size:12px"><li>割れチョコ / 亀田製菓30枚セット / ハード&サワーグミ5種 — 成果報酬5%</li><li><em>駄菓子つめあわせ25点 — 特殊アフィリ(赤字は全て自社負担、-¥158/個 = 売価¥490 − 仕入¥648)</em></li></ul></span></div>
+    <div class="def-item"><strong>商品種別バッジ <span class="src-badge own">🏪 自社</span> / <span class="src-badge affiliate">🔗 アフィリ</span></strong><span><strong>自社</strong>: 自分で仕入れ・梱包・発送する商品。粗利から TikTok販売手数料・送料・梱包資材費が引かれる。<br><strong>アフィリ(アフィリエイト)</strong>: 他社商品の販売促進を代行し成果報酬を受け取る商品。元セラーが発送するため、販売手数料・送料・梱包資材は自社負担ゼロ。<br>成果報酬率は商品ごとに違う（SKUマスタの成果報酬率）。駄菓子つめあわせ25点だけは特殊アフィリで、仕入原価を当社が持つため売価 − 仕入原価で計算する。</span></div>
 
     <div class="modal-actions">
       <button class="btn btn-outline" onclick="closeModal('defModal')">閉じる</button>
@@ -855,7 +855,7 @@ td.gold-text { color: var(--gold); }
         <input type="number" id="f_profit" placeholder="0" />
       </div>
       <div class="form-group">
-        <label>梱包数 (純利益計算用)</label>
+        <label>梱包数 (限界利益計算用)</label>
         <input type="number" id="f_packageCount" placeholder="0" />
       </div>
     </div>
@@ -926,7 +926,7 @@ const GIST_OWNER         = 'miikuhatanaka';  // 公開版はこのオーナー�
 const IS_PUBLIC_DEPLOY = (typeof location !== 'undefined' && location.protocol === 'https:' && /\.github\.io$/i.test(location.hostname));
 const NET_PROFIT_CONFIG_KEY = 'imapochi_net_profit_config';
 
-// 純利益計算の設定（localStorage保存）
+// 限界利益計算の設定（localStorage保存）
 // 2026-05-11以前: TikTok Shop販売手数料は一律7%(np_feeRate inputで上書き可)
 // 2026-05-11以降: 商品カテゴリ別(7〜12%)、SKU prefixで判定
 const DEFAULT_FEE_RATE = 0.07;
@@ -1074,18 +1074,18 @@ function isSpecialDistributorAffiliateKey(masterKey) {
 }
 
 // 自社発送が必要な配信か = アフィリでない商品(自社仕入れ)が1個以上売れている。
-// アフィリ専用配信は元セラーが発送するため自社の梱包数は不要 → 純利益は即確定。
+// アフィリ専用配信は元セラーが発送するため自社の梱包数は不要 → 限界利益は即確定。
 function needsShipping(d) {
   return Array.isArray(d.products) && d.products.some(p => (p.sold || 0) > 0 && !p.isAffiliate);
 }
-// 純利益が未確定か = 梱包数未入力 かつ 自社発送商品が売れている(送料・梱包費が引けない)
+// 限界利益が未確定か = 梱包数未入力 かつ 自社発送商品が売れている(送料・梱包費が引けない)
 function isNetProfitPending(d) {
   return d.packageCount == null && needsShipping(d);
 }
 
-// 純利益計算: 粗利(profit) − TikTok手数料 − 送料 − 梱包資材費
+// 限界利益計算: 粗利(profit) − TikTok手数料 − 送料 − 梱包資材費
 // ※アフィリエイト商品はTikTok手数料・送料・梱包資材すべて対象外
-//   (発送は元セラーが行う / 粗利=GMV×5%ですでに手数料控除後の想定)
+//   (発送は元セラーが行う / 粗利=GMV×成果報酬率がそのまま当社の取り分)
 // ※2026-05-11以降はカテゴリ別手数料(7〜12%)、SKU prefixで判定
 // LIVE時間を表の幅に収まる「時:分」にする（例: 2時間32分35秒 → 2:32）。全文はセルのツールチップ
 function shortLiveTime(t) {
@@ -1825,8 +1825,8 @@ async function init() {
   }
 }
 
-// 非配信収益(動画アフィリ/オーガニック)の金額を保持。配信KPIには算入せず、売上/粗利/純利益/目標進捗にだけ加算する。
-// net = 純利益に足す額。動画アフィリは成果報酬=粗利=純利益なので profit をそのまま使う。
+// 非配信収益(動画アフィリ/オーガニック)の金額を保持。配信KPIには算入せず、売上/粗利/限界利益/目標進捗にだけ加算する。
+// net = 限界利益に足す額。動画アフィリは成果報酬=粗利=限界利益なので profit をそのまま使う。
 // オーガニック(entryType:'organic')は手数料・送料を引いた netProfit を別に持つ(2026-10-08)。
 let extraRev = { sales: 0, profit: 0, net: 0, count: 0 };
 
@@ -2319,7 +2319,7 @@ function renderSummary(sorted) {
   const aovBucket = ucBucket > 0 ? Math.round(totalSales / ucBucket) : 0;
   let npPending = 0;
   const npAgg = sorted.reduce((acc, d) => {
-    // 梱包数未入力 かつ 自社発送商品が売れている配信は純利益未確定 → 累計から除外
+    // 梱包数未入力 かつ 自社発送商品が売れている配信は限界利益未確定 → 累計から除外
     // (アフィリ専用配信は発送不要=net確定なので含める)
     if (isNetProfitPending(d)) { npPending++; return acc; }
     const n = computeNetProfit(d);
@@ -2384,7 +2384,7 @@ function renderSummary(sorted) {
       <div class="card-sub">手数料・送料 引く前${extraRev.profit > 0 ? ` ・配信外+¥${extraRev.profit.toLocaleString()}` : ''}</div>
     </div>
     <div class="card" title="粗利からTikTok手数料・送料・梱包資材費を差し引いた金額（配信外アフィリは手数料/送料なし）" style="border:1px solid var(--accent)">
-      <div class="card-label">累計純利益</div>
+      <div class="card-label">累計限界利益</div>
       <div class="card-val ${(npAgg.net + extraRev.net) >= 0 ? 'green' : 'red'}">¥${Math.round(npAgg.net + extraRev.net).toLocaleString()}</div>
       <div class="card-sub">手数料 −¥${npAgg.tiktokFee.toLocaleString()} / 送料 −¥${npAgg.shippingFee.toLocaleString()} / 梱包 −¥${npAgg.packagingCost.toLocaleString()}${extraRev.net !== 0 ? ` ・配信外+¥${Math.round(extraRev.net).toLocaleString()}` : ''}${npPending ? ` ・<span style="color:var(--accent)">未確定${npPending}配信を除く</span>` : ''}</div>
     </div>
@@ -3171,7 +3171,7 @@ function renderTable(sortedIn) {
       <td style="color:var(--teal);font-weight:700" title="${BENCH.cvr.label}">${cvr}%</td>
       <td style="color:var(--teal);font-weight:700" title="1購入者あたり何個買ったか">${ipb}</td>
       <td style="color:var(--gold);font-weight:700">${d.profit ? '¥'+d.profit.toLocaleString() : '-'}</td>
-      <td style="font-weight:700;color:${(() => { if (isNetProfitPending(d)) return 'var(--muted)'; const n=computeNetProfit(d); return n.net>=0?'var(--green)':'var(--accent)'; })()}" title="${isNetProfitPending(d) ? '発送くんが梱包数を入力するまで純利益は未確定（送料・梱包資材費が引けないため）' : ''}">${(() => { if (isNetProfitPending(d)) return '-'; const n=computeNetProfit(d); return '¥'+n.net.toLocaleString(); })()}</td>
+      <td style="font-weight:700;color:${(() => { if (isNetProfitPending(d)) return 'var(--muted)'; const n=computeNetProfit(d); return n.net>=0?'var(--green)':'var(--accent)'; })()}" title="${isNetProfitPending(d) ? '発送くんが梱包数を入力するまで限界利益は未確定（送料・梱包資材費が引けないため）' : ''}">${(() => { if (isNetProfitPending(d)) return '-'; const n=computeNetProfit(d); return '¥'+n.net.toLocaleString(); })()}</td>
       <td style="display:flex;gap:4px;align-items:center;flex-wrap:wrap">
         <button class="expand-btn" onclick="toggleDetail(${i}, this)">▼ 詳細</button>
         <button class="btn btn-outline btn-sm btn-edit-entry" onclick="openEditModal(${d.id})">✏️</button>
@@ -3230,7 +3230,7 @@ function renderTable(sortedIn) {
             <div class="kv"><span class="k">推定額</span><span class="v">USD${(d.estimatedUSD||0).toFixed(2)}</span></div>
           </div>
           <div class="detail-block">
-            <h4>💰 売り上げ・純利益</h4>
+            <h4>💰 売り上げ・限界利益</h4>
             <div class="kv"><span class="k">売り上げ(GMV)</span><span class="v" style="color:var(--green)">¥${(d.sales||0).toLocaleString()}</span></div>
             <div class="kv"><span class="k">購入者数 (unique buyer)</span><span class="v" style="color:var(--teal)">${d.buyers||0}</span></div>
             <div class="kv"><span class="k">注文数 (orders)</span><span class="v">${d.orders||0}</span></div>
@@ -3265,7 +3265,7 @@ function renderTable(sortedIn) {
                 ${affLine}
                 ${feeLine}
                 <div class="kv"><span class="k">−送料・梱包資材</span><span class="v" style="color:var(--muted)">未確定（梱包数 未入力）</span></div>
-                <div class="kv" style="margin-top:6px;padding-top:6px;border-top:2px solid var(--border)"><span class="k" style="font-weight:700">純利益</span><span class="v" style="color:var(--muted);font-weight:700;font-size:14px" title="発送くんが梱包数を入力すると確定します">−</span></div>
+                <div class="kv" style="margin-top:6px;padding-top:6px;border-top:2px solid var(--border)"><span class="k" style="font-weight:700">限界利益</span><span class="v" style="color:var(--muted);font-weight:700;font-size:14px" title="発送くんが梱包数を入力すると確定します">−</span></div>
               </div>
               `;
               }
@@ -3276,7 +3276,7 @@ function renderTable(sortedIn) {
                 ${feeLine}
                 <div class="kv"><span class="k">−送料 (${n.packageCount}梱包×¥${netProfitConfig.shippingFeePerPackage})</span><span class="v" style="color:var(--accent)">−¥${n.shippingFee.toLocaleString()}</span></div>
                 <div class="kv"><span class="k">−梱包資材 (${n.packageCount}梱包×¥${netProfitConfig.packagingCostPerPackage})</span><span class="v" style="color:var(--accent)">−¥${n.packagingCost.toLocaleString()}</span></div>
-                <div class="kv" style="margin-top:6px;padding-top:6px;border-top:2px solid var(--border)"><span class="k" style="font-weight:700">純利益</span><span class="v" style="color:${netColor};font-weight:700;font-size:14px">¥${n.net.toLocaleString()}</span></div>
+                <div class="kv" style="margin-top:6px;padding-top:6px;border-top:2px solid var(--border)"><span class="k" style="font-weight:700">限界利益</span><span class="v" style="color:${netColor};font-weight:700;font-size:14px">¥${n.net.toLocaleString()}</span></div>
               </div>
               `;
             })()}
@@ -3386,7 +3386,7 @@ function openDefModal() {
   document.getElementById('defModal').classList.add('open');
 }
 
-// 純利益設定パネル
+// 限界利益設定パネル
 function toggleNetProfitConfig() {
   const panel = document.getElementById('npCfgPanel');
   const btn = document.getElementById('npCfgToggle');
