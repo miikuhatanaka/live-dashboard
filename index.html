@@ -488,7 +488,7 @@ td.gold-text { color: var(--gold); }
         <div style="display:flex;align-items:center;gap:6px">
           <span style="color:var(--muted)">¥</span>
           <input type="number" id="np_shipping" style="background:var(--bg);border:1px solid var(--border);color:var(--text);padding:6px 10px;border-radius:6px;font-size:13px;width:90px">
-          <span style="color:var(--muted);font-size:11px">(ClickPost ¥185想定)</span>
+          <span style="color:var(--muted);font-size:11px">(9/30までの配信。10/1以降は¥240固定)</span>
         </div>
       </div>
       <div>
@@ -557,7 +557,7 @@ td.gold-text { color: var(--gold); }
 
     <h4 style="font-size:13px;color:var(--accent);text-transform:uppercase;letter-spacing:.5px;margin-top:16px;margin-bottom:8px">利益</h4>
     <div class="def-item"><strong>粗利 (profit)</strong><span>売上 − 仕入原価。会計の「売上総利益」にあたる。TikTok手数料・送料・梱包代はここでは引かない（下の限界利益で引く）。<br>アフィリエイト商品は <code>GMV × 成果報酬率</code>（当社の取り分）を粗利とする。駄菓子つめあわせだけは売価 − 仕入原価で計算。</span></div>
-    <div class="def-item"><strong>限界利益 (netProfit)</strong><span>売上から、売れた分だけ増える費用（仕入原価・TikTok販売手数料・送料・梱包代）を全部引いた残り。演者の報酬・スタジオ代・広告費・人件費などは引いていないので、会社の最終的な利益（純利益）ではない。<br><strong>TikTok販売手数料</strong> = 自社商品GMV × カテゴリ別の料率（2026/5/11〜。それ以前は一律7%）、<strong>送料</strong> = 梱包数 × ¥185、<strong>梱包代</strong> = 梱包数 × ¥20。<br><em>アフィリエイト商品は手数料・送料・梱包代すべて対象外</em>（元セラーが発送し、成果報酬がそのまま当社の取り分）。<span class="def-formula">限界利益 = 粗利 − 自社商品GMV × 販売手数料率 − 梱包数 × (送料 + 梱包代)</span></span></div>
+    <div class="def-item"><strong>限界利益 (netProfit)</strong><span>売上から、売れた分だけ増える費用（仕入原価・TikTok販売手数料・送料・梱包代）を全部引いた残り。演者の報酬・スタジオ代・広告費・人件費などは引いていないので、会社の最終的な利益（純利益）ではない。<br><strong>TikTok販売手数料</strong> = 自社商品GMV × カテゴリ別の料率（2026/5/11〜。それ以前は一律7%）、<strong>送料</strong> = 梱包数 × ¥185（2026/10/1以降の配信は¥240＝クリックポスト改定）、<strong>梱包代</strong> = 梱包数 × ¥20。<br><em>アフィリエイト商品は手数料・送料・梱包代すべて対象外</em>（元セラーが発送し、成果報酬がそのまま当社の取り分）。<span class="def-formula">限界利益 = 粗利 − 自社商品GMV × 販売手数料率 − 梱包数 × (送料 + 梱包代)</span></span></div>
     <div class="def-item"><strong>unitProfit / totalProfit</strong><span><code>unitProfit</code>は1個あたりの粗利、<code>totalProfit</code>はその配信での合計粗利。variant mix対象商品では加重平均。</span></div>
 
     <h4 style="font-size:13px;color:var(--accent);text-transform:uppercase;letter-spacing:.5px;margin-top:16px;margin-bottom:8px">視聴・エンゲージメント</h4>
@@ -931,6 +931,13 @@ const NET_PROFIT_CONFIG_KEY = 'imapochi_net_profit_config';
 // 2026-05-11以降: 商品カテゴリ別(7〜12%)、SKU prefixで判定
 const DEFAULT_FEE_RATE = 0.07;
 const DEFAULT_SHIPPING = 185;
+// クリックポストは2026-10-01から¥185→¥240に改定（日本郵便）。10/1以降の配信はこちらを使う
+const CLICKPOST_FROM_20261001 = 240;
+function shippingFeeFor(d) {
+  const dt = parseDate(d && d.date);
+  if (dt && dt >= new Date(2026, 9, 1)) return CLICKPOST_FROM_20261001;
+  return netProfitConfig.shippingFeePerPackage;
+}
 const DEFAULT_PACKAGING = 20;
 
 // TikTok Shop Japan 2026-05-11改定: カテゴリ別販売手数料
@@ -1156,10 +1163,11 @@ function computeNetProfit(d) {
     feeBreakdown = Object.values(buckets).sort((a, b) => a.rate - b.rate);
   }
 
-  const shippingFee = Math.round(pkg * netProfitConfig.shippingFeePerPackage);
+  const shipRate = shippingFeeFor(d);
+  const shippingFee = Math.round(pkg * shipRate);
   const packagingCost = Math.round(pkg * netProfitConfig.packagingCostPerPackage);
   const net = gross - tiktokFee - shippingFee - packagingCost;
-  return { gross, tiktokFee, shippingFee, packagingCost, net, feeRate, feeMode, feeBreakdown, packageCount: pkg, affiliateGmv, nonAffiliateGmv };
+  return { gross, tiktokFee, shippingFee, shipRate, packagingCost, net, feeRate, feeMode, feeBreakdown, packageCount: pkg, affiliateGmv, nonAffiliateGmv };
 }
 const GIST_ID_STORAGE    = 'imapochi_gist_id';
 const GITHUB_PAT_STORAGE = 'imapochi_github_pat';
@@ -3274,7 +3282,7 @@ function renderTable(sortedIn) {
                 <div class="kv"><span class="k">粗利(商品のみ)</span><span class="v" style="color:var(--gold)">¥${n.gross.toLocaleString()}</span></div>
                 ${affLine}
                 ${feeLine}
-                <div class="kv"><span class="k">−送料 (${n.packageCount}梱包×¥${netProfitConfig.shippingFeePerPackage})</span><span class="v" style="color:var(--accent)">−¥${n.shippingFee.toLocaleString()}</span></div>
+                <div class="kv"><span class="k">−送料 (${n.packageCount}梱包×¥${n.shipRate})</span><span class="v" style="color:var(--accent)">−¥${n.shippingFee.toLocaleString()}</span></div>
                 <div class="kv"><span class="k">−梱包資材 (${n.packageCount}梱包×¥${netProfitConfig.packagingCostPerPackage})</span><span class="v" style="color:var(--accent)">−¥${n.packagingCost.toLocaleString()}</span></div>
                 <div class="kv" style="margin-top:6px;padding-top:6px;border-top:2px solid var(--border)"><span class="k" style="font-weight:700">限界利益</span><span class="v" style="color:${netColor};font-weight:700;font-size:14px">¥${n.net.toLocaleString()}</span></div>
               </div>
