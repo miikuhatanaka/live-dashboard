@@ -466,74 +466,32 @@ td.gold-text { color: var(--gold); }
   </div>
 </div>
 
-<!-- 限界利益計算の設定 -->
-<div class="prod-summary-card" style="border-color:var(--gold)">
-  <h2 style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap">
-    ⚙ 限界利益計算の設定
-    <button class="btn btn-outline btn-sm" onclick="toggleNetProfitConfig()" id="npCfgToggle">▼ 開く</button>
-  </h2>
-  <div class="sub">限界利益 = 粗利 − TikTok手数料 − 送料 − 梱包代（売れた分だけ増える費用を全部引いた残り。演者報酬・広告費などは引かない）</div>
-  <div id="npCfgPanel" style="display:none;margin-top:12px;padding:14px;background:var(--s2);border-radius:8px;border:1px solid var(--border)">
-    <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(220px, 1fr));gap:12px">
-      <div>
-        <div style="font-size:11px;color:var(--muted);margin-bottom:4px;text-transform:uppercase;letter-spacing:.5px">TikTok手数料率 <span style="color:var(--accent);font-size:10px">※2026/5/10以前の旧料率のみ</span></div>
-        <div style="display:flex;align-items:center;gap:6px">
-          <input type="number" id="np_feeRate" step="0.1" style="background:var(--bg);border:1px solid var(--border);color:var(--text);padding:6px 10px;border-radius:6px;font-size:13px;width:80px">
-          <span style="color:var(--muted)">%</span>
-        </div>
-        <div style="font-size:10px;color:var(--muted);margin-top:4px;line-height:1.5">
-          5/10以前: 一律(この値)<br>
-          5/11以降: SKUのカテゴリ別に自動判定(7〜12%)
-        </div>
-      </div>
-      <div>
-        <div style="font-size:11px;color:var(--muted);margin-bottom:4px;text-transform:uppercase;letter-spacing:.5px">1梱包あたり送料</div>
-        <div style="display:flex;align-items:center;gap:6px">
-          <span style="color:var(--muted)">¥</span>
-          <input type="number" id="np_shipping" style="background:var(--bg);border:1px solid var(--border);color:var(--text);padding:6px 10px;border-radius:6px;font-size:13px;width:90px">
-          <span style="color:var(--muted);font-size:11px">(9/30までの配信。10/1以降は¥240固定)</span>
-        </div>
-      </div>
-      <div>
-        <div style="font-size:11px;color:var(--muted);margin-bottom:4px;text-transform:uppercase;letter-spacing:.5px">1梱包あたり梱包資材費</div>
-        <div style="display:flex;align-items:center;gap:6px">
-          <span style="color:var(--muted)">¥</span>
-          <input type="number" id="np_packaging" style="background:var(--bg);border:1px solid var(--border);color:var(--text);padding:6px 10px;border-radius:6px;font-size:13px;width:90px">
-          <span style="color:var(--muted);font-size:11px">(袋・緩衝材など)</span>
-        </div>
-      </div>
-    </div>
-    <div style="margin-top:14px;display:flex;gap:8px;align-items:center">
-      <button class="btn btn-gold btn-sm" onclick="saveNetProfitSettings()">💾 保存して再計算</button>
-      <span id="npSaveStatus" style="font-size:12px;color:var(--muted)"></span>
-    </div>
-  </div>
-</div>
+<!-- 限界利益計算の設定は 2026-10-28 社長指示で削除(料率・送料・梱包代はコード側の値を使う) -->
 
 <!-- 商品別サマリー（期間内の全配信を横断して集計） -->
 <div class="prod-summary-card">
   <h2 style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap">
-    🛍 商品別サマリー
+    🛍 ライブ販売商品別サマリー
     <button class="btn btn-outline btn-sm" onclick="openDefModal()" style="font-weight:600">📖 用語の定義</button>
   </h2>
-  <div class="sub">選択期間内の全配信を横断した商品別集計。ダッシュボード更新くんが登録した商品のみ表示されます。</div>
+  <div class="sub">選択期間内の全配信を横断した商品別集計。配信で売れた商品だけを出しています（販売数0の商品は出しません）。</div>
   <div id="productSummaryBody"></div>
 </div>
 
 <!-- AOV分解は 2026-10-24 社長指示で削除 -->
+
+<!-- 配信外で売れた商品（商品ページ経由のオーガニック注文＋動画アフィリ・2026-10-24 社長指示） -->
+<div class="prod-summary-card" style="border-color:var(--purple)">
+  <h2>🛒 配信外で売れた商品 <span style="font-size:12px;color:var(--muted);font-weight:400">選択期間内・配信の時間外に売れたもの</span></h2>
+  <div class="sub">配信の時間外に売れたものを、動画から買われた分と商品ページから買われた分に分けて出しています。配信回数・CVRには入れず、売上・粗利の合計にだけ足しています。</div>
+  <div id="offBroadcastBody" style="margin-top:12px"></div>
+</div>
 
 <!-- 入口商品別リピート分析（お米だけ・2026-10-24 社長指示） -->
 <div class="prod-summary-card" style="border-color:var(--teal)">
   <h2>🚪 入口商品別リピート分析（お米） <span style="font-size:12px;color:var(--muted);font-weight:400">初回に買ったお米 → その後のリピート</span></h2>
   <div class="sub">初回にどのお米を買った人が、その後どれだけリピートし、いくら使ったか（全期間・customer-history匿名集計）。お米以外の入口商品は表示していません。</div>
   <div id="entryCohortBody" style="margin-top:12px"></div>
-</div>
-
-<!-- 配信外で売れた商品（商品ページ経由のオーガニック注文＋動画アフィリ・2026-10-24 社長指示） -->
-<div class="prod-summary-card" style="border-color:var(--purple)">
-  <h2>🛒 配信外で売れた商品 <span style="font-size:12px;color:var(--muted);font-weight:400">選択期間内・配信の時間外に売れたもの</span></h2>
-  <div class="sub">配信の時間外に商品ページから入った注文（オーガニック）と動画アフィリの成果。配信回数・AOV・CVRには入れず、売上・粗利の合計にだけ足しています。</div>
-  <div id="offBroadcastBody" style="margin-top:12px"></div>
 </div>
 
 <!-- 用語定義モーダル -->
@@ -2678,10 +2636,11 @@ function renderProductSummary(sorted) {
     });
   });
 
-  const rows = Object.values(agg).sort((a, b) => b.gmv - a.gmv);
+  // 販売数0の商品は出さない(2026-10-28 社長指示)
+  const rows = Object.values(agg).filter(r => r.sold > 0).sort((a, b) => b.gmv - a.gmv);
 
   if (rows.length === 0) {
-    body.innerHTML = '<div class="empty">この期間内の商品別データはありません。ダッシュボード更新くんで取り込むと表示されます。</div>';
+    body.innerHTML = '<div class="empty">この期間に配信で売れた商品はありません。</div>';
     return;
   }
 
@@ -2952,54 +2911,72 @@ function renderEntryCohorts() {
 function renderOffBroadcastProducts(extras) {
   const body = document.getElementById('offBroadcastBody');
   if (!body) return;
-  const TYPE_LABEL = { organic: '商品ページ', 'video-affiliate': '動画アフィリ' };
-  const agg = {};
-  const add = (type, name, sold, gmv, profit) => {
-    const key = type + '|' + name;
-    if (!agg[key]) agg[key] = { type, name, sold: 0, gmv: 0, profit: 0 };
-    agg[key].sold += sold || 0;
-    agg[key].gmv += gmv || 0;
-    agg[key].profit += profit || 0;
+  // 動画／商品ページで分けて出す(2026-10-28 社長指示)。オーガニックは商品ごとの byChannel(sync-organic-to-gist.py)を使う。
+  // 売上は会計の売上: 動画アフィリは成果報酬(totalProfit)だけを売上に数える
+  const GROUPS = [
+    { key: 'videos', label: '🎬 動画から', color: 'var(--purple)' },
+    { key: 'productCards', label: '🛍 商品ページから', color: 'var(--teal)' },
+    { key: 'other', label: 'その他（配信の時間外のライブ・経路の記録なし）', color: 'var(--muted)' },
+  ];
+  const agg = { videos: {}, productCards: {}, other: {} };
+  const add = (g, name, sold, sales, profit, aff) => {
+    const key = name + (aff ? '|aff' : '');
+    const t = agg[g];
+    if (!t[key]) t[key] = { name, aff, sold: 0, sales: 0, profit: 0 };
+    t[key].sold += sold || 0;
+    t[key].sales += sales || 0;
+    t[key].profit += profit || 0;
   };
+  const groupOf = ch => ch === 'videos' ? 'videos' : ch === 'productCards' ? 'productCards' : 'other';
   (extras || []).forEach(d => {
-    const type = d.entryType || 'organic';
+    const isVA = d.entryType === 'video-affiliate';
     const prods = Array.isArray(d.products) ? d.products.filter(p => (p.sold || 0) > 0 || (p.gmv || 0) > 0) : [];
+    if (isVA) {
+      if (prods.length > 0) prods.forEach(p => add('videos', p.masterKey || p.tiktokName || '(名前なし)', p.sold, p.totalProfit, p.totalProfit, true));
+      else if ((d.sales || 0) > 0) {
+        const name = String(d.memo || '').replace(/\s*\d{4}-\d{2}\s*月合計$/, '') || '(内訳なし)';
+        add('videos', name, 0, d.profit, d.profit, true);
+      }
+      return;
+    }
     if (prods.length > 0) {
-      prods.forEach(p => add(type, p.masterKey || p.tiktokName || '(名前なし)', p.sold, p.gmv, p.totalProfit));
+      prods.forEach(p => {
+        const name = p.masterKey || p.tiktokName || '(名前なし)';
+        if (p.byChannel) Object.entries(p.byChannel).forEach(([ch, c]) => add(groupOf(ch), name, c.sold, c.gmv, c.totalProfit, false));
+        else add('other', name, p.sold, p.gmv, p.totalProfit, false);
+      });
     } else if ((d.sales || 0) > 0) {
-      // 内訳の無い集約エントリは1行で出す(販売数は不明)
       const name = String(d.memo || '').replace(/\s*\d{4}-\d{2}\s*月合計$/, '') || '(内訳なし)';
-      add(type, name, 0, d.sales, d.profit);
+      add('other', name, 0, d.sales, d.profit, false);
     }
   });
-  const rows = Object.values(agg).sort((a, b) => b.gmv - a.gmv || b.sold - a.sold);
-  if (rows.length === 0) {
-    body.innerHTML = '<div class="empty">この期間に配信外で売れた商品はありません。</div>';
-    return;
-  }
-  const total = rows.reduce((s, r) => ({ sold: s.sold + r.sold, gmv: s.gmv + r.gmv, profit: s.profit + r.profit }), { sold: 0, gmv: 0, profit: 0 });
-  body.innerHTML = `<div class="table-scroll"><table style="width:auto;min-width:640px">
+  const sections = GROUPS.map(g => {
+    const rows = Object.values(agg[g.key]).filter(r => r.sold > 0 || r.sales > 0).sort((a, b) => b.sales - a.sales || b.sold - a.sold);
+    if (rows.length === 0) return '';
+    const total = rows.reduce((s, r) => ({ sold: s.sold + r.sold, sales: s.sales + r.sales, profit: s.profit + r.profit }), { sold: 0, sales: 0, profit: 0 });
+    return `<h3 style="font-size:14px;margin:18px 0 8px;color:${g.color}">${g.label} <span style="font-size:12px;color:var(--muted);font-weight:400">${rows.length}商品・¥${Math.round(total.sales).toLocaleString()}</span></h3>
+    <div class="table-scroll"><table style="width:auto;min-width:640px">
     <thead><tr>
-      <th>経路</th>
       <th>商品</th>
       <th class="num-col">販売数</th>
       <th class="num-col">売上</th>
       <th class="num-col">粗利</th>
     </tr></thead>
     <tbody>${rows.map(r => `<tr>
-      <td style="white-space:nowrap;color:var(--muted);font-size:11px">${escapeHtml(TYPE_LABEL[r.type] || r.type)}</td>
-      <td><span class="sku-tag prod-name" title="${escapeHtml(r.name)}">${escapeHtml(r.name)}</span></td>
+      <td><span class="sku-tag prod-name" title="${escapeHtml(r.name)}">${escapeHtml(r.name)}</span>${r.aff ? ' <span style="color:var(--muted);font-size:10px">アフィリ（売上は成果報酬）</span>' : ''}</td>
       <td class="num-col" style="font-weight:600">${r.sold > 0 ? r.sold.toLocaleString() : '—'}</td>
-      <td class="num-col" style="color:var(--green);font-weight:600">¥${Math.round(r.gmv).toLocaleString()}</td>
+      <td class="num-col" style="color:var(--green);font-weight:600">¥${Math.round(r.sales).toLocaleString()}</td>
       <td class="num-col ${r.profit >= 0 ? 'profit-pos' : 'profit-neg'}">¥${Math.round(r.profit).toLocaleString()}</td>
     </tr>`).join('')}
     <tr style="border-top:2px solid var(--border);font-weight:700">
-      <td colspan="2">合計（${rows.length}商品）</td>
+      <td>合計</td>
       <td class="num-col">${total.sold.toLocaleString()}</td>
-      <td class="num-col" style="color:var(--green)">¥${Math.round(total.gmv).toLocaleString()}</td>
+      <td class="num-col" style="color:var(--green)">¥${Math.round(total.sales).toLocaleString()}</td>
       <td class="num-col">¥${Math.round(total.profit).toLocaleString()}</td>
     </tr></tbody>
   </table></div>`;
+  }).join('');
+  body.innerHTML = sections || '<div class="empty">この期間に配信外で売れた商品はありません。</div>';
 }
 
 // ============================================================
