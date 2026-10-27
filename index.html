@@ -378,6 +378,9 @@ td.gold-text { color: var(--gold); }
   <div class="kpi-grid" id="kpiGrid"></div>
 </div>
 
+<!-- 売上はどこから(2026-10-28 社長指示: 重要指標のあと) -->
+<div class="summary" id="salesSourceCard"></div>
+
 <!-- 3Q KR1: アカウント別 同接100以上 (デフォルト表示、トグルボタンで開閉) -->
 <div class="prod-summary-card" style="border-color:var(--teal)">
   <h2 style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap">
@@ -2334,12 +2337,8 @@ function renderSummary(sorted) {
           <span style="font-weight:700;font-variant-numeric:tabular-nums">¥${Math.round(r.val).toLocaleString()}</span>
         </div>`).join('')}
     </div>`;
-  document.getElementById('summaryCards').innerHTML = srcHtml + `
-    <div class="card" style="border:2px solid var(--green)">
-      <div class="card-label" style="color:var(--green)">🗂 累計顧客数（リスト）</div>
-      <div class="card-val green">${(customerStats?.totals?.uniqueCustomers || 0).toLocaleString()}</div>
-      <div class="card-sub">全期間ユニーク。このフェーズの最重要指標</div>
-    </div>
+  document.getElementById('salesSourceCard').innerHTML = srcHtml;
+  document.getElementById('summaryCards').innerHTML = `
     <div class="card">
       <div class="card-label">総配信回数</div>
       <div class="card-val red">${sorted.length}</div>
