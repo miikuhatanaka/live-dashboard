@@ -1104,6 +1104,16 @@ function shortLiveTime(t) {
   if (!/時間|分/.test(t)) return t;
   return `${h}:${String(m).padStart(2, '0')}`;
 }
+// 会計の売上(2026-10-28 社長「売上の定義を会計に合わせて」): アフィリ商品は流通額でなく成果報酬だけを売上に入れる。
+// GMV = d.sales(アフィリの流通額込み・TikTokの画面に近い額) / 売上 = GMV − アフィリの流通額 + 成果報酬
+function affiliateOf(d) {
+  if (d.entryType === 'video-affiliate') return { gmv: d.sales || 0, fee: d.profit || 0 };
+  let gmv = 0, fee = 0;
+  (d.products || []).forEach(p => { if (p.isAffiliate) { gmv += p.gmv || 0; fee += p.totalProfit || 0; } });
+  return { gmv, fee };
+}
+function acctSales(d) { const a = affiliateOf(d); return Math.max(0, (d.sales || 0) - a.gmv + a.fee); }
+
 function computeNetProfit(d) {
   const gross = d.profit || 0;
   const sales = d.sales || 0;
@@ -1839,7 +1849,7 @@ async function init() {
 // 非配信収益(動画アフィリ/オーガニック)の金額を保持。配信KPIには算入せず、売上/粗利/限界利益/目標進捗にだけ加算する。
 // net = 限界利益に足す額。動画アフィリは成果報酬=粗利=限界利益なので profit をそのまま使う。
 // オーガニック(entryType:'organic')は手数料・送料を引いた netProfit を別に持つ(2026-10-08)。
-let extraRev = { sales: 0, profit: 0, net: 0, count: 0 };
+let extraRev = { sales: 0, acct: 0, profit: 0, net: 0, count: 0 };
 // 配信外の売上を買われた場所で分けた額(オーガニック月合計の channelSales + 動画アフィリ)。上部「売上はどこから」カード用(2026-10-28)
 let extraChannel = { live: 0, productCards: 0, videos: 0, unknown: 0 };
 
@@ -1854,13 +1864,14 @@ function renderAll() {
   const extras = sortedAll.filter(d => d.nonBroadcast);
   extraRev = {
     sales:  extras.reduce((s,d) => s + (d.sales||0), 0),
+    acct:   extras.reduce((s,d) => s + acctSales(d), 0),
     profit: extras.reduce((s,d) => s + (d.profit||0), 0),
     net:    extras.reduce((s,d) => s + (d.netProfit != null ? d.netProfit : (d.profit||0)), 0),
     count:  extras.length
   };
   extraChannel = { live: 0, productCards: 0, videos: 0, unknown: 0 };
   extras.forEach(d => {
-    if (d.entryType === 'video-affiliate') { extraChannel.videos += d.sales || 0; return; }
+    if (d.entryType === 'video-affiliate') { extraChannel.videos += acctSales(d); return; }
     const c = d.channelSales;
     if (!c) { extraChannel.unknown += d.sales || 0; return; }
     ['live', 'productCards', 'videos', 'unknown'].forEach(k => { extraChannel[k] += c[k] || 0; });
@@ -1908,7 +1919,8 @@ function renderKPI(sorted) {
   const actualLives = sorted.length;
   const totalActive = sorted.reduce((s,d) => s + (d.activeViewers||0), 0);
   const totalPurchases = sorted.reduce((s,d) => s + (d.purchases||0), 0);
-  const totalSales = sorted.reduce((s,d) => s + (d.sales||0), 0);
+  const totalSales = sorted.reduce((s,d) => s + acctSales(d), 0);  // 会計の売上(アフィリは成果報酬だけ)
+  const totalGmv = sorted.reduce((s,d) => s + (d.sales||0), 0);
   const totalViewsAll = sorted.reduce((s,d) => s + (d.totalViews||0), 0);
   const entriesWithActive = sorted.filter(d => (d.activeViewers||0) > 0);
   const avgActivePerLive = entriesWithActive.length > 0
@@ -1953,10 +1965,10 @@ function renderKPI(sorted) {
   const msTimeline = moonshotTargets?.timeline?.[monthKey] || null;
   // Peak 1配信売上 (期間内最高売上配信)
   const peakBroadcast = sorted.reduce(
-    (p, d) => (d.sales||0) > (p.sales||0) ? d : p,
+    (p, d) => acctSales(d) > acctSales(p) ? d : p,
     { sales: 0, date: '' }
   );
-  const peakSales = peakBroadcast.sales || 0;
+  const peakSales = acctSales(peakBroadcast);
   const peakDate = (peakBroadcast.date || '').split(' ')[0];
   // CVR/AOV/items は購入者(unique buyer)ベース。期間絞り込み時は customerStats.monthly[m] を使用、全期間時は totals
   // customerStats.monthly が無い古いデータの場合はフォールバックで全期間累計
@@ -1965,13 +1977,14 @@ function renderKPI(sorted) {
   const avgAOV = ucForRate > 0 ? Math.round(totalSales / ucForRate) : 0;
   const totalItemsAll = sorted.reduce((s,d) => s + (d.itemsSold||0), 0);
   const itemsPerBuyer = ucForRate > 0 ? (totalItemsAll / ucForRate) : 0;
-  // 売上(GMV)カード・目標進捗は配信外収益(動画アフィリ/オーガニック)を含める。AOV/CVR等の購入者ベースKPIには含めない。
-  const totalSalesWithExtra = totalSales + extraRev.sales;
+  // 売上カード・目標進捗は会計の売上(アフィリは成果報酬だけ)に配信外(動画アフィリ/オーガニック)を足す。GMVは参考で別に出す(2026-10-28)
+  const totalSalesWithExtra = totalSales + extraRev.acct;
+  const totalGmvWithExtra = totalGmv + extraRev.sales;
   // 今の1個あたり単価のまま売上目標に届く個数(全期間表示では目標月が決まらないので出さない)
   const neededItems = (!isFullPeriod && target && totalItemsAll > 0 && totalSales > 0)
     ? Math.ceil(target.projectedSales / (totalSales / totalItemsAll)) : 0;
 
-  // ユーザー指定の順序: 累計リスト → 配信回数 → Peak売上 → AOV → リピート率 → CVR → 売上
+  // 並び: 累計リスト → 配信回数 → 最高1配信売上 → リピート率 → CVR → 購入個数 → 売上 → GMV(参考)
   const items = [
     {
       label: '🗂 累計ユニーク顧客数(=リスト)',
@@ -2028,13 +2041,21 @@ function renderKPI(sorted) {
       color: 'teal'
     },
     {
-      label: '💰 売上 (GMV)',
-      actual: '¥' + totalSalesWithExtra.toLocaleString(),
+      label: '💰 売上',
+      actual: '¥' + Math.round(totalSalesWithExtra).toLocaleString(),
       target: target ? '¥' + target.projectedSales.toLocaleString() : '—',
       rate: target ? rateOf(totalSalesWithExtra, target.projectedSales) : 0,
       note: (target ? (target.salesNote ? `${target.salesNote}・¥${target.projectedSales.toLocaleString()}` : `月商目標¥${(target.projectedSales/1000).toFixed(0)}K`) : '')
-        + (extraRev.sales > 0 ? ` ・配信外+¥${extraRev.sales.toLocaleString()}含む` : ''),
+        + (extraRev.acct > 0 ? ` ・配信外+¥${Math.round(extraRev.acct).toLocaleString()}含む` : '')
+        + '。アフィリ商品は成果報酬だけを数える',
       color: 'green'
+    },
+    {
+      label: '🛒 GMV (参考)',
+      actual: '¥' + Math.round(totalGmvWithExtra).toLocaleString(),
+      noTarget: true,
+      note: '売れた商品の金額の合計。アフィリ商品は流通額まるごと（TikTokの画面に近い額）。目標は売上で見る',
+      color: 'teal'
     },
   ];
 
@@ -2047,14 +2068,14 @@ function renderKPI(sorted) {
   if (isCurrentMonthView && target) {
     const elapsed = now.getDate();
     const dim = new Date(now.getFullYear(), now.getMonth()+1, 0).getDate();
-    const projSales = elapsed > 0 ? Math.round(totalSalesWithExtra / elapsed * dim) : 0;
+    const projSales = elapsed > 0 ? Math.round(totalSalesWithExtra / elapsed * dim) : 0;  // 会計の売上で外挿
     const projLives = elapsed > 0 ? Math.round(actualLives / elapsed * dim) : 0;
     items.push({
-      label: '📈 GMV着地予測 (今のペース)',
+      label: '📈 売上の着地予測 (今のペース)',
       actual: '¥' + projSales.toLocaleString(),
       target: '¥' + target.projectedSales.toLocaleString(),
       rate: rateOf(projSales, target.projectedSales),
-      note: `${elapsed}/${dim}日経過・現時点¥${totalSalesWithExtra.toLocaleString()}の単純外挿。配信ペース: 月末見込み${projLives}回${target.lives ? `/目標${target.lives}回` : ''}`,
+      note: `${elapsed}/${dim}日経過・現時点¥${Math.round(totalSalesWithExtra).toLocaleString()}の単純外挿。配信ペース: 月末見込み${projLives}回${target.lives ? `/目標${target.lives}回` : ''}`,
       color: 'green'
     });
   }
@@ -2301,7 +2322,8 @@ function renderAccountKR1(sorted) {
 function renderSummary(sorted) {
   // インプレッション・視聴者数・入室率・新規フォロワー・AOV のカードは 2026-10-28 社長指示で削除
   const totalDiamonds = sorted.reduce((s,d) => s + (d.diamonds||0), 0);
-  const totalSales = sorted.reduce((s,d) => s + (d.sales||0), 0);
+  const totalGmv = sorted.reduce((s,d) => s + (d.sales||0), 0);
+  const totalSales = sorted.reduce((s,d) => s + acctSales(d), 0);  // 会計の売上(アフィリは成果報酬だけ・2026-10-28)
   const totalPurchases = sorted.reduce((s,d) => s + (d.purchases||0), 0);
   const totalProfit = sorted.reduce((s,d) => s + (d.profit||0), 0);
   const avgSales = sorted.length ? Math.round(totalSales / sorted.length) : 0;
@@ -2326,7 +2348,7 @@ function renderSummary(sorted) {
   ].filter(r => r.label !== '経路の記録なし' || Math.round(r.val) > 0);
   const srcTotal = srcRows.reduce((s, r) => s + r.val, 0);
   const srcHtml = `
-    <div class="card" style="grid-column: span 2; border:2px solid var(--gold)" title="ライブ = 配信の売上の合計（ライブ画面から買われた分＋ライブを見たあと商品ページ・動画から買われた分。TikTokの「間接的なGMV」）。商品ページ・動画 = 配信の外で買われた分。経路の記録なし = 注文CSVに買われた場所が残っていない注文（9月以前など）">
+    <div class="card" style="grid-column: span 2; border:2px solid var(--gold)" title="ライブ = 配信の売上の合計（ライブ画面から買われた分＋ライブを見たあと商品ページ・動画から買われた分。TikTokの「間接的なGMV」）。商品ページ・動画 = 配信の外で買われた分。金額は会計の売上（アフィリ商品は成果報酬だけ）。経路の記録なし = 注文CSVに買われた場所が残っていない注文（9月以前など）">
       <div class="card-label" style="color:var(--gold)">💴 売上はどこから</div>
       <div style="display:flex;height:8px;border-radius:4px;overflow:hidden;margin:2px 0 10px;background:var(--s2)">
         ${srcRows.map(r => srcTotal > 0 && r.val > 0 ? `<div style="width:${(r.val / srcTotal * 100).toFixed(2)}%;background:${r.color}"></div>` : '').join('')}
@@ -2338,26 +2360,17 @@ function renderSummary(sorted) {
         </div>`).join('')}
     </div>`;
   document.getElementById('salesSourceCard').innerHTML = srcHtml;
+  // 並び(2026-10-28 社長指示): GMV → 売上 → 粗利 → 限界利益 → 配信回数 → 購入回数 → 1配信あたりの売上
   document.getElementById('summaryCards').innerHTML = `
-    <div class="card">
-      <div class="card-label">総配信回数</div>
-      <div class="card-val red">${sorted.length}</div>
-      <div class="card-sub">累計</div>
+    <div class="card" title="売れた商品の金額の合計。アフィリ商品は流通額まるごと（TikTokの画面に近い額）">
+      <div class="card-label">累計GMV</div>
+      <div class="card-val">¥${Math.round(totalGmv + extraRev.sales).toLocaleString()}</div>
+      <div class="card-sub">アフィリは流通額で計上${extraRev.sales > 0 ? ` ・配信外+¥${Math.round(extraRev.sales).toLocaleString()}` : ''}</div>
     </div>
-    <div class="card">
+    <div class="card" title="会計の売上。自社商品は売価×数量−当社負担の割引、アフィリ商品は成果報酬だけ">
       <div class="card-label">累計売上</div>
-      <div class="card-val green">¥${(totalSales + extraRev.sales).toLocaleString()}</div>
-      <div class="card-sub">${sorted.length}回合計${extraRev.sales > 0 ? ` ・配信外+¥${extraRev.sales.toLocaleString()}` : ''}</div>
-    </div>
-    <div class="card">
-      <div class="card-label">累計購入回数</div>
-      <div class="card-val">${totalPurchases.toLocaleString()}</div>
-      <div class="card-sub">${sorted.length}回合計</div>
-    </div>
-    <div class="card">
-      <div class="card-label">1配信あたりの売上</div>
-      <div class="card-val green">¥${avgSales.toLocaleString()}</div>
-      <div class="card-sub">平均</div>
+      <div class="card-val green">¥${Math.round(totalSales + extraRev.acct).toLocaleString()}</div>
+      <div class="card-sub">アフィリは成果報酬だけ${extraRev.acct > 0 ? ` ・配信外+¥${Math.round(extraRev.acct).toLocaleString()}` : ''}</div>
     </div>
     <div class="card">
       <div class="card-label">累計粗利</div>
@@ -2368,6 +2381,21 @@ function renderSummary(sorted) {
       <div class="card-label">累計限界利益</div>
       <div class="card-val ${(npAgg.net + extraRev.net) >= 0 ? 'green' : 'red'}">¥${Math.round(npAgg.net + extraRev.net).toLocaleString()}</div>
       <div class="card-sub">手数料 −¥${npAgg.tiktokFee.toLocaleString()} / 送料 −¥${npAgg.shippingFee.toLocaleString()} / 梱包 −¥${npAgg.packagingCost.toLocaleString()}${extraRev.net !== 0 ? ` ・配信外+¥${Math.round(extraRev.net).toLocaleString()}` : ''}${npPending ? ` ・<span style="color:var(--accent)">未確定${npPending}配信を除く</span>` : ''}</div>
+    </div>
+    <div class="card">
+      <div class="card-label">総配信回数</div>
+      <div class="card-val red">${sorted.length}</div>
+      <div class="card-sub">累計</div>
+    </div>
+    <div class="card">
+      <div class="card-label">累計購入回数</div>
+      <div class="card-val">${totalPurchases.toLocaleString()}</div>
+      <div class="card-sub">${sorted.length}回合計</div>
+    </div>
+    <div class="card">
+      <div class="card-label">1配信あたりの売上</div>
+      <div class="card-val green">¥${avgSales.toLocaleString()}</div>
+      <div class="card-sub">平均（配信外は含まない）</div>
     </div>
   `;
 }
