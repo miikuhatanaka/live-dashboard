@@ -1837,6 +1837,8 @@ async function init() {
 // net = 限界利益に足す額。動画アフィリは成果報酬=粗利=限界利益なので profit をそのまま使う。
 // オーガニック(entryType:'organic')は手数料・送料を引いた netProfit を別に持つ(2026-10-08)。
 let extraRev = { sales: 0, profit: 0, net: 0, count: 0 };
+// 配信外の売上を買われた場所で分けた額(オーガニック月合計の channelSales + 動画アフィリ)。上部「売上はどこから」カード用(2026-10-28)
+let extraChannel = { live: 0, productCards: 0, videos: 0, unknown: 0 };
 
 function renderAll() {
   rebuildAffiliateKeys();  // products[].isAffiliate からアフィリ判定セットを再構築(ハードコード撤廃)
@@ -1853,6 +1855,15 @@ function renderAll() {
     net:    extras.reduce((s,d) => s + (d.netProfit != null ? d.netProfit : (d.profit||0)), 0),
     count:  extras.length
   };
+  extraChannel = { live: 0, productCards: 0, videos: 0, unknown: 0 };
+  extras.forEach(d => {
+    if (d.entryType === 'video-affiliate') { extraChannel.videos += d.sales || 0; return; }
+    const c = d.channelSales;
+    if (!c) { extraChannel.unknown += d.sales || 0; return; }
+    ['live', 'productCards', 'videos', 'unknown'].forEach(k => { extraChannel[k] += c[k] || 0; });
+    // channelSales と sales がずれた分(端数など)は経路の記録なしに寄せて、合計を累計売上と揃える
+    extraChannel.unknown += (d.sales || 0) - ['live', 'productCards', 'videos', 'unknown'].reduce((s, k) => s + (c[k] || 0), 0);
+  });
   renderSummary(sorted);
   renderKPI(sorted);
   renderAccountKR1(sorted);
@@ -1983,16 +1994,6 @@ function renderKPI(sorted) {
       noTarget: true,
       note: peakDate ? `${peakDate} の配信（ムーンショットの¥1.5Mは月次目標ではないので達成率は出さない）` : '',
       color: 'purple'
-    },
-    {
-      label: isFullPeriod ? '💎 AOV (累計・購入者ベース)' : '💎 AOV (期間・購入者ベース)',
-      actual: avgAOV > 0 ? '¥' + avgAOV.toLocaleString() : '—',
-      noTarget: true,
-      note: ucForRate > 0
-        ? `${isFullPeriod ? '累計' : monthKey}売上¥${totalSales.toLocaleString()}÷${isFullPeriod ? '累計' : monthKey}購入者${ucForRate.toLocaleString()}人`
-          + (target && avgAOV > 0 ? `。この単価なら売上目標に購入者${Math.ceil(target.projectedSales / avgAOV).toLocaleString()}人` : '')
-        : 'customer-stats.monthlyにデータなし。全期間表示で再確認を',
-      color: 'gold'
     },
     {
       label: '🔁 リピート率(ユニーク)',
@@ -2295,36 +2296,13 @@ function renderAccountKR1(sorted) {
 }
 
 function renderSummary(sorted) {
-  const totalViews = sorted.reduce((s,d) => s + (d.totalViews||0), 0);
-  const totalImpr = sorted.reduce((s,d) => s + (d.impressions||0), 0);
-  const avgTapRate = totalImpr > 0 ? (totalViews / totalImpr * 100) : 0;
-  const totalFollowers = sorted.reduce((s,d) => s + (d.newFollowers||0), 0);
+  // インプレッション・視聴者数・入室率・新規フォロワー・AOV のカードは 2026-10-28 社長指示で削除
   const totalDiamonds = sorted.reduce((s,d) => s + (d.diamonds||0), 0);
   const totalSales = sorted.reduce((s,d) => s + (d.sales||0), 0);
   const totalPurchases = sorted.reduce((s,d) => s + (d.purchases||0), 0);
   const totalProfit = sorted.reduce((s,d) => s + (d.profit||0), 0);
   const avgSales = sorted.length ? Math.round(totalSales / sorted.length) : 0;
 
-  // 期間buyer-base判定 — フィルター時は customerStats.monthly[m] を合算
-  const isFullPeriod = !filterFrom && !filterTo;
-  let ucBucket;
-  let bucketLabel;
-  if (isFullPeriod) {
-    ucBucket = customerStats?.totals?.uniqueCustomers || 0;
-    bucketLabel = '累計';
-  } else {
-    const months = new Set();
-    sorted.forEach(d => {
-      const [yy, mm] = (d.date||'').split(' ')[0].split('/');
-      if (yy && mm) months.add(`${yy}-${String(mm).padStart(2,'0')}`);
-    });
-    let ucAcc = 0;
-    months.forEach(mk => { ucAcc += customerStats?.monthly?.[mk]?.uniqueCustomers || 0; });
-    ucBucket = ucAcc;
-    const monthsArr = Array.from(months).sort();
-    bucketLabel = monthsArr.length === 1 ? monthsArr[0] : `期間(${monthsArr.length}月分)`;
-  }
-  const aovBucket = ucBucket > 0 ? Math.round(totalSales / ucBucket) : 0;
   let npPending = 0;
   const npAgg = sorted.reduce((acc, d) => {
     // 梱包数未入力 かつ 自社発送商品が売れている配信は限界利益未確定 → 累計から除外
@@ -2335,7 +2313,28 @@ function renderSummary(sorted) {
     return acc;
   }, { net: 0, tiktokFee: 0, shippingFee: 0, packagingCost: 0, packageCount: 0 });
 
-  document.getElementById('summaryCards').innerHTML = `
+  // 売上はどこから(2026-10-28 社長指示「商品カードで何円、動画で何円、ライブで何円」)
+  // ライブ = 配信の売上(LIVE経由＋TikTokの「間接的なGMV」に当たる分) / 商品ページ・動画 = 配信外の売上
+  const srcRows = [
+    { label: 'ライブ', val: totalSales + extraChannel.live, color: 'var(--accent)' },
+    { label: '商品ページ', val: extraChannel.productCards, color: 'var(--teal)' },
+    { label: '動画', val: extraChannel.videos, color: 'var(--purple)' },
+    { label: '経路の記録なし', val: extraChannel.unknown, color: 'var(--muted)' },
+  ].filter(r => r.label !== '経路の記録なし' || Math.round(r.val) > 0);
+  const srcTotal = srcRows.reduce((s, r) => s + r.val, 0);
+  const srcHtml = `
+    <div class="card" style="grid-column: span 2; border:2px solid var(--gold)" title="ライブ = 配信の売上の合計（ライブ画面から買われた分＋ライブを見たあと商品ページ・動画から買われた分。TikTokの「間接的なGMV」）。商品ページ・動画 = 配信の外で買われた分。経路の記録なし = 注文CSVに買われた場所が残っていない注文（9月以前など）">
+      <div class="card-label" style="color:var(--gold)">💴 売上はどこから</div>
+      <div style="display:flex;height:8px;border-radius:4px;overflow:hidden;margin:2px 0 10px;background:var(--s2)">
+        ${srcRows.map(r => srcTotal > 0 && r.val > 0 ? `<div style="width:${(r.val / srcTotal * 100).toFixed(2)}%;background:${r.color}"></div>` : '').join('')}
+      </div>
+      ${srcRows.map(r => `
+        <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;font-size:13px;line-height:1.7">
+          <span><span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:${r.color};margin-right:6px"></span>${r.label}</span>
+          <span style="font-weight:700;font-variant-numeric:tabular-nums">¥${Math.round(r.val).toLocaleString()}</span>
+        </div>`).join('')}
+    </div>`;
+  document.getElementById('summaryCards').innerHTML = srcHtml + `
     <div class="card" style="border:2px solid var(--green)">
       <div class="card-label" style="color:var(--green)">🗂 累計顧客数（リスト）</div>
       <div class="card-val green">${(customerStats?.totals?.uniqueCustomers || 0).toLocaleString()}</div>
@@ -2345,31 +2344,6 @@ function renderSummary(sorted) {
       <div class="card-label">総配信回数</div>
       <div class="card-val red">${sorted.length}</div>
       <div class="card-sub">累計</div>
-    </div>
-    <div class="card">
-      <div class="card-label">累計インプレッション</div>
-      <div class="card-val">${totalImpr.toLocaleString()}</div>
-      <div class="card-sub">露出の総量（LIVE・商品の表示回数）</div>
-    </div>
-    <div class="card">
-      <div class="card-label">累計視聴者数</div>
-      <div class="card-val">${totalViews.toLocaleString()}</div>
-      <div class="card-sub">${sorted.length}回合計</div>
-    </div>
-    <div class="card" title="入室率 = 累計視聴 ÷ 累計インプレッション。露出された人のうち何%が入室したか。サムネ・冒頭の引きの強さ">
-      <div class="card-label" style="color:var(--teal)">平均入室率</div>
-      <div class="card-val" style="color:var(--teal)">${avgTapRate > 0 ? avgTapRate.toFixed(1) + '%' : '—'}</div>
-      <div class="card-sub">インプ${totalImpr.toLocaleString()} → 入室${totalViews.toLocaleString()}</div>
-    </div>
-    <div class="card">
-      <div class="card-label">累計新規フォロワー</div>
-      <div class="card-val green">+${totalFollowers.toLocaleString()}</div>
-      <div class="card-sub">平均 ${sorted.length ? (totalFollowers/sorted.length).toFixed(1) : 0}/回</div>
-    </div>
-    <div class="card">
-      <div class="card-label">AOV (${bucketLabel}・購入者ベース)</div>
-      <div class="card-val gold">${aovBucket > 0 ? '¥' + aovBucket.toLocaleString() : '—'}</div>
-      <div class="card-sub">${bucketLabel}売上¥${totalSales.toLocaleString()} ÷ ${bucketLabel}購入者${ucBucket.toLocaleString()}人</div>
     </div>
     <div class="card">
       <div class="card-label">累計売上</div>
