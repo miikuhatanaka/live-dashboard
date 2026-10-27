@@ -422,12 +422,12 @@ td.gold-text { color: var(--gold); }
         <th title="平均商品CTR = Σ商品クリック ÷ Σ商品インプレッション。商品が何回見られて何回タップされたか。入室率が「LIVEに入るか」なら、こちらは「商品を見に行くか」。商品インプで加重平均している。緑=合格ライン3%以上 / 赤=未達(講座 第4回)">CTR</th>
         <th title="カート追加率 = Σカート追加 ÷ Σ商品クリック(タップ比)。商品を見に行った人のうち何%がカートに入れたか。5%を超えたら広告を検討してよい(講座 第4回)。緑=5%以上 / 赤=未達">カート率</th>
         <th style="border-left:2px solid var(--border)" title="実GMV = Live Center のGMV。TikTokクーポンを引いたあと＝お客様が払った額。発送処理のあとも書き換えない">実GMV</th>
-        <th title="売上 = 会計の売上。自社商品はSKUマスタの売価×数量−当社負担の割引（TikTok負担のクーポンは補填されるので引かない）、アフィリ商品は成果報酬だけ。自社商品の発送処理が済むまでは「未確定」">売上</th>
-        <th title="視聴GPM = 売上 ÷ 視聴数 × 1,000。視聴1,000回あたりの売上。競合の米配信は ¥9,000〜¥12,000(2026-10-05 社長共有)。¥9,000以上で緑。TikTok画面の「表示GPM」は1,000インプレッションあたりで別物(セルにカーソルを当てると出る)">GPM</th>
+        <th title="視聴GPM = GMV ÷ 視聴数 × 1,000。視聴1,000回あたりのGMV（左の実GMVの列で計算）。競合の米配信は ¥9,000〜¥12,000(2026-10-05 社長共有)。¥9,000以上で緑。TikTok画面の「表示GPM」は1,000インプレッションあたりで別物(セルにカーソルを当てると出る)">GPM</th>
         <th title="ユニーク購入者数(同一username×phoneでマージ)。1人が2回注文しても1カウント。customer-history.jsonから配信窓(start〜end+6h)でretro集計">購入者</th>
-        <th title="AOV = 売上÷購入者数">AOV</th>
+        <th title="AOV = GMV ÷ 購入者数（左の実GMVの列で計算）">AOV</th>
         <th title="転換率 / CVR (購入者ベース) = 購入者数÷延べ視聴。講座の合格ライン=視聴100人で1人(1%)で強い(第4回)。母数の定義が講座と揃わないため合否の色は付けていない">転換率</th>
         <th title="1人あたり点数 = 販売点数÷購入者数">点数/人</th>
+        <th title="売上 = 会計の売上。自社商品はSKUマスタの売価×数量−当社負担の割引（TikTok負担のクーポンは補填されるので引かない）、アフィリ商品は成果報酬だけ。自社商品の発送処理が済むまでは「未確定」">売上</th>
         <th>粗利</th>
         <th>限界利益</th>
         <th></th>
@@ -2571,6 +2571,11 @@ function renderProductSummary(sorted) {
   sorted.forEach(d => {
     if (!Array.isArray(d.products)) return;
     const seenInStream = new Set();
+    // 限界利益(2026-10-28 社長指示): 配信の手数料・送料・梱包代を、自社商品のGMV比で各商品に割り振って引く。
+    // アフィリ商品は粗利(成果報酬)がそのまま限界利益
+    const npc = computeNetProfit(d);
+    const ownG = d.products.reduce((s, p) => s + (p.isAffiliate ? 0 : (p.gmv || 0)), 0);
+    const costRate = ownG > 0 ? (npc.tiktokFee + npc.shippingFee + npc.packagingCost) / ownG : 0;
     d.products.forEach(p => {
       // variantBreakdown(注文CSVから抽出した実績)があれば各variantを同じproductGroupに積算
       if (Array.isArray(p.variantBreakdown) && p.variantBreakdown.length > 0) {
@@ -2581,7 +2586,7 @@ function renderProductSummary(sorted) {
           if (!agg[group]) {
             agg[group] = {
               key: group, masterKey: name, sampleName: p.tiktokName || name, _t: 0,
-              impressions: 0, sold: 0, gmv: 0, totalProfit: 0,
+              impressions: 0, sold: 0, gmv: 0, totalProfit: 0, net: 0,
               broadcasts: 0, missing: false, precise: true,
               isAffiliate: isAffiliateKey(b.masterKey)
             };
@@ -2591,6 +2596,7 @@ function renderProductSummary(sorted) {
           agg[group].sold        += (b.qty ?? b.quantity ?? 0);
           agg[group].gmv         += (b.subtotalYen || 0);
           agg[group].totalProfit += (b.totalProfit ?? b.profit ?? 0);
+          agg[group].net += (b.totalProfit ?? b.profit ?? 0) - (agg[group].isAffiliate ? 0 : (b.subtotalYen || 0) * costRate);
         });
         // listing単位のimpressionsは1回だけ加算(variantBreakdownの各エントリで重複加算しない)
         const primaryName = extractProductGroup(p.variantBreakdown[0].masterKey);
@@ -2610,7 +2616,7 @@ function renderProductSummary(sorted) {
           agg[group] = {
             key: group, masterKey: name, _t: 0,
             sampleName: p.tiktokName || name,
-            impressions: 0, sold: 0, gmv: 0, totalProfit: 0,
+            impressions: 0, sold: 0, gmv: 0, totalProfit: 0, net: 0,
             broadcasts: 0, missing: !!p.profitMissing, precise: false,
             isAffiliate: !!p.isAffiliate || isAffiliateKey(p.masterKey)
           };
@@ -2621,6 +2627,7 @@ function renderProductSummary(sorted) {
         agg[group].sold        += p.sold || 0;
         agg[group].gmv         += p.gmv || 0;
         agg[group].totalProfit += p.totalProfit || 0;
+        agg[group].net += (p.totalProfit || 0) - (p.isAffiliate ? 0 : (p.gmv || 0) * costRate);
         if (!seenInStream.has(group)) {
           agg[group].broadcasts += 1;
           seenInStream.add(group);
@@ -2642,6 +2649,7 @@ function renderProductSummary(sorted) {
   const sumGmv = rows.reduce((s, r) => s + r.gmv, 0);
   const sumSold = rows.reduce((s, r) => s + r.sold, 0);
   const sumProfit = rows.reduce((s, r) => s + r.totalProfit, 0);
+  const sumNet = rows.reduce((s, r) => s + r.net, 0);
 
   const sumImp = rows.reduce((s, r) => s + r.impressions, 0);
   const totalCvr = sumImp > 0 ? (sumSold / sumImp * 100) : 0;
@@ -2657,6 +2665,7 @@ function renderProductSummary(sorted) {
         <th class="num-col">CVR <span style="color:var(--muted);cursor:help" title="販売数 ÷ 商品インプレッション数。1回表示されて何割が購入したか。値を算出できないものは — (分母0)">ⓘ</span></th>
         <th class="num-col">GMV</th>
         <th class="num-col">粗利</th>
+        <th class="num-col" title="粗利 − TikTok手数料 − 送料・梱包代。配信ごとの手数料・送料・梱包代を、自社商品のGMV比で割り振って引いている。アフィリ商品は成果報酬がそのまま限界利益">限界利益</th>
       </tr>
     </thead>
     <tbody>`;
@@ -2680,6 +2689,7 @@ function renderProductSummary(sorted) {
       <td class="num-col" style="color:${cvrColor};font-weight:600">${cvrText}</td>
       <td class="num-col">¥${r.gmv.toLocaleString()}</td>
       <td class="num-col ${profitClass}">${r.missing ? '—' : '¥' + Math.round(r.totalProfit).toLocaleString()}</td>
+      <td class="num-col ${r.net >= 0 ? 'profit-pos' : 'profit-neg'}">${r.missing ? '—' : '¥' + Math.round(r.net).toLocaleString()}</td>
     </tr>`;
   });
   const ownCount = rows.filter(r => r.masterKey && !r.isAffiliate).length;
@@ -2693,6 +2703,7 @@ function renderProductSummary(sorted) {
       <td class="num-col" style="font-weight:700;color:var(--teal)">${sumImp > 0 ? totalCvr.toFixed(2) + '%' : '—'}</td>
       <td class="num-col" style="font-weight:700;color:var(--green)">¥${sumGmv.toLocaleString()}</td>
       <td class="num-col profit-pos" style="font-weight:700">¥${Math.round(sumProfit).toLocaleString()}</td>
+      <td class="num-col ${sumNet >= 0 ? 'profit-pos' : 'profit-neg'}" style="font-weight:700">¥${Math.round(sumNet).toLocaleString()}</td>
     </tr>`;
   html += '</tbody></table>';
   body.innerHTML = html;
@@ -2729,13 +2740,16 @@ function sellerSalesOf(d) {
 
 // 視聴GPM = 売上 ÷ 視聴数 × 1,000 (2026-10-05 社長要望)。競合の米配信で ¥9,000〜¥12,000。
 // TikTokの「表示GPM」(displayedGPM)は1,000インプレッションあたりで、競合比較の数字とは分母が違う
+// 2026-10-28 社長「AOVとかGPMはGMVで計算したい」: 配信別の表の実GMV列(Live Center)で計算する
+function gmvForRate(d) { const g = liveGmvOf(d); return g != null ? g : (d.sales || 0); }
 function viewGpm(d) {
-  if (!((d.totalViews||0) > 0) || !d.sales) return null;
-  return d.sales / d.totalViews * 1000;
+  const g = gmvForRate(d);
+  if (!((d.totalViews||0) > 0) || !g) return null;
+  return g / d.totalViews * 1000;
 }
 function gpmTotal(list) {
   let sales = 0, views = 0;
-  for (const d of list) { if ((d.totalViews||0) > 0) { sales += d.sales||0; views += d.totalViews; } }
+  for (const d of list) { if ((d.totalViews||0) > 0) { sales += gmvForRate(d); views += d.totalViews; } }
   return views > 0 ? sales / views * 1000 : null;
 }
 
@@ -2916,13 +2930,15 @@ function renderOffBroadcastProducts(extras) {
     { key: 'other', label: 'その他（配信の時間外のライブ・経路の記録なし）', color: 'var(--muted)' },
   ];
   const agg = { videos: {}, productCards: {}, other: {} };
-  const add = (g, name, sold, sales, profit, aff) => {
+  // net = 限界利益(2026-10-28)。オーガニックは sync-organic-to-gist.py が商品ごとに入れる netProfit、アフィリは成果報酬そのまま
+  const add = (g, name, sold, sales, profit, aff, net) => {
     const key = name + (aff ? '|aff' : '');
     const t = agg[g];
-    if (!t[key]) t[key] = { name, aff, sold: 0, sales: 0, profit: 0 };
+    if (!t[key]) t[key] = { name, aff, sold: 0, sales: 0, profit: 0, net: 0 };
     t[key].sold += sold || 0;
     t[key].sales += sales || 0;
     t[key].profit += profit || 0;
+    t[key].net += (net != null ? net : profit) || 0;
   };
   const groupOf = ch => ch === 'videos' ? 'videos' : ch === 'productCards' ? 'productCards' : 'other';
   (extras || []).forEach(d => {
@@ -2939,37 +2955,40 @@ function renderOffBroadcastProducts(extras) {
     if (prods.length > 0) {
       prods.forEach(p => {
         const name = p.masterKey || p.tiktokName || '(名前なし)';
-        if (p.byChannel) Object.entries(p.byChannel).forEach(([ch, c]) => add(groupOf(ch), name, c.sold, c.gmv, c.totalProfit, false));
-        else add('other', name, p.sold, p.gmv, p.totalProfit, false);
+        if (p.byChannel) Object.entries(p.byChannel).forEach(([ch, c]) => add(groupOf(ch), name, c.sold, c.gmv, c.totalProfit, false, c.netProfit));
+        else add('other', name, p.sold, p.gmv, p.totalProfit, false, p.netProfit);
       });
     } else if ((d.sales || 0) > 0) {
       const name = String(d.memo || '').replace(/\s*\d{4}-\d{2}\s*月合計$/, '') || '(内訳なし)';
-      add('other', name, 0, d.sales, d.profit, false);
+      add('other', name, 0, d.sales, d.profit, false, d.netProfit);
     }
   });
   const sections = GROUPS.map(g => {
     const rows = Object.values(agg[g.key]).filter(r => r.sold > 0 || r.sales > 0).sort((a, b) => b.sales - a.sales || b.sold - a.sold);
     if (rows.length === 0) return '';
-    const total = rows.reduce((s, r) => ({ sold: s.sold + r.sold, sales: s.sales + r.sales, profit: s.profit + r.profit }), { sold: 0, sales: 0, profit: 0 });
+    const total = rows.reduce((s, r) => ({ sold: s.sold + r.sold, sales: s.sales + r.sales, profit: s.profit + r.profit, net: s.net + r.net }), { sold: 0, sales: 0, profit: 0, net: 0 });
     return `<h3 style="font-size:14px;margin:18px 0 8px;color:${g.color}">${g.label} <span style="font-size:12px;color:var(--muted);font-weight:400">${rows.length}商品・¥${Math.round(total.sales).toLocaleString()}</span></h3>
     <div class="table-scroll"><table style="width:100%">
     <thead><tr>
-      <th>商品</th>
+      <th style="width:60%">商品</th>
       <th class="num-col">販売数</th>
       <th class="num-col">売上</th>
       <th class="num-col">粗利</th>
+      <th class="num-col" title="粗利 − TikTok手数料 − 送料・梱包代（送料・梱包代は自社発送の商品に売上比で割り振り）。アフィリ商品は成果報酬がそのまま限界利益">限界利益</th>
     </tr></thead>
     <tbody>${rows.map(r => `<tr>
-      <td><span class="sku-tag prod-name" title="${escapeHtml(r.name)}">${escapeHtml(r.name)}</span>${r.aff ? ' <span style="color:var(--muted);font-size:10px">アフィリ（売上は成果報酬）</span>' : ''}</td>
+      <td><span class="sku-tag prod-name" style="max-width:none" title="${escapeHtml(r.name)}">${escapeHtml(r.name)}</span>${r.aff ? ' <span style="color:var(--muted);font-size:10px">アフィリ（売上は成果報酬）</span>' : ''}</td>
       <td class="num-col" style="font-weight:600">${r.sold > 0 ? r.sold.toLocaleString() : '—'}</td>
       <td class="num-col" style="color:var(--green);font-weight:600">¥${Math.round(r.sales).toLocaleString()}</td>
       <td class="num-col ${r.profit >= 0 ? 'profit-pos' : 'profit-neg'}">¥${Math.round(r.profit).toLocaleString()}</td>
+      <td class="num-col ${r.net >= 0 ? 'profit-pos' : 'profit-neg'}">¥${Math.round(r.net).toLocaleString()}</td>
     </tr>`).join('')}
     <tr style="border-top:2px solid var(--border);font-weight:700">
       <td>合計</td>
       <td class="num-col">${total.sold.toLocaleString()}</td>
       <td class="num-col" style="color:var(--green)">¥${Math.round(total.sales).toLocaleString()}</td>
       <td class="num-col">¥${Math.round(total.profit).toLocaleString()}</td>
+      <td class="num-col">¥${Math.round(total.net).toLocaleString()}</td>
     </tr></tbody>
   </table></div>`;
   }).join('');
@@ -3131,7 +3150,7 @@ function renderTable(sortedIn) {
     const buyers = d.buyers || 0;
     const itemsSold = d.itemsSold || 0;
     const cvr = (d.totalViews||0) > 0 ? (buyers/(d.totalViews||1)*100).toFixed(2) : '0.00';
-    const aov = buyers > 0 ? Math.round((d.sales||0)/buyers) : 0;
+    const aov = buyers > 0 ? Math.round(gmvForRate(d)/buyers) : 0;
     const ipb = buyers > 0 ? (itemsSold/buyers).toFixed(1) : '-';
     const tapRate = tapThroughRate(d);
     tr.innerHTML = `
@@ -3147,12 +3166,12 @@ function renderTable(sortedIn) {
       <td style="color:${(() => { const r = productCtrOf(d); return benchColorCtr(r && r.ctr); })()};font-weight:700" title="${(() => { const r = productCtrOf(d); return r ? `商品インプ ${Math.round(r.impressions).toLocaleString()} / クリック ${Math.round(r.clicks).toLocaleString()}｜${benchJudgeCtr(r.ctr)}｜${BENCH.productCtr.label}` : '商品ごとのインプレッションが無いため出せません'; })()}">${(() => { const r = productCtrOf(d); return r ? r.ctr.toFixed(2)+'%' : '-'; })()}</td>
       <td style="color:${(() => { const r = productCtrOf(d); return benchColorPass(r && r.cartRate, BENCH.cartRate.pass); })()};font-weight:700" title="${(() => { const r = productCtrOf(d); return r && r.cartRate != null ? `カート追加 ${r.cart} / クリック ${Math.round(r.clicks).toLocaleString()}｜${benchJudgePass(r.cartRate, BENCH.cartRate.pass)}｜${BENCH.cartRate.label}` : 'カート追加のデータがありません'; })()}">${(() => { const r = productCtrOf(d); return r && r.cartRate != null ? r.cartRate.toFixed(1)+'%' : '-'; })()}</td>
       <td class="num" style="font-weight:700;border-left:2px solid var(--border)">${(() => { const g = liveGmvOf(d); return g ? '¥'+g.toLocaleString() : '-'; })()}</td>
-      <td style="color:var(--green);font-weight:700">${(() => { const s = sellerSalesOf(d); return s == null ? '<span style="color:var(--muted);font-weight:400;font-size:11px" title="発送処理が済むと、うちに入る額が入ります">未確定</span>' : (s ? '¥'+s.toLocaleString() : '-'); })()}</td>
-      <td class="num" style="color:${(() => { const g = viewGpm(d); return g != null && g >= BENCH.gpm.pass ? 'var(--green)' : 'inherit'; })()};font-weight:700" title="${(() => { const g = viewGpm(d); return (g != null ? `売上 ¥${(d.sales||0).toLocaleString()} ÷ 視聴 ${(d.totalViews||0).toLocaleString()} × 1,000｜` : '') + `表示GPM(1,000インプあたり・TikTok画面の値) ${d.displayedGPM ? '¥'+Number(d.displayedGPM).toLocaleString() : '-'}｜${BENCH.gpm.label}`; })()}">${(() => { const g = viewGpm(d); return g != null ? '¥'+Math.round(g).toLocaleString() : '-'; })()}</td>
+      <td class="num" style="color:${(() => { const g = viewGpm(d); return g != null && g >= BENCH.gpm.pass ? 'var(--green)' : 'inherit'; })()};font-weight:700" title="${(() => { const g = viewGpm(d); return (g != null ? `GMV ¥${gmvForRate(d).toLocaleString()} ÷ 視聴 ${(d.totalViews||0).toLocaleString()} × 1,000｜` : '') + `表示GPM(1,000インプあたり・TikTok画面の値) ${d.displayedGPM ? '¥'+Number(d.displayedGPM).toLocaleString() : '-'}｜${BENCH.gpm.label}`; })()}">${(() => { const g = viewGpm(d); return g != null ? '¥'+Math.round(g).toLocaleString() : '-'; })()}</td>
       <td style="font-weight:700" title="購入者数(buyer): customer-history.json retro 集計。1人が複数注文しても1。注文数=${d.orders||0} / 商品個数=${itemsSold}">${buyers}</td>
       <td style="color:var(--gold);font-weight:700">${aov > 0 ? '¥'+aov.toLocaleString() : '-'}</td>
       <td style="color:var(--teal);font-weight:700" title="${BENCH.cvr.label}">${cvr}%</td>
       <td style="color:var(--teal);font-weight:700" title="1購入者あたり何個買ったか">${ipb}</td>
+      <td style="color:var(--green);font-weight:700">${(() => { const s = sellerSalesOf(d); return s == null ? '<span style="color:var(--muted);font-weight:400;font-size:11px" title="発送処理が済むと、うちに入る額が入ります">未確定</span>' : (s ? '¥'+s.toLocaleString() : '-'); })()}</td>
       <td style="color:var(--gold);font-weight:700">${d.profit ? '¥'+d.profit.toLocaleString() : '-'}</td>
       <td style="font-weight:700;color:${(() => { if (isNetProfitPending(d)) return 'var(--muted)'; const n=computeNetProfit(d); return n.net>=0?'var(--green)':'var(--accent)'; })()}" title="${isNetProfitPending(d) ? '発送くんが梱包数を入力するまで限界利益は未確定（送料・梱包資材費が引けないため）' : ''}">${(() => { if (isNetProfitPending(d)) return '-'; const n=computeNetProfit(d); return '¥'+n.net.toLocaleString(); })()}</td>
       <td style="display:flex;gap:4px;align-items:center;flex-wrap:wrap">
@@ -3174,7 +3193,7 @@ function renderTable(sortedIn) {
             <h4>👁 視聴</h4>
             <div class="kv"><span class="k">インプレッション</span><span class="v">${d.impressions ? d.impressions.toLocaleString() : '-'}</span></div>
             <div class="kv"><span class="k">入室率 (視聴÷インプ)</span><span class="v" style="color:var(--teal)">${(() => { const t = tapThroughRate(d); return t != null ? t.toFixed(1)+'%' : '-'; })()}</span></div>
-            <div class="kv"><span class="k" title="売上 ÷ 視聴数 × 1,000。競合の米配信 ¥9,000〜¥12,000">視聴GPM (売上÷視聴×1,000)</span><span class="v" style="color:var(--green)">${(() => { const g = viewGpm(d); return g != null ? '¥'+Math.round(g).toLocaleString() : '-'; })()}</span></div>
+            <div class="kv"><span class="k" title="GMV ÷ 視聴数 × 1,000。競合の米配信 ¥9,000〜¥12,000">視聴GPM (GMV÷視聴×1,000)</span><span class="v" style="color:var(--green)">${(() => { const g = viewGpm(d); return g != null ? '¥'+Math.round(g).toLocaleString() : '-'; })()}</span></div>
             <div class="kv"><span class="k" title="TikTok画面の値。1,000インプレッションあたりの売上">表示GPM (1,000インプあたり)</span><span class="v">${d.displayedGPM ? '¥'+Number(d.displayedGPM).toLocaleString() : '-'}</span></div>
             <div class="kv"><span class="k">総視聴数</span><span class="v">${(d.totalViews||0).toLocaleString()}</span></div>
             <div class="kv"><span class="k" title="Σ商品クリック ÷ Σ商品インプレッション">商品CTR (クリック÷商品インプ)</span><span class="v" style="color:var(--purple)">${(() => { const r = productCtrOf(d); return r ? r.ctr.toFixed(2)+'%' : '-'; })()}</span></div>
@@ -3220,7 +3239,7 @@ function renderTable(sortedIn) {
             <div class="kv"><span class="k">販売点数 (items)</span><span class="v">${d.itemsSold||0}</span></div>
             <div class="kv"><span class="k">梱包数</span><span class="v">${d.packageCount != null ? d.packageCount + ' 個' : '<span style=\"color:var(--accent)\">未入力</span>'}</span></div>
             <div class="kv"><span class="k">CVR (購入者÷延べ視聴)</span><span class="v" style="color:var(--teal)">${(d.totalViews||0)>0?((d.buyers||0)/(d.totalViews||1)*100).toFixed(2):'0.00'}%</span></div>
-            <div class="kv"><span class="k">AOV (売上÷購入者)</span><span class="v" style="color:var(--gold)">${(d.buyers||0)>0?'¥'+Math.round((d.sales||0)/d.buyers).toLocaleString():'-'}</span></div>
+            <div class="kv"><span class="k">AOV (GMV÷購入者)</span><span class="v" style="color:var(--gold)">${(d.buyers||0)>0?'¥'+Math.round(gmvForRate(d)/d.buyers).toLocaleString():'-'}</span></div>
             <div class="kv"><span class="k">items/購入者</span><span class="v" style="color:var(--teal)">${(d.buyers||0)>0?((d.itemsSold||0)/d.buyers).toFixed(2):'-'}</span></div>
             ${(() => {
               const n = computeNetProfit(d);
@@ -3300,7 +3319,7 @@ function renderTable(sortedIn) {
       ucForTotal = ucAcc;  // 注: 月を跨いだリピーターは重複カウントされる(月単位unique)
     }
     const totalCvr = (sumViews > 0 && ucForTotal > 0) ? (ucForTotal / sumViews * 100).toFixed(2) : '0.00';
-    const totalAov = ucForTotal > 0 ? Math.round(sumSales / ucForTotal) : 0;
+    const totalAov = ucForTotal > 0 ? Math.round(sumLiveGmv / ucForTotal) : 0;
     const sumItems = sorted.reduce((s,d) => s + (d.itemsSold||0), 0);
     const totalIpb = ucForTotal > 0 ? (sumItems / ucForTotal).toFixed(1) : '-';
     const sumProfit = sorted.reduce((s,d) => s + (d.profit||0), 0);
@@ -3323,12 +3342,12 @@ function renderTable(sortedIn) {
       <td style="color:${(() => { const r = productCtrTotal(sorted); return benchColorCtr(r && r.ctr); })()};font-weight:700" title="${(() => { const r = productCtrTotal(sorted); return r ? `期間合計: 商品インプ ${Math.round(r.impressions).toLocaleString()} / クリック ${Math.round(r.clicks).toLocaleString()}。配信ごとのCTRの単純平均ではなく、クリックとインプを足してから割った加重平均｜${benchJudgeCtr(r.ctr)}` : ''; })()}">${(() => { const r = productCtrTotal(sorted); return r ? r.ctr.toFixed(2)+'%' : '-'; })()}</td>
       <td style="color:${(() => { const r = productCtrTotal(sorted); return benchColorPass(r && r.cartRate, BENCH.cartRate.pass); })()};font-weight:700" title="${(() => { const r = productCtrTotal(sorted); return r && r.cartRate != null ? `期間合計: カート追加 ${r.cart} / クリック ${Math.round(r.clicks).toLocaleString()}｜${benchJudgePass(r.cartRate, BENCH.cartRate.pass)}` : ''; })()}">${(() => { const r = productCtrTotal(sorted); return r && r.cartRate != null ? r.cartRate.toFixed(1)+'%' : '-'; })()}</td>
       <td class="num" style="font-weight:700;border-left:2px solid var(--border)" title="実GMV(Live Center)の合計">¥${sumLiveGmv.toLocaleString()}</td>
-      <td style="color:var(--green);font-weight:700" title="うちに入る額(発送処理済みの配信)の合計${sellerPending ? `。未確定${sellerPending}配信は含まない` : ''}">¥${sumSeller.toLocaleString()}${sellerPending ? `<div style="color:var(--muted);font-weight:400;font-size:10px">未確定${sellerPending}回を除く</div>` : ''}</td>
-      <td class="num" style="font-weight:700" title="期間の視聴GPM = Σ売上 ÷ Σ視聴 × 1,000（配信ごとの単純平均ではない）">${(() => { const g = gpmTotal(sorted); return g != null ? '¥'+Math.round(g).toLocaleString() : '-'; })()}</td>
+      <td class="num" style="font-weight:700" title="期間の視聴GPM = ΣGMV ÷ Σ視聴 × 1,000（配信ごとの単純平均ではない）">${(() => { const g = gpmTotal(sorted); return g != null ? '¥'+Math.round(g).toLocaleString() : '-'; })()}</td>
       <td style="color:var(--teal);font-weight:700" title="${isFullPeriodTotal ? '累計ユニーク購入者数 (customer-stats.totals.uniqueCustomers)。リピーターは1人' : '期間内ユニーク購入者数 (月別合算、月跨ぎリピーターは重複)'}">${ucForTotal.toLocaleString()}</td>
-      <td style="color:var(--gold);font-weight:700" title="${isFullPeriodTotal ? '累計AOV=累計売上÷累計購入者(unique buyer)' : '期間AOV=期間売上÷期間内ユニーク購入者'}">${totalAov > 0 ? '¥'+totalAov.toLocaleString() : '-'}</td>
+      <td style="color:var(--gold);font-weight:700" title="${isFullPeriodTotal ? '累計AOV=実GMVの合計÷累計購入者(unique buyer)' : '期間AOV=実GMVの合計÷期間内ユニーク購入者'}">${totalAov > 0 ? '¥'+totalAov.toLocaleString() : '-'}</td>
       <td style="color:var(--teal);font-weight:700" title="${isFullPeriodTotal ? '累計CVR=累計購入者÷延べ視聴' : '期間CVR=期間内ユニーク購入者÷期間延べ視聴'}">${totalCvr}%</td>
       <td style="color:var(--teal);font-weight:700" title="${isFullPeriodTotal ? '累計バスケットサイズ=Σitems÷累計購入者' : '期間バスケットサイズ=期間items÷期間購入者'}">${totalIpb}</td>
+      <td style="color:var(--green);font-weight:700" title="うちに入る額(発送処理済みの配信)の合計${sellerPending ? `。未確定${sellerPending}配信は含まない` : ''}">¥${sumSeller.toLocaleString()}${sellerPending ? `<div style="color:var(--muted);font-weight:400;font-size:10px">未確定${sellerPending}回を除く</div>` : ''}</td>
       <td style="color:var(--gold);font-weight:700">¥${sumProfit.toLocaleString()}</td>
       <td style="color:${sumNet>=0?'var(--green)':'var(--accent)'};font-weight:700">¥${sumNet.toLocaleString()}</td>
       <td></td>
