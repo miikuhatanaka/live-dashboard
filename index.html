@@ -532,7 +532,7 @@ td.gold-text { color: var(--gold); }
 
     <h4 style="font-size:13px;color:var(--accent);text-transform:uppercase;letter-spacing:.5px;margin-top:16px;margin-bottom:8px">利益</h4>
     <div class="def-item"><strong>粗利 (profit)</strong><span>売上 − 仕入原価。会計の「売上総利益」にあたる。TikTok手数料・送料・梱包代はここでは引かない（下の限界利益で引く）。<br>アフィリエイト商品は <code>GMV × 成果報酬率</code>（当社の取り分）を粗利とする。駄菓子つめあわせだけは売価 − 仕入原価で計算。</span></div>
-    <div class="def-item"><strong>限界利益 (netProfit)</strong><span>売上から、売れた分だけ増える費用（仕入原価・TikTok販売手数料・送料・梱包代）を全部引いた残り。演者の報酬・スタジオ代・広告費・人件費などは引いていないので、会社の最終的な利益（純利益）ではない。<br><strong>TikTok販売手数料</strong> = 自社商品GMV × カテゴリ別の料率（2026/5/11〜。それ以前は一律7%）、<strong>送料</strong> = 梱包数 × ¥185（2026/10/1以降の配信は¥240＝クリックポスト改定）、<strong>梱包代</strong> = 梱包数 × ¥20。<br><em>アフィリエイト商品は手数料・送料・梱包代すべて対象外</em>（元セラーが発送し、成果報酬がそのまま当社の取り分）。<span class="def-formula">限界利益 = 粗利 − 自社商品GMV × 販売手数料率 − 梱包数 × (送料 + 梱包代)</span></span></div>
+    <div class="def-item"><strong>限界利益 (netProfit)</strong><span>売上から、売れた分だけ増える費用（仕入原価・TikTok販売手数料・送料・梱包代）を全部引いた残り。演者の報酬・スタジオ代・広告費・人件費などは引いていないので、会社の最終的な利益（純利益）ではない。<br><strong>TikTok販売手数料</strong> = 自社商品GMV × カテゴリ別の料率（2026/5/11〜。それ以前は一律7%）、<strong>送料</strong> = 梱包数 × ¥185（2026/10/1以降の配信は¥240＝クリックポスト改定）、<strong>梱包代</strong> = 梱包数 × ¥20。<br><em>アフィリエイト商品は手数料・送料・梱包代すべて対象外</em>（元セラーが発送し、成果報酬がそのまま当社の取り分）。<br><strong>スマートプロモーション手数料</strong>は注文ごとに率が変わるので、配信ごとには割り振らず、セラーセンターの月別費用を累計限界利益からだけ引く（2026/8〜。2026/10/30に全部オフ）。<span class="def-formula">限界利益 = 粗利 − 自社商品GMV × 販売手数料率 − 梱包数 × (送料 + 梱包代)</span></span></div>
     <div class="def-item"><strong>unitProfit / totalProfit</strong><span><code>unitProfit</code>は1個あたりの粗利、<code>totalProfit</code>はその配信での合計粗利。variant mix対象商品では加重平均。</span></div>
 
     <h4 style="font-size:13px;color:var(--accent);text-transform:uppercase;letter-spacing:.5px;margin-top:16px;margin-bottom:8px">視聴・エンゲージメント</h4>
@@ -1839,6 +1839,8 @@ function renderAll() {
     acct:   extras.reduce((s,d) => s + acctSales(d), 0),
     profit: extras.reduce((s,d) => s + (d.profit||0), 0),
     net:    extras.reduce((s,d) => s + (d.netProfit != null ? d.netProfit : (d.profit||0)), 0),
+    // スマートプロモーションの月別費用(entryType='smart-promotion')。限界利益からだけ引く(2026-10-30)
+    promo:  extras.reduce((s,d) => s + (d.smartPromotionFee||0), 0),
     count:  extras.length
   };
   extraChannel = { live: 0, productCards: 0, videos: 0, unknown: 0 };
@@ -2356,8 +2358,8 @@ function renderSummary(sorted) {
     </div>
     <div class="card" title="粗利からTikTok手数料・送料・梱包資材費を差し引いた金額（配信外アフィリは手数料/送料なし）" style="border:1px solid var(--accent)">
       <div class="card-label">累計限界利益</div>
-      <div class="card-val ${(npAgg.net + extraRev.net) >= 0 ? 'purple' : 'red'}">¥${Math.round(npAgg.net + extraRev.net).toLocaleString()}</div>
-      <div class="card-sub">手数料 −¥${npAgg.tiktokFee.toLocaleString()} / 送料 −¥${npAgg.shippingFee.toLocaleString()} / 梱包 −¥${npAgg.packagingCost.toLocaleString()}${extraRev.net !== 0 ? ` ・配信外+¥${Math.round(extraRev.net).toLocaleString()}` : ''}${npPending ? ` ・<span style="color:var(--accent)">未確定${npPending}配信を除く</span>` : ''}</div>
+      <div class="card-val ${(npAgg.net + extraRev.net - extraRev.promo) >= 0 ? 'purple' : 'red'}">¥${Math.round(npAgg.net + extraRev.net - extraRev.promo).toLocaleString()}</div>
+      <div class="card-sub">手数料 −¥${npAgg.tiktokFee.toLocaleString()} / 送料 −¥${npAgg.shippingFee.toLocaleString()} / 梱包 −¥${npAgg.packagingCost.toLocaleString()}${extraRev.net !== 0 ? ` ・配信外+¥${Math.round(extraRev.net).toLocaleString()}` : ''}${extraRev.promo ? ` ・スマートプロモーション −¥${Math.round(extraRev.promo).toLocaleString()}` : ''}${npPending ? ` ・<span style="color:var(--accent)">未確定${npPending}配信を除く</span>` : ''}</div>
     </div>
     <div class="card">
       <div class="card-label">総配信回数</div>
