@@ -2880,10 +2880,12 @@ function renderOffBroadcastProducts(extras) {
   ];
   const agg = { videos: {}, productCards: {}, other: {} };
   // net = 限界利益(2026-10-28)。オーガニックは sync-organic-to-gist.py が商品ごとに入れる netProfit、アフィリは成果報酬そのまま
-  const add = (g, name, sold, sales, profit, aff, net) => {
+  // gmv = 取引額(2026-10-29 社長指示で販売数の左に追加)。アフィリも売上(成果報酬)とは別に取引額そのものを出す
+  const add = (g, name, sold, sales, profit, aff, net, gmv) => {
     const key = name + (aff ? '|aff' : '');
     const t = agg[g];
-    if (!t[key]) t[key] = { name, aff, sold: 0, sales: 0, profit: 0, net: 0 };
+    if (!t[key]) t[key] = { name, aff, gmv: 0, sold: 0, sales: 0, profit: 0, net: 0 };
+    t[key].gmv += gmv || 0;
     t[key].sold += sold || 0;
     t[key].sales += sales || 0;
     t[key].profit += profit || 0;
@@ -2894,32 +2896,33 @@ function renderOffBroadcastProducts(extras) {
     const isVA = d.entryType === 'video-affiliate';
     const prods = Array.isArray(d.products) ? d.products.filter(p => (p.sold || 0) > 0 || (p.gmv || 0) > 0) : [];
     if (isVA) {
-      if (prods.length > 0) prods.forEach(p => add('videos', p.masterKey || p.tiktokName || '(名前なし)', p.sold, p.totalProfit, p.totalProfit, true));
+      if (prods.length > 0) prods.forEach(p => add('videos', p.masterKey || p.tiktokName || '(名前なし)', p.sold, p.totalProfit, p.totalProfit, true, undefined, p.gmv));
       else if ((d.sales || 0) > 0) {
         const name = String(d.memo || '').replace(/\s*\d{4}-\d{2}\s*月合計$/, '') || '(内訳なし)';
-        add('videos', name, 0, d.profit, d.profit, true);
+        add('videos', name, 0, d.profit, d.profit, true, undefined, d.gmv != null ? d.gmv : d.sales);
       }
       return;
     }
     if (prods.length > 0) {
       prods.forEach(p => {
         const name = p.masterKey || p.tiktokName || '(名前なし)';
-        if (p.byChannel) Object.entries(p.byChannel).forEach(([ch, c]) => add(groupOf(ch), name, c.sold, c.gmv, c.totalProfit, false, c.netProfit));
-        else add('other', name, p.sold, p.gmv, p.totalProfit, false, p.netProfit);
+        if (p.byChannel) Object.entries(p.byChannel).forEach(([ch, c]) => add(groupOf(ch), name, c.sold, c.gmv, c.totalProfit, false, c.netProfit, c.gmv));
+        else add('other', name, p.sold, p.gmv, p.totalProfit, false, p.netProfit, p.gmv);
       });
     } else if ((d.sales || 0) > 0) {
       const name = String(d.memo || '').replace(/\s*\d{4}-\d{2}\s*月合計$/, '') || '(内訳なし)';
-      add('other', name, 0, d.sales, d.profit, false, d.netProfit);
+      add('other', name, 0, d.sales, d.profit, false, d.netProfit, d.gmv != null ? d.gmv : d.sales);
     }
   });
   const sections = GROUPS.map(g => {
     const rows = Object.values(agg[g.key]).filter(r => r.sold > 0 || r.sales > 0).sort((a, b) => b.sales - a.sales || b.sold - a.sold);
     if (rows.length === 0) return '';
-    const total = rows.reduce((s, r) => ({ sold: s.sold + r.sold, sales: s.sales + r.sales, profit: s.profit + r.profit, net: s.net + r.net }), { sold: 0, sales: 0, profit: 0, net: 0 });
-    return `<h3 style="font-size:14px;margin:18px 0 8px;color:${g.color}">${g.label} <span style="font-size:12px;color:var(--muted);font-weight:400">${rows.length}商品・¥${Math.round(total.sales).toLocaleString()}</span></h3>
+    const total = rows.reduce((s, r) => ({ gmv: s.gmv + r.gmv, sold: s.sold + r.sold, sales: s.sales + r.sales, profit: s.profit + r.profit, net: s.net + r.net }), { gmv: 0, sold: 0, sales: 0, profit: 0, net: 0 });
+    return `<h3 style="font-size:14px;margin:18px 0 8px;color:${g.color}">${g.label} <span style="font-size:12px;color:var(--muted);font-weight:400">${rows.length}商品・GMV ¥${Math.round(total.gmv).toLocaleString()}・売上 ¥${Math.round(total.sales).toLocaleString()}</span></h3>
     <div class="table-scroll"><table style="width:100%">
     <thead><tr>
-      <th style="width:60%">商品</th>
+      <th style="width:55%">商品</th>
+      <th class="num-col" title="取引額（お客様が払った額）。アフィリ商品も他社の取引額をそのまま出す">GMV</th>
       <th class="num-col">販売数</th>
       <th class="num-col" style="border-left:2px solid var(--border)">売上</th>
       <th class="num-col">粗利</th>
@@ -2927,6 +2930,7 @@ function renderOffBroadcastProducts(extras) {
     </tr></thead>
     <tbody>${rows.map(r => `<tr>
       <td><span class="sku-tag prod-name" style="max-width:none" title="${escapeHtml(r.name)}">${escapeHtml(r.name)}</span>${r.aff ? ' <span style="color:var(--muted);font-size:10px">アフィリ（売上は成果報酬）</span>' : ''}</td>
+      <td class="num-col" style="font-weight:600">${r.gmv > 0 ? '¥' + Math.round(r.gmv).toLocaleString() : '—'}</td>
       <td class="num-col" style="font-weight:600">${r.sold > 0 ? r.sold.toLocaleString() : '—'}</td>
       <td class="num-col ${vc('sales', r.sales)}" style="font-weight:600;border-left:2px solid var(--border)">¥${Math.round(r.sales).toLocaleString()}</td>
       <td class="num-col ${vc('gross', r.profit)}">¥${Math.round(r.profit).toLocaleString()}</td>
@@ -2934,6 +2938,7 @@ function renderOffBroadcastProducts(extras) {
     </tr>`).join('')}
     <tr style="border-top:2px solid var(--border);font-weight:700">
       <td>合計</td>
+      <td class="num-col">¥${Math.round(total.gmv).toLocaleString()}</td>
       <td class="num-col">${total.sold.toLocaleString()}</td>
       <td class="num-col ${vc('sales', total.sales)}" style="border-left:2px solid var(--border)">¥${Math.round(total.sales).toLocaleString()}</td>
       <td class="num-col ${vc('gross', total.profit)}">¥${Math.round(total.profit).toLocaleString()}</td>
