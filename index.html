@@ -490,7 +490,7 @@ td.gold-text { color: var(--gold); }
 <!-- 配信外で売れた商品（商品ページ経由のオーガニック注文＋動画アフィリ・2026-10-24 社長指示） -->
 <div class="prod-summary-card" style="border-color:var(--purple)">
   <h2>🛒 配信外で売れた商品 <span style="font-size:12px;color:var(--muted);font-weight:400">選択期間内・配信の時間外に売れたもの</span></h2>
-  <div class="sub">配信の時間外に売れたものを、動画から買われた分と商品ページから買われた分に分けて出しています。配信回数・CVRには入れず、売上・粗利の合計にだけ足しています。</div>
+  <div class="sub">配信の時間外に売れたものを、動画から・商品ページから・ライブから（配信が終わった後にライブ画面から買われた分）に分けて出しています。配信回数・CVRには入れず、売上・粗利の合計にだけ足しています。</div>
   <div id="offBroadcastBody" style="margin-top:12px"></div>
 </div>
 
@@ -2876,9 +2876,11 @@ function renderOffBroadcastProducts(extras) {
   const GROUPS = [
     { key: 'videos', label: '🎬 動画から', color: 'var(--purple)' },
     { key: 'productCards', label: '🛍 商品ページから', color: 'var(--teal)' },
-    { key: 'other', label: 'その他（配信の時間外のライブ・経路の記録なし）', color: 'var(--muted)' },
+    // TikTok上は「LIVE」経由だが配信から6時間を過ぎた注文(配信の後でライブ画面から買われた分)。社内ルールどおり配信外に入れ、経路だけTikTokの記録で出す(2026-10-29 社長指示)
+    { key: 'live', label: '🔴 ライブから（配信の時間外に買われた分）', color: '#fe2c55' },
+    { key: 'other', label: 'その他（経路の記録なし）', color: 'var(--muted)' },
   ];
-  const agg = { videos: {}, productCards: {}, other: {} };
+  const agg = { videos: {}, productCards: {}, live: {}, other: {} };
   // net = 限界利益(2026-10-28)。オーガニックは sync-organic-to-gist.py が商品ごとに入れる netProfit、アフィリは成果報酬そのまま
   // gmv = 取引額(2026-10-29 社長指示で販売数の左に追加)。アフィリも売上(成果報酬)とは別に取引額そのものを出す
   const add = (g, name, sold, sales, profit, aff, net, gmv) => {
@@ -2891,7 +2893,7 @@ function renderOffBroadcastProducts(extras) {
     t[key].profit += profit || 0;
     t[key].net += (net != null ? net : profit) || 0;
   };
-  const groupOf = ch => ch === 'videos' ? 'videos' : ch === 'productCards' ? 'productCards' : 'other';
+  const groupOf = ch => ch === 'videos' ? 'videos' : ch === 'productCards' ? 'productCards' : ch === 'live' ? 'live' : 'other';
   (extras || []).forEach(d => {
     const isVA = d.entryType === 'video-affiliate';
     const prods = Array.isArray(d.products) ? d.products.filter(p => (p.sold || 0) > 0 || (p.gmv || 0) > 0) : [];
