@@ -475,13 +475,20 @@ td.gold-text { color: var(--gold); }
 
 <!-- 限界利益計算の設定は 2026-10-28 社長指示で削除(料率・送料・梱包代はコード側の値を使う) -->
 
+<!-- 全経路合算の商品別売上（2026-10-29 社長指示） -->
+<div class="prod-summary-card" style="border-color:var(--gold)">
+  <h2>📦 商品別売上（ライブ・動画・商品ページの合計）</h2>
+  <div class="sub">選択期間内に売れた商品を、どこで売れたかを合わせて並べています。GMVの大きい順・上位10商品（残りは下のボタンで表示）。商品名にマウスを乗せると販売名の全文が出ます。</div>
+  <div id="allChannelBody" style="margin-top:12px"></div>
+</div>
+
 <!-- 商品別サマリー（期間内の全配信を横断して集計） -->
 <div class="prod-summary-card">
   <h2 style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap">
     🛍 ライブ販売商品別サマリー
     <button class="btn btn-outline btn-sm" onclick="openDefModal()" style="font-weight:600">📖 用語の定義</button>
   </h2>
-  <div class="sub">選択期間内の全配信を横断した商品別集計。配信で売れた商品だけを出しています（販売数0の商品は出しません）。</div>
+  <div class="sub">選択期間内の全配信を横断した商品別集計。配信で売れた商品だけを出しています（販売数0の商品は出しません）。GMVの大きい順・上位5商品（残りは下のボタンで表示）。</div>
   <div id="productSummaryBody"></div>
 </div>
 
@@ -490,7 +497,7 @@ td.gold-text { color: var(--gold); }
 <!-- 配信外で売れた商品（商品ページ経由のオーガニック注文＋動画アフィリ・2026-10-24 社長指示） -->
 <div class="prod-summary-card" style="border-color:var(--purple)">
   <h2>🛒 配信外で売れた商品 <span style="font-size:12px;color:var(--muted);font-weight:400">選択期間内・配信の時間外に売れたもの</span></h2>
-  <div class="sub">配信の時間外に売れたものを、動画から・商品ページから・ライブから（配信が終わった後にライブ画面から買われた分）に分けて出しています。配信回数・CVRには入れず、売上・粗利の合計にだけ足しています。</div>
+  <div class="sub">配信の時間外に売れたものを、動画から・商品ページから・ライブから（配信が終わった後にライブ画面から買われた分）に分けて出しています。配信回数・CVRには入れず、売上・粗利の合計にだけ足しています。それぞれGMVの大きい順・上位3商品（残りは下のボタンで表示）。</div>
   <div id="offBroadcastBody" style="margin-top:12px"></div>
 </div>
 
@@ -1847,9 +1854,14 @@ function renderAll() {
   renderKPI(sorted);
   renderAccountKR1(sorted);
   renderCharts(sorted);
-  renderProductSummary(sorted);
+  // 商品別の表3つ(全経路合算・ライブ・配信外)は同じ集計から出し、全体の割合の分母をそろえる(2026-10-29)
+  const liveProd = aggregateLiveProducts(sorted);
+  const offProd = aggregateOffBroadcast(extras);
+  const grandProdGmv = liveProd.rows.reduce((s, r) => s + r.gmv, 0) + OFF_GROUPS.reduce((s, g) => s + offProd[g.key].reduce((x, r) => x + r.gmv, 0), 0);
+  renderAllChannelProducts(liveProd, offProd, grandProdGmv);
+  renderProductSummary(liveProd, grandProdGmv);
   renderEntryCohorts();
-  renderOffBroadcastProducts(extras);
+  renderOffBroadcastProducts(offProd, grandProdGmv);
   renderTable(sorted);
   renderSalesSelect();
   const total = getAllData().filter(d => !d.nonBroadcast).length;
@@ -2564,9 +2576,71 @@ function renderProductDetailBlock(d) {
 // ============================================================
 // PRODUCT SUMMARY (期間内全配信を横断した商品別集計)
 // ============================================================
-function renderProductSummary(sorted) {
-  const body = document.getElementById('productSummaryBody');
-  if (!body) return;
+// ============================================================
+// 商品名を短く出す(2026-10-29 社長指示「商品名全体出ててわかりにくい」)
+// 宣伝の【】・＼／・検索語の羅列を落として頭の数語だけ出す。全文はマウスを乗せると出る(title)
+// ============================================================
+const PROMO_RE = /送料無料|送料込|OFF|ＯＦＦ|[%％]|クーポン|セール|SALE|限定|開催|お得|お買得|最短|翌日|ランキング|受賞|衝撃|まとめ買い|大歓迎|ひゃくポチ|公式/i;
+function shortProductName(name, minLen) {
+  const full = String(name || '');
+  let s = full.replace(/＼[^／]*／/g, ' ');
+  // 先頭の注意書き(「複数ご購入の場合は…。」)を落とす
+  const dot = s.indexOf('。');
+  if (dot >= 0 && dot < 40) s = s.slice(dot + 1);
+  // 宣伝の【】(OFF・送料無料・！付きのキャッチコピーなど)を落とす。【R8年新米】【無洗米】のような中身の印は残す
+  s = s.replace(/【([^】]*)】/g, (m, inner) => (PROMO_RE.test(inner) || /[！!]/.test(inner)) ? ' ' : m);
+  const tokens = s.split(/[\s　]+/).filter(t => t && !PROMO_RE.test(t));
+  const want = minLen || 14;
+  let out = '';
+  for (const t of tokens) {
+    if (out && out.length >= want) break;
+    out += (out ? ' ' : '') + t;
+  }
+  if (!out) out = full;
+  const cap = Math.max(want + 12, 28);
+  return out.length > cap ? out.slice(0, cap) + '…' : out;
+}
+// 同じ表の中で短い名前がかぶったら、かぶった商品だけ語を足して見分けがつくまで伸ばす(リンドール3種など)
+function shortNameMap(names) {
+  const map = new Map();
+  let pending = [...new Set(names)];
+  for (let len = 14; pending.length && len <= 86; len += 8) {
+    const fixed = new Set(map.values());
+    const cand = pending.map(n => [n, shortProductName(n, len)]);
+    const count = {};
+    cand.forEach(([, v]) => { count[v] = (count[v] || 0) + 1; });
+    pending = [];
+    cand.forEach(([n, v]) => { if (count[v] > 1 || fixed.has(v)) pending.push(n); else map.set(n, v); });
+  }
+  pending.forEach(n => map.set(n, String(n)));
+  return map;
+}
+function prodNameHtml(full, short) {
+  return `<span class="sku-tag prod-name" title="${escapeHtml(full)}">${escapeHtml(short)}</span>`;
+}
+// 上位N件だけ出して残りはたたむ(2026-10-29 社長指示: ライブTOP5・動画/商品ページTOP3)
+let foldSeq = 0;
+function foldRowsHtml(rowHtmls, topN, colspan) {
+  if (rowHtmls.length <= topN) return rowHtmls.join('');
+  const id = 'fold' + (++foldSeq);
+  const label = `残り${rowHtmls.length - topN}商品を表示`;
+  return rowHtmls.slice(0, topN).join('')
+    + rowHtmls.slice(topN).map(h => h.trim().replace(/^<tr/, `<tr data-fold="${id}" style="display:none"`)).join('')
+    + `<tr><td colspan="${colspan}" style="text-align:center;padding:6px"><button class="btn btn-outline btn-sm" data-label="${label}" onclick="toggleFold('${id}', this)">${label}</button></td></tr>`;
+}
+function toggleFold(id, btn) {
+  const rows = document.querySelectorAll(`tr[data-fold="${id}"]`);
+  const open = rows.length > 0 && rows[0].style.display === 'none';
+  rows.forEach(r => { r.style.display = open ? '' : 'none'; });
+  btn.textContent = open ? 'たたむ' : btn.dataset.label;
+}
+// 全体の割合 = ライブ・動画・商品ページを合わせた全商品のGMVに占める割合(目標と同じGMVで見る)
+function shareText(v, grand) { return grand > 0 ? (v / grand * 100).toFixed(1) + '%' : '—'; }
+function shareTh(grand) {
+  return `<th class="num-col" title="ライブ・動画・商品ページを合わせた全商品のGMV ¥${Math.round(grand).toLocaleString()} に占める割合">全体の割合</th>`;
+}
+
+function aggregateLiveProducts(sorted) {
   // 配信別の表と同じ数字で商品ごとに集計する(productFigures)。同じ商品ページは TikTok商品ID でまとめ、
   // 表示名は一番新しい配信の名前を使う(販売名を変えても1商品が2行に割れないように・2026-10-19)
   const agg = {};
@@ -2595,6 +2669,13 @@ function renderProductSummary(sorted) {
   });
   // 販売数0の商品は出さない(2026-10-28 社長指示)
   const rows = Object.values(agg).filter(r => r.sold > 0).sort((a, b) => b.gmv - a.gmv || b.sales - a.sales);
+  return { rows, pendingCount };
+}
+
+function renderProductSummary(live, grand) {
+  const body = document.getElementById('productSummaryBody');
+  if (!body) return;
+  const rows = live.rows, pendingCount = live.pendingCount;
   if (rows.length === 0) {
     body.innerHTML = '<div class="empty">この期間に配信で売れた商品はありません。</div>';
     return;
@@ -2603,31 +2684,33 @@ function renderProductSummary(sorted) {
   const sumImp = sum('impressions'), sumSold = sum('sold');
   const totalCvr = sumImp > 0 ? (sumSold / sumImp * 100) : 0;
   const yen = v => '¥' + Math.round(v || 0).toLocaleString();
+  const names = shortNameMap(rows.filter(r => r.masterKey).map(r => r.masterKey));
   let html = `<table>
     <thead>
       <tr>
-        <th>商品 (masterKey)</th>
+        <th>商品</th>
         <th>種別</th>
         <th class="num-col">登場配信数</th>
         <th class="num-col">Imp合計</th>
         <th class="num-col">販売数</th>
         <th class="num-col">CVR <span style="color:var(--muted);cursor:help" title="販売数 ÷ 商品インプレッション数。1回表示されて何割が購入したか。値を算出できないものは — (分母0)">ⓘ</span></th>
         <th class="num-col" title="Live Center の商品ごとのGMV(配信別の表の実GMVと同じ)">GMV</th>
+        ${shareTh(grand)}
         <th class="num-col" style="border-left:2px solid var(--border)" title="会計の売上。配信別の表の売上と同じ数え方(アフィリは成果報酬だけ)">売上</th>
         <th class="num-col">粗利</th>
         <th class="num-col" title="粗利 − TikTok手数料 − 送料・梱包代。配信ごとの費用を自社商品の売上比で割り振って引いている。アフィリ商品は成果報酬がそのまま限界利益">限界利益</th>
       </tr>
     </thead>
     <tbody>`;
-  rows.forEach(r => {
+  const rowHtmls = rows.map(r => {
     const nameHtml = r.masterKey
-      ? `<span class="sku-tag prod-name" title="${escapeHtml(r.masterKey)}">${escapeHtml(r.masterKey)}</span>`
-      : `<span class="sku-tag missing">⚠ 未登録</span> <span style="color:var(--muted);font-size:11px">${escapeHtml(r.sampleName.slice(0, 40))}...</span>`;
+      ? prodNameHtml(r.masterKey, names.get(r.masterKey))
+      : `<span class="sku-tag missing">⚠ 未登録</span> <span style="color:var(--muted);font-size:11px" title="${escapeHtml(r.sampleName)}">${escapeHtml(shortProductName(r.sampleName))}</span>`;
     const badgeHtml = r.masterKey ? sourceBadge(r.masterKey, r.isAffiliate) : '<span style="color:var(--muted);font-size:11px">—</span>';
     const cvr = r.impressions > 0 ? (r.sold / r.impressions * 100) : null;
     const cvrText = cvr === null ? '—' : cvr.toFixed(2) + '%';
     const cvrColor = cvr === null ? 'var(--muted)' : cvr >= 1 ? 'var(--teal)' : cvr >= 0.1 ? 'var(--text)' : 'var(--muted)';
-    html += `<tr>
+    return `<tr>
       <td>${nameHtml}</td>
       <td>${badgeHtml}</td>
       <td class="num-col">${r.broadcasts}</td>
@@ -2635,11 +2718,13 @@ function renderProductSummary(sorted) {
       <td class="num-col">${r.sold.toLocaleString()}</td>
       <td class="num-col" style="color:${cvrColor};font-weight:600">${cvrText}</td>
       <td class="num-col ${vc('gmv', r.gmv)}">${yen(r.gmv)}</td>
+      <td class="num-col" style="font-weight:600">${shareText(r.gmv, grand)}</td>
       <td class="num-col ${vc('sales', r.sales)}" style="border-left:2px solid var(--border)">${yen(r.sales)}</td>
       <td class="num-col ${vc('gross', r.profit)}">${r.missing ? '—' : yen(r.profit)}</td>
       <td class="num-col ${vc('net', r.net)}">${r.missing ? '—' : yen(r.net)}</td>
     </tr>`;
   });
+  html += foldRowsHtml(rowHtmls, 5, 11);
   const ownCount = rows.filter(r => r.masterKey && !r.isAffiliate).length;
   const affCount = rows.filter(r => r.isAffiliate).length;
   html += `<tr style="border-top:2px solid var(--accent);background:var(--s2)">
@@ -2650,6 +2735,7 @@ function renderProductSummary(sorted) {
       <td class="num-col" style="font-weight:700">${sumSold.toLocaleString()}</td>
       <td class="num-col" style="font-weight:700;color:var(--teal)">${sumImp > 0 ? totalCvr.toFixed(2) + '%' : '—'}</td>
       <td class="num-col ${vc('gmv', sum('gmv'))}" style="font-weight:700">${yen(sum('gmv'))}</td>
+      <td class="num-col" style="font-weight:700">${shareText(sum('gmv'), grand)}</td>
       <td class="num-col ${vc('sales', sum('sales'))}" style="font-weight:700;border-left:2px solid var(--border)">${yen(sum('sales'))}${pendingCount ? `<div style="color:var(--muted);font-weight:400;font-size:10px">未確定${pendingCount}回を除く</div>` : ''}</td>
       <td class="num-col ${vc('gross', sum('profit'))}" style="font-weight:700">${yen(sum('profit'))}</td>
       <td class="num-col ${vc('net', sum('net'))}" style="font-weight:700">${yen(sum('net'))}</td>
@@ -2868,18 +2954,16 @@ function renderEntryCohorts() {
 // 配信外で売れた商品 (nonBroadcast エントリの products を期間内で横断集計)
 // オーガニック = scripts/sync-organic-to-gist.py が商品別内訳を入れる / 動画アフィリ = products が無ければ memo を商品名にする
 // ============================================================
-function renderOffBroadcastProducts(extras) {
-  const body = document.getElementById('offBroadcastBody');
-  if (!body) return;
-  // 動画／商品ページで分けて出す(2026-10-28 社長指示)。オーガニックは商品ごとの byChannel(sync-organic-to-gist.py)を使う。
-  // 売上は会計の売上: 動画アフィリは成果報酬(totalProfit)だけを売上に数える
-  const GROUPS = [
-    { key: 'videos', label: '🎬 動画から', color: 'var(--purple)' },
-    { key: 'productCards', label: '🛍 商品ページから', color: 'var(--teal)' },
-    // TikTok上は「LIVE」経由だが配信から6時間を過ぎた注文(配信の後でライブ画面から買われた分)。社内ルールどおり配信外に入れ、経路だけTikTokの記録で出す(2026-10-29 社長指示)
-    { key: 'live', label: '🔴 ライブから（配信の時間外に買われた分）', color: '#fe2c55' },
-    { key: 'other', label: 'その他（経路の記録なし）', color: 'var(--muted)' },
-  ];
+// 動画／商品ページで分けて出す(2026-10-28 社長指示)。オーガニックは商品ごとの byChannel(sync-organic-to-gist.py)を使う。
+// 売上は会計の売上: 動画アフィリは成果報酬(totalProfit)だけを売上に数える
+const OFF_GROUPS = [
+  { key: 'videos', label: '🎬 動画から', color: 'var(--purple)' },
+  { key: 'productCards', label: '🛍 商品ページから', color: 'var(--teal)' },
+  // TikTok上は「LIVE」経由だが配信から6時間を過ぎた注文(配信の後でライブ画面から買われた分)。社内ルールどおり配信外に入れ、経路だけTikTokの記録で出す(2026-10-29 社長指示)
+  { key: 'live', label: '🔴 ライブから（配信の時間外に買われた分）', color: '#fe2c55' },
+  { key: 'other', label: 'その他（経路の記録なし）', color: 'var(--muted)' },
+];
+function aggregateOffBroadcast(extras) {
   const agg = { videos: {}, productCards: {}, live: {}, other: {} };
   // net = 限界利益(2026-10-28)。オーガニックは sync-organic-to-gist.py が商品ごとに入れる netProfit、アフィリは成果報酬そのまま
   // gmv = 取引額(2026-10-29 社長指示で販売数の左に追加)。アフィリも売上(成果報酬)とは別に取引額そのものを出す
@@ -2916,39 +3000,120 @@ function renderOffBroadcastProducts(extras) {
       add('other', name, 0, d.sales, d.profit, false, d.netProfit, d.gmv != null ? d.gmv : d.sales);
     }
   });
-  const sections = GROUPS.map(g => {
-    const rows = Object.values(agg[g.key]).filter(r => r.sold > 0 || r.sales > 0).sort((a, b) => b.sales - a.sales || b.sold - a.sold);
+  // 並びはGMVの大きい順(目標をGMVで追うため・2026-10-29)
+  const out = {};
+  OFF_GROUPS.forEach(g => {
+    out[g.key] = Object.values(agg[g.key]).filter(r => r.sold > 0 || r.sales > 0).sort((a, b) => b.gmv - a.gmv || b.sales - a.sales || b.sold - a.sold);
+  });
+  return out;
+}
+
+function renderOffBroadcastProducts(off, grand) {
+  const body = document.getElementById('offBroadcastBody');
+  if (!body) return;
+  const yen = v => '¥' + Math.round(v || 0).toLocaleString();
+  const sections = OFF_GROUPS.map(g => {
+    const rows = off[g.key];
     if (rows.length === 0) return '';
     const total = rows.reduce((s, r) => ({ gmv: s.gmv + r.gmv, sold: s.sold + r.sold, sales: s.sales + r.sales, profit: s.profit + r.profit, net: s.net + r.net }), { gmv: 0, sold: 0, sales: 0, profit: 0, net: 0 });
-    return `<h3 style="font-size:14px;margin:18px 0 8px;color:${g.color}">${g.label} <span style="font-size:12px;color:var(--muted);font-weight:400">${rows.length}商品・GMV ¥${Math.round(total.gmv).toLocaleString()}・売上 ¥${Math.round(total.sales).toLocaleString()}</span></h3>
+    const names = shortNameMap(rows.map(r => r.name));
+    const rowHtmls = rows.map(r => `<tr>
+      <td>${prodNameHtml(r.name, names.get(r.name))}${r.aff ? ' <span style="color:var(--muted);font-size:10px">アフィリ（売上は成果報酬）</span>' : ''}</td>
+      <td class="num-col" style="font-weight:600">${r.gmv > 0 ? yen(r.gmv) : '—'}</td>
+      <td class="num-col" style="font-weight:600">${shareText(r.gmv, grand)}</td>
+      <td class="num-col" style="font-weight:600">${r.sold > 0 ? r.sold.toLocaleString() : '—'}</td>
+      <td class="num-col ${vc('sales', r.sales)}" style="font-weight:600;border-left:2px solid var(--border)">${yen(r.sales)}</td>
+      <td class="num-col ${vc('gross', r.profit)}">${yen(r.profit)}</td>
+      <td class="num-col ${vc('net', r.net)}">${yen(r.net)}</td>
+    </tr>`);
+    return `<h3 style="font-size:14px;margin:18px 0 8px;color:${g.color}">${g.label} <span style="font-size:12px;color:var(--muted);font-weight:400">${rows.length}商品・GMV ${yen(total.gmv)}（全体の${shareText(total.gmv, grand)}）・売上 ${yen(total.sales)}</span></h3>
     <div class="table-scroll"><table style="width:100%">
     <thead><tr>
-      <th style="width:55%">商品</th>
+      <th style="width:45%">商品</th>
       <th class="num-col" title="取引額（お客様が払った額）。アフィリ商品も他社の取引額をそのまま出す">GMV</th>
+      ${shareTh(grand)}
       <th class="num-col">販売数</th>
       <th class="num-col" style="border-left:2px solid var(--border)">売上</th>
       <th class="num-col">粗利</th>
       <th class="num-col" title="粗利 − TikTok手数料 − 送料・梱包代（送料・梱包代は自社発送の商品に売上比で割り振り）。アフィリ商品は成果報酬がそのまま限界利益">限界利益</th>
     </tr></thead>
-    <tbody>${rows.map(r => `<tr>
-      <td><span class="sku-tag prod-name" style="max-width:none" title="${escapeHtml(r.name)}">${escapeHtml(r.name)}</span>${r.aff ? ' <span style="color:var(--muted);font-size:10px">アフィリ（売上は成果報酬）</span>' : ''}</td>
-      <td class="num-col" style="font-weight:600">${r.gmv > 0 ? '¥' + Math.round(r.gmv).toLocaleString() : '—'}</td>
-      <td class="num-col" style="font-weight:600">${r.sold > 0 ? r.sold.toLocaleString() : '—'}</td>
-      <td class="num-col ${vc('sales', r.sales)}" style="font-weight:600;border-left:2px solid var(--border)">¥${Math.round(r.sales).toLocaleString()}</td>
-      <td class="num-col ${vc('gross', r.profit)}">¥${Math.round(r.profit).toLocaleString()}</td>
-      <td class="num-col ${vc('net', r.net)}">¥${Math.round(r.net).toLocaleString()}</td>
-    </tr>`).join('')}
+    <tbody>${foldRowsHtml(rowHtmls, 3, 7)}
     <tr style="border-top:2px solid var(--border);font-weight:700">
       <td>合計</td>
-      <td class="num-col">¥${Math.round(total.gmv).toLocaleString()}</td>
+      <td class="num-col">${yen(total.gmv)}</td>
+      <td class="num-col">${shareText(total.gmv, grand)}</td>
       <td class="num-col">${total.sold.toLocaleString()}</td>
-      <td class="num-col ${vc('sales', total.sales)}" style="border-left:2px solid var(--border)">¥${Math.round(total.sales).toLocaleString()}</td>
-      <td class="num-col ${vc('gross', total.profit)}">¥${Math.round(total.profit).toLocaleString()}</td>
-      <td class="num-col ${vc('net', total.net)}">¥${Math.round(total.net).toLocaleString()}</td>
+      <td class="num-col ${vc('sales', total.sales)}" style="border-left:2px solid var(--border)">${yen(total.sales)}</td>
+      <td class="num-col ${vc('gross', total.profit)}">${yen(total.profit)}</td>
+      <td class="num-col ${vc('net', total.net)}">${yen(total.net)}</td>
     </tr></tbody>
   </table></div>`;
   }).join('');
   body.innerHTML = sections || '<div class="empty">この期間に配信外で売れた商品はありません。</div>';
+}
+
+// 全経路を合わせた商品別売上(2026-10-29 社長指示「全部合算で商品別売上もわかるように」)
+// ライブ = 配信中の分＋配信の時間外にライブ画面から買われた分(上の「売上はどこから」と同じ分け方)
+function renderAllChannelProducts(live, off, grand) {
+  const body = document.getElementById('allChannelBody');
+  if (!body) return;
+  const m = {};
+  const get = (name, aff) => {
+    const k = name + (aff ? '|aff' : '');
+    return m[k] || (m[k] = { name, aff, ch: { live: 0, videos: 0, productCards: 0, other: 0 }, gmv: 0, sold: 0, sales: 0, profit: 0, net: 0, missing: false });
+  };
+  const put = (a, ch, r) => { a.ch[ch] += r.gmv; a.gmv += r.gmv; a.sold += r.sold; a.sales += r.sales; a.profit += r.profit; a.net += r.net; };
+  live.rows.forEach(r => {
+    const a = get(r.masterKey || r.sampleName, r.isAffiliate);
+    put(a, 'live', r);
+    if (r.missing) a.missing = true;
+  });
+  OFF_GROUPS.forEach(g => off[g.key].forEach(r => put(get(r.name, r.aff), g.key, r)));
+  const rows = Object.values(m).sort((a, b) => b.gmv - a.gmv || b.sales - a.sales);
+  if (rows.length === 0) {
+    body.innerHTML = '<div class="empty">この期間に売れた商品はありません。</div>';
+    return;
+  }
+  const hasOther = rows.some(r => r.ch.other > 0);
+  const cols = [['live', 'ライブ'], ['videos', '動画'], ['productCards', '商品ページ']].concat(hasOther ? [['other', '経路の記録なし']] : []);
+  const yen = v => '¥' + Math.round(v || 0).toLocaleString();
+  const chCell = v => `<td class="num-col" style="color:${v > 0 ? 'var(--text)' : 'var(--muted)'}">${v > 0 ? yen(v) : '—'}</td>`;
+  const names = shortNameMap(rows.map(r => r.name));
+  const rowHtmls = rows.map(r => `<tr>
+      <td>${prodNameHtml(r.name, names.get(r.name))}${r.aff ? ' <span style="color:var(--muted);font-size:10px">アフィリ</span>' : ''}</td>
+      ${cols.map(([k]) => chCell(r.ch[k])).join('')}
+      <td class="num-col ${vc('gmv', r.gmv)}" style="font-weight:700;border-left:2px solid var(--border)">${yen(r.gmv)}</td>
+      <td class="num-col" style="font-weight:700">${shareText(r.gmv, grand)}</td>
+      <td class="num-col">${r.sold.toLocaleString()}</td>
+      <td class="num-col ${vc('sales', r.sales)}" style="border-left:2px solid var(--border)">${yen(r.sales)}</td>
+      <td class="num-col ${vc('gross', r.profit)}">${r.missing ? '—' : yen(r.profit)}</td>
+      <td class="num-col ${vc('net', r.net)}">${r.missing ? '—' : yen(r.net)}</td>
+    </tr>`);
+  const tot = k => rows.reduce((s, r) => s + r[k], 0);
+  const totCh = k => rows.reduce((s, r) => s + r.ch[k], 0);
+  body.innerHTML = `<div class="table-scroll"><table style="width:100%">
+    <thead><tr>
+      <th>商品</th>
+      ${cols.map(([, label]) => `<th class="num-col" title="${label}で売れたGMV">${label}</th>`).join('')}
+      <th class="num-col" style="border-left:2px solid var(--border)">GMV合計</th>
+      ${shareTh(grand)}
+      <th class="num-col">販売数</th>
+      <th class="num-col" style="border-left:2px solid var(--border)" title="会計の売上(アフィリは成果報酬だけ)">売上</th>
+      <th class="num-col">粗利</th>
+      <th class="num-col" title="粗利 − TikTok手数料 − 送料・梱包代。アフィリ商品は成果報酬がそのまま限界利益">限界利益</th>
+    </tr></thead>
+    <tbody>${foldRowsHtml(rowHtmls, 10, cols.length + 7)}
+    <tr style="border-top:2px solid var(--accent);background:var(--s2);font-weight:700">
+      <td>合計 (${rows.length}商品)</td>
+      ${cols.map(([k]) => `<td class="num-col">${yen(totCh(k))}<div style="color:var(--muted);font-weight:400;font-size:10px">${shareText(totCh(k), grand)}</div></td>`).join('')}
+      <td class="num-col" style="border-left:2px solid var(--border)">${yen(tot('gmv'))}</td>
+      <td class="num-col">${shareText(tot('gmv'), grand)}</td>
+      <td class="num-col">${tot('sold').toLocaleString()}</td>
+      <td class="num-col ${vc('sales', tot('sales'))}" style="border-left:2px solid var(--border)">${yen(tot('sales'))}</td>
+      <td class="num-col ${vc('gross', tot('profit'))}">${yen(tot('profit'))}</td>
+      <td class="num-col ${vc('net', tot('net'))}">${yen(tot('net'))}</td>
+    </tr></tbody>
+  </table></div>`;
 }
 
 // ============================================================
