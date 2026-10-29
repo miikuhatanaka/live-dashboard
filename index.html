@@ -2640,11 +2640,30 @@ function shareTh(grand) {
   return `<th class="num-col" title="ライブ・動画・商品ページを合わせた全商品のGMV ¥${Math.round(grand).toLocaleString()} に占める割合">全体の割合</th>`;
 }
 
+// 同じ商品ページ(TikTok商品ID)の販売名を、一番新しい配信で使った名前にそろえる(2026-10-29 社長指示「ゆめぴりかが2行に分かれてるのは1つに」)。
+// 「一覧外」の行や配信外の内訳には商品IDが無いので、配信データの 商品ID↔販売名 の対応から引く
+function productAliasMap() {
+  const nameToId = {}, latest = {};
+  getAllData().forEach(d => {
+    if (!Array.isArray(d.products)) return;
+    const t = new Date(String(d.date || '')).getTime() || 0;
+    d.products.forEach(p => {
+      if (!p.tiktokId || !p.masterKey) return;
+      nameToId[p.masterKey] = p.tiktokId;
+      if (!latest[p.tiktokId] || t >= latest[p.tiktokId].t) latest[p.tiktokId] = { name: p.masterKey, t };
+    });
+  });
+  return {
+    idOf: n => nameToId[n],
+    canon: n => { const id = nameToId[n]; return id && latest[id] ? latest[id].name : n; },
+  };
+}
+
 function aggregateLiveProducts(sorted) {
   // 配信別の表と同じ数字で商品ごとに集計する(productFigures)。同じ商品ページは TikTok商品ID でまとめ、
   // 表示名は一番新しい配信の名前を使う(販売名を変えても1商品が2行に割れないように・2026-10-19)
   const agg = {};
-  const dateOf = d => new Date(String(d.date || '')).getTime() || 0;
+  const alias = productAliasMap();
   let pendingCount = 0;
   sorted.forEach(d => {
     if (!Array.isArray(d.products)) return;
@@ -2654,12 +2673,11 @@ function aggregateLiveProducts(sorted) {
     figs.forEach(r => {
       const p = r.p;
       const name = r.name || ('（未登録）' + (p.tiktokName || '').slice(0, 20));
-      const key = (p.tiktokId && r.name) ? ('id:' + p.tiktokId) : name;
-      if (!agg[key]) agg[key] = { key, masterKey: r.name ? name : null, sampleName: p.tiktokName || name, _t: 0,
+      const id = p.tiktokId || (r.name && alias.idOf(r.name));
+      const key = (id && r.name) ? ('id:' + id) : name;
+      if (!agg[key]) agg[key] = { key, masterKey: r.name ? alias.canon(name) : null, sampleName: p.tiktokName || name,
         impressions: 0, sold: 0, gmv: 0, sales: 0, profit: 0, net: 0, broadcasts: 0, missing: false, isAffiliate: r.isAffiliate };
       const a = agg[key];
-      const t = dateOf(d);
-      if (r.name && t >= a._t) { a.masterKey = name; a._t = t; }
       a.impressions += r.impressions; a.sold += r.sold; a.gmv += r.gmv;
       if (!r.salesPending) a.sales += r.sales;
       a.profit += r.profit; a.net += r.net;
@@ -2967,7 +2985,9 @@ function aggregateOffBroadcast(extras) {
   const agg = { videos: {}, productCards: {}, live: {}, other: {} };
   // net = 限界利益(2026-10-28)。オーガニックは sync-organic-to-gist.py が商品ごとに入れる netProfit、アフィリは成果報酬そのまま
   // gmv = 取引額(2026-10-29 社長指示で販売数の左に追加)。アフィリも売上(成果報酬)とは別に取引額そのものを出す
+  const alias = productAliasMap();  // 同じ商品ページの販売名違いを1行にまとめる(2026-10-29)
   const add = (g, name, sold, sales, profit, aff, net, gmv) => {
+    name = alias.canon(name);
     const key = name + (aff ? '|aff' : '');
     const t = agg[g];
     if (!t[key]) t[key] = { name, aff, gmv: 0, sold: 0, sales: 0, profit: 0, net: 0 };
